@@ -1,5 +1,6 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server (MongoDB + Async)
+// FDQH - FosunDx Quality Hub Server v1.1
+// MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
 const cors = require('cors');
@@ -20,43 +21,107 @@ const db = require('./database/init');
 // AI Service
 const aiService = require('./ai');
 
-// ---- Simple Session (in-memory) ----
+// ============================================================
+// Session + Rate Limiting
+// ============================================================
 const sessions = {};
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const loginAttempts = {}; // { ip: { count, firstAttempt } }
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW = 5 * 60 * 1000; // 5 minutes
+
+// Clean expired sessions every hour
+setInterval(function() {
+  var now = Date.now();
+  for (var key in sessions) {
+    if (sessions[key].expiresAt < now) delete sessions[key];
+  }
+}, 3600000);
 
 function requireAuth(req, res, next) {
-  const token = req.headers['authorization']?.replace('Bearer ', '');
+  var token = req.headers['authorization']?.replace('Bearer ', '');
   if (!token || !sessions[token]) return res.status(401).json({ error: 'Unauthorized' });
-  req.user = sessions[token];
+  if (sessions[token].expiresAt < Date.now()) {
+    delete sessions[token];
+    return res.status(401).json({ error: 'Session expired' });
+  }
+  req.user = sessions[token].user;
+  req.token = token;
   next();
 }
 
-// Helper: wrap route handler with error catching
+// Async route wrapper
 function asyncHandler(fn) {
   return function(req, res, next) {
     Promise.resolve(fn(req, res, next)).catch(function(err) {
       console.error('Route error:', err.message);
-      res.status(500).json({ error: 'Internal server error: ' + err.message });
+      res.status(500).json({ error: 'Internal server error' });
     });
   };
+}
+
+// ============================================================
+// VALIDATION HELPERS
+// ============================================================
+var VALID_EVENT_TYPES = ['Deviation', 'OOS', 'Complaint', 'CAPA', 'Other'];
+var VALID_RISK_LEVELS = ['Low', 'Medium', 'High', 'Critical'];
+var VALID_CHANGE_TYPES = ['工艺变更', '设备变更', '物料变更', '文件变更'];
+var VALID_CAPA_STATUSES = ['Open', 'In Progress', 'Closed'];
+var VALID_EVENT_STATUSES = ['Open', 'In Investigation', 'Root Cause Analysis', 'CAPA Created', 'Closed', 'Closed - No Action'];
+
+function requireFields(body, fields) {
+  for (var i = 0; i < fields.length; i++) {
+    if (!body[fields[i]]) throw new Error('缺少必填字段: ' + fields[i]);
+  }
+}
+
+function whitelistFields(body, allowed) {
+  var result = {};
+  for (var i = 0; i < allowed.length; i++) {
+    if (body[allowed[i]] !== undefined) result[allowed[i]] = body[allowed[i]];
+  }
+  return result;
 }
 
 // ============================================================
 // AUTH ROUTES
 // ============================================================
 app.post('/api/auth/login', asyncHandler(async (req, res) => {
-  const { username, password } = req.body;
-  const users = await db.findAll('users');
-  const user = users.find(u => u.username === username);
+  var ip = req.ip || req.connection.remoteAddress || 'unknown';
+  var now = Date.now();
+
+  // Rate limiting
+  if (!loginAttempts[ip] || now - loginAttempts[ip].firstAttempt > LOGIN_WINDOW) {
+    loginAttempts[ip] = { count: 1, firstAttempt: now };
+  } else {
+    loginAttempts[ip].count++;
+  }
+  if (loginAttempts[ip].count > MAX_LOGIN_ATTEMPTS) {
+    return res.status(429).json({ error: '登录尝试次数过多，请5分钟后再试' });
+  }
+
+  var { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+
+  var users = await db.findAll('users');
+  var user = users.find(function(u) { return u.username === username; });
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: '用户名或密码错误' });
   }
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions[token] = { id: user.id, username: user.username, name: user.name, role: user.role, base: user.base, dept: user.dept };
+
+  // Reset rate limit on success
+  delete loginAttempts[ip];
+
+  var token = crypto.randomBytes(32).toString('hex');
+  sessions[token] = {
+    user: { id: user.id, username: user.username, name: user.name, role: user.role, base: user.base, dept: user.dept },
+    expiresAt: now + SESSION_TTL,
+  };
   res.json({ token, user: { id: user.id, username: user.username, name: user.name, role: user.role, base: user.base } });
 }));
 
 app.post('/api/auth/logout', (req, res) => {
-  const token = req.headers['authorization']?.replace('Bearer ', '');
+  var token = req.headers['authorization']?.replace('Bearer ', '');
   delete sessions[token];
   res.json({ success: true });
 });
@@ -69,88 +134,146 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // QUALITY EVENTS
 // ============================================================
 app.get('/api/events', requireAuth, asyncHandler(async (req, res) => {
-  const { status, risk_level, event_type, search } = req.query;
-  let events = await db.findAll('quality_events');
-  if (status) events = events.filter(e => e.status === status);
-  if (risk_level) events = events.filter(e => e.risk_level === risk_level);
-  if (event_type) events = events.filter(e => e.event_type === event_type);
-  if (search) events = events.filter(e => (e.description || '').includes(search) || e.id?.includes(search) || (e.batch_no || '').includes(search));
-  events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(events);
+  var { status, risk_level, event_type, search, page, limit, sort, order } = req.query;
+  var events = await db.findAll('quality_events');
+  if (status) events = events.filter(function(e) { return e.status === status; });
+  if (risk_level) events = events.filter(function(e) { return e.risk_level === risk_level; });
+  if (event_type) events = events.filter(function(e) { return e.event_type === event_type; });
+  if (search) events = events.filter(function(e) { return (e.description || '').includes(search) || (e.id || '').includes(search) || (e.batch_no || '').includes(search); });
+
+  // Sort
+  var sortField = sort || 'created_at';
+  var sortOrder = order === 'asc' ? 1 : -1;
+  events.sort(function(a, b) {
+    var av = a[sortField], bv = b[sortField];
+    if (!av && !bv) return 0;
+    if (!av) return 1;
+    if (!bv) return -1;
+    return sortOrder * (av < bv ? -1 : av > bv ? 1 : 0);
+  });
+
+  // Pagination
+  var pageNum = parseInt(page) || 1;
+  var pageSize = parseInt(limit) || 50;
+  var total = events.length;
+  var start = (pageNum - 1) * pageSize;
+  var paged = events.slice(start, start + pageSize);
+
+  res.json({ data: paged, total: total, page: pageNum, pageSize: pageSize, totalPages: Math.ceil(total / pageSize) });
 }));
 
 app.get('/api/events/:id', requireAuth, asyncHandler(async (req, res) => {
-  const event = await db.findById('quality_events', req.params.id);
+  var event = await db.findById('quality_events', req.params.id);
   if (!event) return res.status(404).json({ error: 'Not found' });
-  const auditLogs = await db.getAuditLogs('quality_events', req.params.id);
+  var auditLogs = await db.getAuditLogs('quality_events', req.params.id);
   res.json({ event, auditLogs });
 }));
 
 app.post('/api/events', requireAuth, asyncHandler(async (req, res) => {
-  const event = await db.insert('quality_events', {
-    ...req.body,
-    reported_by: req.user.username,
-    status: 'Open',
-  });
+  requireFields(req.body, ['event_type', 'risk_level', 'description']);
+  if (!VALID_EVENT_TYPES.includes(req.body.event_type)) return res.status(400).json({ error: '无效的事件类型' });
+  if (!VALID_RISK_LEVELS.includes(req.body.risk_level)) return res.status(400).json({ error: '无效的风险等级' });
+
+  var data = whitelistFields(req.body, ['event_type', 'risk_level', 'product_id', 'product_name', 'batch_no', 'description']);
+  data.reported_by = req.user.username;
+  data.status = 'Open';
+
+  var event = await db.insert('quality_events', data, req.user.username);
   res.status(201).json(event);
 }));
 
 app.put('/api/events/:id', requireAuth, asyncHandler(async (req, res) => {
-  const validTransitions = {
+  var validTransitions = {
     'Open': ['In Investigation', 'Closed - No Action'],
     'In Investigation': ['Root Cause Analysis', 'Closed'],
     'Root Cause Analysis': ['CAPA Created', 'Closed'],
     'CAPA Created': ['Closed'],
   };
-  const event = await db.findById('quality_events', req.params.id);
+  var event = await db.findById('quality_events', req.params.id);
   if (!event) return res.status(404).json({ error: 'Not found' });
-  if (req.body.status && validTransitions[event.status] && !validTransitions[event.status].includes(req.body.status)) {
-    return res.status(400).json({ error: `Invalid status transition: ${event.status} -> ${req.body.status}` });
+
+  if (req.body.status) {
+    if (!VALID_EVENT_STATUSES.includes(req.body.status)) return res.status(400).json({ error: '无效的状态值' });
+    if (validTransitions[event.status] && !validTransitions[event.status].includes(req.body.status)) {
+      return res.status(400).json({ error: '无效的状态流转: ' + event.status + ' -> ' + req.body.status });
+    }
   }
-  const updated = await db.update('quality_events', req.params.id, req.body);
+
+  var allowed = ['event_type', 'risk_level', 'product_id', 'product_name', 'batch_no', 'description', 'status'];
+  var data = whitelistFields(req.body, allowed);
+  if (data.event_type && !VALID_EVENT_TYPES.includes(data.event_type)) return res.status(400).json({ error: '无效的事件类型' });
+  if (data.risk_level && !VALID_RISK_LEVELS.includes(data.risk_level)) return res.status(400).json({ error: '无效的风险等级' });
+
+  var updated = await db.update('quality_events', req.params.id, data, req.user.username);
   res.json(updated);
+}));
+
+app.delete('/api/events/:id', requireAuth, asyncHandler(async (req, res) => {
+  await db.delete('quality_events', req.params.id, req.user.username);
+  res.json({ success: true });
 }));
 
 // ============================================================
 // CAPA
 // ============================================================
 app.get('/api/capa', requireAuth, asyncHandler(async (req, res) => {
-  const { status, assignee, search } = req.query;
-  let capas = await db.findAll('capa_records');
-  if (status) capas = capas.filter(c => c.status === status);
-  if (assignee) capas = capas.filter(c => c.assignee === assignee);
-  if (search) capas = capas.filter(c => (c.title || '').includes(search) || c.id?.includes(search));
-  capas.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(capas);
+  var { status, assignee, search, page, limit } = req.query;
+  var capas = await db.findAll('capa_records');
+  if (status) capas = capas.filter(function(c) { return c.status === status; });
+  if (assignee) capas = capas.filter(function(c) { return c.assignee === assignee; });
+  if (search) capas = capas.filter(function(c) { return (c.title || '').includes(search) || (c.id || '').includes(search); });
+  capas.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+
+  var pageNum = parseInt(page) || 1;
+  var pageSize = parseInt(limit) || 50;
+  var total = capas.length;
+  var start = (pageNum - 1) * pageSize;
+  var paged = capas.slice(start, start + pageSize);
+
+  res.json({ data: paged, total: total, page: pageNum, pageSize: pageSize });
 }));
 
 app.get('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
-  const capa = await db.findById('capa_records', req.params.id);
+  var capa = await db.findById('capa_records', req.params.id);
   if (!capa) return res.status(404).json({ error: 'Not found' });
-  const auditLogs = await db.getAuditLogs('capa_records', req.params.id);
+  var auditLogs = await db.getAuditLogs('capa_records', req.params.id);
   res.json({ capa, auditLogs });
 }));
 
 app.post('/api/capa', requireAuth, asyncHandler(async (req, res) => {
-  const capa = await db.insert('capa_records', { ...req.body, status: 'Open' });
-  if (req.body.event_id) {
-    await db.update('quality_events', req.body.event_id, { status: 'CAPA Created' });
+  requireFields(req.body, ['title', 'action_plan']);
+  var data = whitelistFields(req.body, ['title', 'event_id', 'root_cause', 'action_plan', 'assignee', 'due_date', 'effectiveness']);
+  data.status = 'Open';
+
+  var capa = await db.insert('capa_records', data, req.user.username);
+
+  // Atomically update linked event status
+  if (data.event_id) {
+    var evt = await db.findById('quality_events', data.event_id);
+    if (evt) await db.update('quality_events', data.event_id, { status: 'CAPA Created' }, req.user.username);
   }
   res.status(201).json(capa);
 }));
 
 app.put('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
-  const capa = await db.findById('capa_records', req.params.id);
+  var capa = await db.findById('capa_records', req.params.id);
   if (!capa) return res.status(404).json({ error: 'Not found' });
-  const updated = await db.update('capa_records', req.params.id, req.body);
-  if (req.body.status === 'Closed' && capa.event_id) {
-    await db.update('quality_events', capa.event_id, { status: 'Closed' });
+
+  if (req.body.status && !VALID_CAPA_STATUSES.includes(req.body.status)) return res.status(400).json({ error: '无效的状态值' });
+
+  var allowed = ['title', 'event_id', 'root_cause', 'action_plan', 'assignee', 'due_date', 'effectiveness', 'status'];
+  var data = whitelistFields(req.body, allowed);
+  var updated = await db.update('capa_records', req.params.id, data, req.user.username);
+
+  // Atomically sync event status on CAPA close
+  if (data.status === 'Closed' && capa.event_id) {
+    await db.update('quality_events', capa.event_id, { status: 'Closed' }, req.user.username);
   }
   res.json(updated);
 }));
 
 app.delete('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
-  await db.delete('capa_records', req.params.id);
+  await db.delete('capa_records', req.params.id, req.user.username);
   res.json({ success: true });
 }));
 
@@ -158,20 +281,50 @@ app.delete('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
 // CHANGE CONTROL
 // ============================================================
 app.get('/api/changes', requireAuth, asyncHandler(async (req, res) => {
-  let changes = await db.findAll('change_records');
-  if (req.query.status) changes = changes.filter(c => c.status === req.query.status);
-  changes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(changes);
+  var changes = await db.findAll('change_records');
+  if (req.query.status) changes = changes.filter(function(c) { return c.status === req.query.status; });
+  changes.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+
+  var pageNum = parseInt(req.query.page) || 1;
+  var pageSize = parseInt(req.query.limit) || 50;
+  var total = changes.length;
+  var start = (pageNum - 1) * pageSize;
+  res.json({ data: changes.slice(start, start + pageSize), total: total, page: pageNum, pageSize: pageSize });
+}));
+
+app.get('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
+  var change = await db.findById('change_records', req.params.id);
+  if (!change) return res.status(404).json({ error: 'Not found' });
+  var auditLogs = await db.getAuditLogs('change_records', req.params.id);
+  res.json({ change, auditLogs });
 }));
 
 app.post('/api/changes', requireAuth, asyncHandler(async (req, res) => {
-  const change = await db.insert('change_records', { ...req.body, status: 'Pending Approval' });
+  requireFields(req.body, ['change_type', 'risk', 'impact']);
+  if (!VALID_CHANGE_TYPES.includes(req.body.change_type)) return res.status(400).json({ error: '无效的变更类型' });
+  if (!VALID_RISK_LEVELS.includes(req.body.risk)) return res.status(400).json({ error: '无效的风险等级' });
+
+  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status']);
+  data.status = 'Pending Approval';
+  data.initiator = req.user.username;
+
+  var change = await db.insert('change_records', data, req.user.username);
   res.status(201).json(change);
 }));
 
 app.put('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
-  const updated = await db.update('change_records', req.params.id, req.body);
+  var allowed = ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'status'];
+  var data = whitelistFields(req.body, allowed);
+  if (data.change_type && !VALID_CHANGE_TYPES.includes(data.change_type)) return res.status(400).json({ error: '无效的变更类型' });
+  if (data.risk && !VALID_RISK_LEVELS.includes(data.risk)) return res.status(400).json({ error: '无效的风险等级' });
+
+  var updated = await db.update('change_records', req.params.id, data, req.user.username);
   res.json(updated);
+}));
+
+app.delete('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
+  await db.delete('change_records', req.params.id, req.user.username);
+  res.json({ success: true });
 }));
 
 // ============================================================
@@ -181,16 +334,42 @@ app.get('/api/products', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('products'));
 }));
 
+app.put('/api/products/:id', requireAuth, asyncHandler(async (req, res) => {
+  var allowed = ['product_name', 'platform', 'risk_class', 'lifecycle_status', 'regulatory_status'];
+  var data = whitelistFields(req.body, allowed);
+  var updated = await db.update('products', req.params.id, data, req.user.username);
+  if (!updated) return res.status(404).json({ error: 'Not found' });
+  res.json(updated);
+}));
+
 app.get('/api/suppliers', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('suppliers'));
 }));
 
+app.get('/api/suppliers/:id', requireAuth, asyncHandler(async (req, res) => {
+  var supplier = await db.findById('suppliers', req.params.id);
+  if (!supplier) return res.status(404).json({ error: 'Not found' });
+  res.json(supplier);
+}));
+
 app.post('/api/suppliers', requireAuth, asyncHandler(async (req, res) => {
-  res.status(201).json(await db.insert('suppliers', req.body));
+  requireFields(req.body, ['supplier_name']);
+  var allowed = ['supplier_name', 'category', 'risk_level', 'quality_score', 'certification'];
+  var data = whitelistFields(req.body, allowed);
+  res.status(201).json(await db.insert('suppliers', data, req.user.username));
 }));
 
 app.put('/api/suppliers/:id', requireAuth, asyncHandler(async (req, res) => {
-  res.json(await db.update('suppliers', req.params.id, req.body));
+  var allowed = ['supplier_name', 'category', 'risk_level', 'quality_score', 'certification'];
+  var data = whitelistFields(req.body, allowed);
+  var updated = await db.update('suppliers', req.params.id, data, req.user.username);
+  if (!updated) return res.status(404).json({ error: 'Not found' });
+  res.json(updated);
+}));
+
+app.delete('/api/suppliers/:id', requireAuth, asyncHandler(async (req, res) => {
+  await db.delete('suppliers', req.params.id, req.user.username);
+  res.json({ success: true });
 }));
 
 // ============================================================
@@ -201,16 +380,26 @@ app.get('/api/dashboard/stats', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 app.get('/api/dashboard/recent-events', requireAuth, asyncHandler(async (req, res) => {
-  const events = (await db.findAll('quality_events'))
-    .filter(e => e.status !== 'Closed')
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  var events = (await db.findAll('quality_events'))
+    .filter(function(e) { return e.status !== 'Closed'; })
+    .sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); })
     .slice(0, 10);
   res.json(events);
 }));
 
+app.get('/api/dashboard/recent-activity', requireAuth, asyncHandler(async (req, res) => {
+  var logs = await db.findAll('audit_logs');
+  res.json(logs.slice(-20).reverse());
+}));
+
 app.get('/api/audit-logs', requireAuth, asyncHandler(async (req, res) => {
-  const logs = await db.findAll('audit_logs');
-  res.json(logs.slice(-200).reverse());
+  var pageNum = parseInt(req.query.page) || 1;
+  var pageSize = parseInt(req.query.limit) || 50;
+  var logs = await db.findAll('audit_logs');
+  var sorted = logs.slice().reverse();
+  var total = sorted.length;
+  var start = (pageNum - 1) * pageSize;
+  res.json({ data: sorted.slice(start, start + pageSize), total: total, page: pageNum, pageSize: pageSize });
 }));
 
 // ============================================================
@@ -238,89 +427,82 @@ app.get('/api/ai/status', requireAuth, (req, res) => {
 });
 
 app.post('/api/ai/chat', requireAuth, (req, res) => {
-  const { assistantType, messages, contextData } = req.body;
-  if (!aiService.isAvailable()) {
-    return res.status(503).json({ error: 'AI服务未配置。请设置环境变量 DASHSCOPE_API_KEY 或 DEEPSEEK_API_KEY 后重启服务。', hint: '推荐使用阿里百炼平台: https://bailian.console.aliyun.com' });
-  }
+  var { assistantType, messages, contextData } = req.body;
+  if (!aiService.isAvailable()) return res.status(503).json({ error: 'AI服务未配置' });
   if (!assistantType || !['quality_expert', 'knowledge', 'capa_rca', 'risk_prediction'].includes(assistantType)) {
     return res.status(400).json({ error: '无效的助手类型' });
   }
-  const fullMessages = aiService.buildMessages(assistantType, messages || [], contextData || null);
+  var fullMessages = aiService.buildMessages(assistantType, messages || [], contextData || null);
   aiService.streamChat(assistantType, fullMessages, res);
 });
 
 app.post('/api/ai/chat/simple', requireAuth, asyncHandler(async (req, res) => {
-  const { assistantType, messages, contextData } = req.body;
+  var { assistantType, messages, contextData } = req.body;
   if (!aiService.isAvailable()) return res.status(503).json({ error: 'AI服务未配置' });
-  const fullMessages = aiService.buildMessages(assistantType, messages || [], contextData || null);
-  const response = await aiService.chat(assistantType, fullMessages);
+  var fullMessages = aiService.buildMessages(assistantType, messages || [], contextData || null);
+  var response = await aiService.chat(assistantType, fullMessages);
   res.json({ content: response });
 }));
 
 app.post('/api/ai/analyze-event/:eventId', requireAuth, asyncHandler(async (req, res) => {
-  const event = await db.findById('quality_events', req.params.eventId);
+  var event = await db.findById('quality_events', req.params.eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
+  var capas = (await db.findAll('capa_records')).filter(function(c) { return c.event_id === event.id; });
+  var relatedEvents = (await db.findAll('quality_events')).filter(function(e) { return e.product_id === event.product_id && e.id !== event.id; });
+  var product = event.product_id ? await db.findById('products', event.product_id) : null;
 
-  const capas = (await db.findAll('capa_records')).filter(c => c.event_id === event.id);
-  const relatedEvents = (await db.findAll('quality_events')).filter(e => e.product_id === event.product_id && e.id !== event.id);
-  const product = event.product_id ? await db.findById('products', event.product_id) : null;
-
-  const contextData = {
+  var contextData = {
     event, relatedCAPAs: capas, product,
     relatedEvents: relatedEvents.slice(0, 5),
     analysisContext: {
       totalEventsForProduct: relatedEvents.length,
       existingCAPAsForEvent: capas.length,
-      similarEvents: relatedEvents.map(e => ({ id: e.id, type: e.event_type, status: e.status, desc: e.description?.slice(0, 100) })),
+      similarEvents: relatedEvents.map(function(e) { return { id: e.id, type: e.event_type, status: e.status, desc: e.description?.slice(0, 100) }; }),
     }
   };
 
-  const messages = [
-    { role: 'user', content: `请对以下质量事件进行根因分析和CAPA建议:\n\n事件ID: ${event.id}\n类型: ${event.event_type}\n产品: ${event.product_name || 'N/A'}\n批号: ${event.batch_no || 'N/A'}\n风险等级: ${event.risk_level}\n状态: ${event.status}\n描述: ${event.description}\n\n请提供:\n1. 可能的根因分析\n2. 建议的CAPA计划\n3. 风险评估` }
-  ];
+  var messages = [{
+    role: 'user',
+    content: '请对以下质量事件进行根因分析和CAPA建议:\n\n事件ID: ' + event.id + '\n类型: ' + event.event_type + '\n产品: ' + (event.product_name || 'N/A') + '\n批号: ' + (event.batch_no || 'N/A') + '\n风险等级: ' + event.risk_level + '\n状态: ' + event.status + '\n描述: ' + event.description + '\n\n请提供:\n1. 可能的根因分析\n2. 建议的CAPA计划\n3. 风险评估'
+  }];
 
-  const fullMessages = aiService.buildMessages('capa_rca', messages, contextData);
-  const response = await aiService.chat('capa_rca', fullMessages);
+  var fullMessages = aiService.buildMessages('capa_rca', messages, contextData);
+  var response = await aiService.chat('capa_rca', fullMessages);
   res.json({ content: response, eventId: event.id });
 }));
 
 app.post('/api/ai/risk-predict', requireAuth, asyncHandler(async (req, res) => {
-  const events = await db.findAll('quality_events');
-  const capas = await db.findAll('capa_records');
-  const products = await db.findAll('products');
-  const suppliers = await db.findAll('suppliers');
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var products = await db.findAll('products');
+  var suppliers = await db.findAll('suppliers');
 
-  const contextData = {
+  var contextData = {
     summary: {
       totalEvents: events.length,
-      openEvents: events.filter(e => e.status === 'Open' || e.status === 'In Investigation').length,
-      criticalEvents: events.filter(e => e.risk_level === 'Critical' || e.risk_level === 'High').length,
-      overdueCAPAs: capas.filter(c => c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed').length,
+      openEvents: events.filter(function(e) { return e.status === 'Open' || e.status === 'In Investigation'; }).length,
+      criticalEvents: events.filter(function(e) { return e.risk_level === 'Critical' || e.risk_level === 'High'; }).length,
+      overdueCAPAs: capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; }).length,
     },
-    eventsByProduct: {},
-    eventsByType: {},
+    eventsByProduct: {}, eventsByType: {},
     riskDistribution: { Low: 0, Medium: 0, High: 0, Critical: 0 },
-    monthlyCounts: {},
-    topRiskProducts: [],
+    monthlyCounts: {}, topRiskProducts: [],
   };
 
-  events.forEach(e => {
+  events.forEach(function(e) {
     contextData.riskDistribution[e.risk_level] = (contextData.riskDistribution[e.risk_level] || 0) + 1;
     contextData.eventsByType[e.event_type] = (contextData.eventsByType[e.event_type] || 0) + 1;
     if (e.product_name) contextData.eventsByProduct[e.product_name] = (contextData.eventsByProduct[e.product_name] || 0) + 1;
-    if (e.created_at) {
-      const month = e.created_at.slice(0, 7);
-      contextData.monthlyCounts[month] = (contextData.monthlyCounts[month] || 0) + 1;
-    }
+    if (e.created_at) { var m = e.created_at.slice(0, 7); contextData.monthlyCounts[m] = (contextData.monthlyCounts[m] || 0) + 1; }
   });
 
   contextData.topRiskProducts = Object.entries(contextData.eventsByProduct)
-    .sort((a, b) => b[1] - a[1]).slice(0, 5)
-    .map(([name, count]) => ({ name, count }));
+    .sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5)
+    .map(function(entry) { return { name: entry[0], count: entry[1] }; });
 
-  const messages = [{ role: 'user', content: '请基于当前质量数据进行风险预测分析，识别高风险领域并提供改进建议。' }];
-  const fullMessages = aiService.buildMessages('risk_prediction', messages, contextData);
-  const response = await aiService.chat('risk_prediction', fullMessages);
+  var messages = [{ role: 'user', content: '请基于当前质量数据进行风险预测分析' }];
+  var fullMessages = aiService.buildMessages('risk_prediction', messages, contextData);
+  var response = await aiService.chat('risk_prediction', fullMessages);
   res.json({ content: response, data: contextData });
 }));
 
@@ -331,24 +513,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Initialize database then start server
-db.connect().then(() => {
-  app.listen(PORT, () => {
-    console.log(`
-  ╔══════════════════════════════════════════════╗
-  ║   FosunDx Quality Hub (FDQH) Platform       ║
-  ║   IVD 数字化质量管理平台                      ║
-  ║   Version 1.0.0                              ║
-  ║   http://localhost:${PORT}                      ║
-  ╚══════════════════════════════════════════════╝
-  `);
+db.connect().then(function() {
+  app.listen(PORT, function() {
+    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v1.1                 ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
     console.log('  默认账号: admin / admin123');
-    console.log('  QA经理: qa_manager / qa123');
   });
-}).catch(err => {
-  console.error('Failed to initialize database:', err.message);
-  // Start anyway with fallback
-  app.listen(PORT, () => {
-    console.log(`⚠️  Server started without database on port ${PORT}`);
-  });
+}).catch(function(err) {
+  console.error('Database init error:', err.message);
+  app.listen(PORT, function() { console.log('Server started on ' + PORT + ' (no database)'); });
 });
