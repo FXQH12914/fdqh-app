@@ -1,0 +1,16 @@
+{
+  "name": "fdqh-app",
+  "version": "1.0.0",
+  "description": "FosunDx Quality Hub - IVD Digital Quality Management Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-db": "node database/init.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0",
+    "bcryptjs": "^2.4.3"
+  }
+}
