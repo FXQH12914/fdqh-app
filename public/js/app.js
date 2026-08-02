@@ -903,14 +903,17 @@ async function loadCAPA(filter) {
     var isOverdue = c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed';
     var srcBadge = c.audit_source === '内部审核' ? 'badge-info' : 'badge-warning';
     return '<tr><td style="font-weight:500;font-size:12px;">' + (c.capa_no||c.id) + '</td>' +
-      '<td title="' + (c.description||c.title||'') + '">' + (c.title||'').substring(0,50) + '</td>' +
+      '<td title="' + (c.description||c.title||'') + '">' + (c.title||'').substring(0,45) + '</td>' +
       '<td><span class="badge ' + srcBadge + '" style="font-size:10px;">' + (c.audit_source||'-') + '</span></td>' +
-      '<td>' + (c.audit_dept||'-') + '</td>' +
+      '<td style="font-size:11px;">' + (c.defect_mode||'-') + '</td>' +
+      '<td style="font-size:11px;">' + (c.root_cause_category||'-') + '</td>' +
       '<td><span class="badge badge-' + getStatusBadge(c.status) + '">' + c.status + '</span></td>' +
       '<td>' + (c.assignee||'-') + '</td><td>' + (c.due_date||'-') + (isOverdue ? ' ⚠️' : '') + '</td>' +
+      '<td style="font-size:11px;">' + (c.effectiveness||'-') + '</td>' +
+      '<td style="font-size:11px;">' + (c.verified_by||'-') + '</td>' +
       '<td><button class="btn btn-outline btn-sm" onclick="editCAPA(\'' + c.id + '\')">编辑</button> ' +
       '<button class="btn btn-danger btn-sm" onclick="deleteCAPA(\'' + c.id + '\')">删除</button></td></tr>';
-  }).join('') : '<tr><td colspan="8"><div class="empty-state">暂无 CAPA 记录</div></td></tr>';
+  }).join('') : '<tr><td colspan="11"><div class="empty-state">暂无 CAPA 记录</div></td></tr>';
 }
 
 function filterCAPA(status) { currentCAPAFilter = currentCAPAFilter === status ? '' : status; loadCAPA(); }
