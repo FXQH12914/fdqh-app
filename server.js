@@ -133,6 +133,39 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(req.user);
 });
 
+// 修改密码
+app.put('/api/auth/password', requireAuth, asyncHandler(async (req, res) => {
+  var { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
+  if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
+
+  var users = await db.findAll('users');
+  var user = users.find(function(u) { return u.username === req.user.username; });
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+
+  if (!bcrypt.compareSync(oldPassword, user.password)) {
+    return res.status(401).json({ error: '旧密码错误' });
+  }
+
+  user.password = bcrypt.hashSync(newPassword, 10);
+  await db.update('users', user.id, { password: user.password }, req.user.username);
+  res.json({ success: true, message: '密码修改成功' });
+}));
+
+// 用户管理（admin only）— 重置指定用户密码
+app.put('/api/auth/reset-password/:userId', requireAuth, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: '仅管理员可重置他人密码' });
+  var { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
+
+  var user = await db.findById('users', req.params.userId);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+
+  user.password = bcrypt.hashSync(newPassword, 10);
+  await db.update('users', user.id, { password: user.password }, req.user.username);
+  res.json({ success: true, message: '密码已重置' });
+}));
+
 // ============================================================
 // QUALITY EVENTS
 // ============================================================
