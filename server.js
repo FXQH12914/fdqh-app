@@ -184,7 +184,7 @@ app.get('/api/events/categories', requireAuth, asyncHandler(async (req, res) => 
 
   var CATS = [
     { id: 'deviation', name: '偏差', icon: '⚠️', types: 'Deviation / OOS / OOT', color: '#F59E0B', desc: '生产过程偏差与超标调查' },
-    { id: 'audit', name: '内审发现', icon: '📋', types: 'Audit-Finding', color: '#6366F1', desc: '内部审核发现的体系缺陷' },
+    { id: 'audit', name: '内外审发现', icon: '📋', types: 'Audit-Finding', color: '#6366F1', desc: '内部审核发现的体系缺陷' },
     { id: 'daily', name: '日常发现', icon: '🔍', types: 'NCR / SCAR', color: '#10B981', desc: '日常巡检与IPQC发现问题' },
     { id: 'complaint', name: '客户投诉', icon: '📢', types: 'Complaint', color: '#EF4444', desc: '客户投诉与市场反馈' },
   ];
