@@ -537,6 +537,139 @@ app.get('/api/suppliers/scores', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // ============================================================
+// QUALITY KPI DASHBOARD — 质量指标体系
+// ============================================================
+
+// QHI: Quality Health Index (客户20%+生产25%+供应20%+体系15%+改善10%+效率10%)
+app.get('/api/dashboard/qhi', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var suppliers = await db.findAll('suppliers');
+
+  // 客户质量 20%: 投诉关闭率
+  var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
+  var closedComplaints = complaints.filter(function(e) { return e.status === 'Closed'; });
+  var customerScore = complaints.length > 0 ? Math.round((closedComplaints.length / complaints.length) * 100) : 100;
+
+  // 生产质量 25%: 一次合格率(模拟) + 偏差率
+  var deviations = events.filter(function(e) { return e.event_type === 'Deviation' || e.event_type === 'OOS' || e.event_type === 'OOT'; });
+  var deviationRate = events.length > 0 ? Math.min(deviations.length / Math.max(events.length, 1) * 100, 50) : 0;
+  var productionScore = Math.round(Math.max(0, 100 - deviationRate));
+
+  // 供应链质量 20%: 供应商合格率
+  var totalSuppliers = suppliers.length || 1;
+  var avgScore = suppliers.reduce(function(sum, s) { return sum + (s.quality_score || 0); }, 0) / totalSuppliers;
+  var supplyScore = Math.round(Math.min(avgScore, 100));
+
+  // 体系合规 15%: 审核发现率
+  var auditFindings = events.filter(function(e) { return e.event_type === 'Audit-Finding'; });
+  var complianceScore = Math.max(70, 100 - (auditFindings.length * 5));
+
+  // 质量改善 10%: CAPA关闭率
+  var closedCapas = capas.filter(function(c) { return c.status === 'Closed'; });
+  var improvementScore = capas.length > 0 ? Math.round((closedCapas.length / capas.length) * 100) : 100;
+
+  // 质量效率 10%: CAPA按期关闭
+  var onTimeCapas = capas.filter(function(c) { return c.status === 'Closed' && c.due_date && new Date(c.due_date) >= new Date(); });
+  var efficiencyScore = capas.length > 0 ? Math.round((onTimeCapas.length / capas.length) * 100) : 100;
+
+  var qhi = Math.round(
+    customerScore * 0.20 + productionScore * 0.25 + supplyScore * 0.20 +
+    complianceScore * 0.15 + improvementScore * 0.10 + efficiencyScore * 0.10
+  );
+
+  res.json({
+    qhi: qhi,
+    trend: qhi >= 80 ? 'up' : qhi >= 60 ? 'stable' : 'down',
+    level: qhi >= 90 ? 'green' : qhi >= 70 ? 'yellow' : 'red',
+    breakdown: {
+      customer: { score: customerScore, weight: '20%' },
+      production: { score: productionScore, weight: '25%' },
+      supply: { score: supplyScore, weight: '20%' },
+      compliance: { score: complianceScore, weight: '15%' },
+      improvement: { score: improvementScore, weight: '10%' },
+      efficiency: { score: efficiencyScore, weight: '10%' },
+    }
+  });
+}));
+
+// Traffic Light 红黄绿预警
+app.get('/api/dashboard/alerts', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var alerts = [];
+
+  // Red: 高风险未关闭事件
+  var criticalOpen = events.filter(function(e) { return (e.risk_level === 'Critical' || e.risk_level === 'High') && e.status !== 'Closed'; });
+  criticalOpen.forEach(function(e) {
+    alerts.push({ level: 'red', type: 'high_risk_event', message: e.product_name + ': ' + e.event_type + '未关闭 (风险:' + e.risk_level + ')', eventId: e.id });
+  });
+
+  // Yellow: CAPA逾期
+  capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; }).forEach(function(c) {
+    alerts.push({ level: 'yellow', type: 'capa_overdue', message: 'CAPA逾期: ' + c.title + ' (截止:' + c.due_date + ')', capaId: c.id });
+  });
+
+  // Yellow: 投诉突增
+  var recentComplaints = events.filter(function(e) { return e.event_type === 'Complaint' && e.created_at > new Date(Date.now() - 90*86400000).toISOString(); });
+  if (recentComplaints.length >= 2) {
+    alerts.push({ level: 'yellow', type: 'complaint_spike', message: '近90天投诉' + recentComplaints.length + '起，需关注', count: recentComplaints.length });
+  }
+
+  // Green: 正常运行的积极信号
+  if (alerts.length === 0) {
+    alerts.push({ level: 'green', type: 'all_clear', message: '所有质量指标正常 ✓' });
+  }
+
+  res.json({ alerts: alerts.slice(0, 10), total: alerts.length, redCount: alerts.filter(function(a) { return a.level === 'red'; }).length, yellowCount: alerts.filter(function(a) { return a.level === 'yellow'; }).length });
+}));
+
+// Product Quality Score (生产30%+实验室20%+投诉25%+供应商15%+变更10%)
+app.get('/api/products/scores', requireAuth, asyncHandler(async (req, res) => {
+  var products = await db.findAll('products');
+  var events = await db.findAll('quality_events');
+  var changes = await db.findAll('change_records');
+
+  var scores = products.map(function(p) {
+    var pEvents = events.filter(function(e) { return e.product_id === p.id; });
+    var pChanges = changes.filter(function(c) { return c.product_id === p.id; });
+    var closedEvents = pEvents.filter(function(e) { return e.status === 'Closed'; });
+    var approvedChanges = pChanges.filter(function(c) { return c.status === 'Approved'; });
+
+    var productionScore = pEvents.length > 0 ? Math.max(0, 100 - pEvents.length * 10) : 95;
+    var labScore = pEvents.filter(function(e) { return e.event_type === 'OOS' || e.event_type === 'OOT'; }).length > 0 ? 80 : 100;
+    var complaintScore = pEvents.filter(function(e) { return e.event_type === 'Complaint'; }).length > 0 ? 85 : 100;
+    var supplierScore = 90; // Placeholder
+    var changeScore = pChanges.length > 0 ? Math.round((approvedChanges.length / pChanges.length) * 100) : 100;
+
+    var total = Math.round(productionScore * 0.30 + labScore * 0.20 + complaintScore * 0.25 + supplierScore * 0.15 + changeScore * 0.10);
+
+    return { id: p.id, name: p.product_name, score: total, level: total >= 90 ? 'green' : total >= 70 ? 'yellow' : 'red', events: pEvents.length, complaints: pEvents.filter(function(e) { return e.event_type === 'Complaint'; }).length };
+  });
+
+  scores.sort(function(a, b) { return a.score - b.score; });
+  res.json(scores);
+}));
+
+// Daily Quality Report
+app.get('/api/dashboard/daily-report', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var today = new Date().toISOString().slice(0, 10);
+  var week = new Date(Date.now() - 7*86400000).toISOString();
+
+  res.json({
+    date: today,
+    yesterdayEvents: events.filter(function(e) { return e.created_at && e.created_at.slice(0, 10) >= week; }).length,
+    openEvents: events.filter(function(e) { return e.status !== 'Closed'; }).length,
+    highRiskOpen: events.filter(function(e) { return (e.risk_level === 'High' || e.risk_level === 'Critical') && e.status !== 'Closed'; }).length,
+    overdueCAPAs: capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; }).length,
+    newComplaints: events.filter(function(e) { return e.event_type === 'Complaint' && e.created_at && e.created_at.slice(0, 10) >= week; }).length,
+    topRisks: events.filter(function(e) { return e.status !== 'Closed' && (e.risk_level === 'High' || e.risk_level === 'Critical'); }).slice(0, 5).map(function(e) { return { id: e.id, type: e.event_type, product: e.product_name, risk: e.risk_level, desc: (e.description||'').slice(0, 60) }; }),
+  });
+}));
+
+// ============================================================
 // AI ASSISTANT
 // ============================================================
 app.get('/api/ai/status', requireAuth, (req, res) => {
