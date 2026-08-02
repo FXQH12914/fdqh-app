@@ -110,15 +110,23 @@
       <div class="card"><div class="card-header"><h3>🔴 待处理事项</h3></div><div class="card-body no-padding" id="recentEvents"></div></div>
     </div>
 
-    <!-- ============ EVENTS PAGE ============ -->
-    <div id="page-events" class="page">
-      <div class="page-header"><h2>⚠️ 质量事件管理</h2><p>偏差 · 内审发现 · 日常发现 · 客户投诉 四分类看板</p></div>
+	    <!-- ============ EVENTS PAGE ============ -->
+	    <div id="page-events" class="page">
+	      <div class="page-header"><h2>⚠️ 质量事件管理</h2><p>偏差 · 内审发现 · 日常发现 · 客户投诉 四分类看板</p>
+	      <div class="btn-group" style="margin-top:8px;">
+	        <button class="btn btn-sm btn-primary" onclick="showEventsSubPage('categories')">📊 四分类看板</button>
+	        <button class="btn btn-sm btn-outline" onclick="showEventsSubPage('auditFindings')">📋 体系产品风险检查</button>
+	      </div>
+	      </div>
 
-      <!-- 四分类 Tab -->
+	      <!-- 四分类 Tab -->
       <div class="event-cats" id="eventCatTabs"></div>
 
       <!-- 分类内容 -->
       <div id="eventCatContent"></div>
+
+      <!-- 体系产品风险检查 (audit findings) -->
+      <div id="auditFindingsContent" style="display:none;"></div>
 
       <!-- 全量事件列表 (保留原有管理功能) -->
       <div class="card" style="margin-top:24px;">
@@ -348,7 +356,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.6.0"></script>
+<script src="/js/app.js?v=2.7.0"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
