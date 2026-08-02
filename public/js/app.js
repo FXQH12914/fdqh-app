@@ -1017,6 +1017,54 @@ async function loadChanges() {
           }
         });
       }
+
+      // 5 & 6. Fetch analysis for I/II/III × 设计/工程 + 变更理由帕累托
+      apiGet('/changes/analysis').then(function(analysis) {
+        if (!analysis) return;
+        // 5. I/II/III × 设计/工程 stacked bar
+        var cross = analysis.cross;
+        if (cross && document.getElementById('changeCross')) {
+          var ctx5 = document.getElementById('changeCross').getContext('2d');
+          if (charts['changeCross']) charts['changeCross'].destroy();
+          var levels = ['I','II','III'];
+          charts['changeCross'] = new Chart(ctx5, {
+            type: 'bar',
+            data: {
+              labels: levels.map(function(l){return l+'类';}),
+              datasets: [
+                { label: '设计变更', data: levels.map(function(l){return cross[l]['设计变更']||0;}), backgroundColor: '#6366F1', borderRadius: 3 },
+                { label: '工程变更', data: levels.map(function(l){return cross[l]['工程变更']||0;}), backgroundColor: '#F59E0B', borderRadius: 3 }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              scales: { y: { beginAtZero: true, title: { display: true, text: '件数' } } },
+              plugins: { legend: { position: 'top' } }
+            }
+          });
+        }
+        // 6. 变更理由帕累托
+        var op = analysis.objectPareto || [];
+        if (op.length && document.getElementById('changeReasonPareto')) {
+          var ctx6 = document.getElementById('changeReasonPareto').getContext('2d');
+          if (charts['changeReasonPareto']) charts['changeReasonPareto'].destroy();
+          charts['changeReasonPareto'] = new Chart(ctx6, {
+            type: 'bar',
+            data: {
+              labels: op.map(function(x){return x.name;}),
+              datasets: [
+                { label: '变更数', data: op.map(function(x){return x.count;}), backgroundColor: '#8B5CF6', borderRadius: 3 },
+                { label: '累积%', type: 'line', data: op.map(function(x){return x.cumPct;}), borderColor: '#EF4444', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              scales: { y: { beginAtZero: true, title: { display: true, text: '件数' } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '累积%' } } },
+              plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } }
+            }
+          });
+        }
+      });
     }, 300);
   }
 

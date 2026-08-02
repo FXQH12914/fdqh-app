@@ -398,6 +398,65 @@ app.get('/api/changes/summary', requireAuth, asyncHandler(async (req, res) => {
   });
 }));
 
+// 变更控制深度分析 (I/II/III×设计/工程 + 变更对象帕累托)
+app.get('/api/changes/analysis', requireAuth, asyncHandler(async (req, res) => {
+  var changes = await db.findAll('change_records');
+
+  // 1. I/II/III × 设计/工程 交叉表
+  var crossData = { 'I': { '设计变更': 0, '工程变更': 0 }, 'II': { '设计变更': 0, '工程变更': 0 }, 'III': { '设计变更': 0, '工程变更': 0 } };
+  changes.forEach(function(c) {
+    var lv = (c.change_level || '').trim();
+    if (lv.includes('I') && !lv.includes('II')) lv = 'I';
+    else if (lv.includes('II') && !lv.includes('III')) lv = 'II';
+    else if (lv.includes('III')) lv = 'III';
+    else return;
+    if (!crossData[lv]) return;
+    var track = (c.change_track || '工程变更').trim();
+    if (!crossData[lv][track]) crossData[lv][track] = 0;
+    crossData[lv][track]++;
+  });
+
+  // 2. 变更对象分类统计 (Pareto)
+  var byObject = {};
+  changes.forEach(function(c) {
+    var obj = (c.change_object || '未分类').trim();
+    if (!obj) obj = '未分类';
+    // Group similar objects
+    if (obj.includes('原料') || obj.includes('供应商')) obj = '原料/供应商';
+    else if (obj.includes('工艺') || obj.includes('配方')) obj = '工艺/配方';
+    else if (obj.includes('说明书') || obj.includes('标签') || obj.includes('文件')) obj = '说明书/标签/文件';
+    else if (obj.includes('技术要求') || obj.includes('标准')) obj = '技术要求/标准';
+    else if (obj.includes('软件') || obj.includes('程序')) obj = '软件/固件';
+    else if (obj.includes('降本')) obj = '降本优化';
+    else if (obj.includes('BOM') || obj.includes('物料')) obj = 'BOM/物料结构';
+    else if (obj.includes('规格') || obj.includes('设计')) obj = '规格/设计';
+    else if (obj.includes('硬件')) obj = '硬件变更';
+    else if (obj.length > 8 && obj.indexOf('变更') === -1) obj = obj.substring(0, 10);
+    byObject[obj] = (byObject[obj] || 0) + 1;
+  });
+  // Pareto
+  var objPareto = Object.keys(byObject).map(function(k) { return { name: k, count: byObject[k] }; })
+    .sort(function(a, b) { return b.count - a.count; });
+  var pTotal = objPareto.reduce(function(s, x) { return s + x.count; }, 0);
+  var cum = 0;
+  objPareto.forEach(function(x) { cum += x.count; x.cumPct = pTotal ? Math.round(cum / pTotal * 100) : 0; });
+  objPareto = objPareto.slice(0, 12);
+
+  // 3. 设计变更 vs 工程变更 总计
+  var trackTotal = { '设计变更': 0, '工程变更': 0 };
+  changes.forEach(function(c) {
+    var t = (c.change_track || '工程变更').trim();
+    if (trackTotal[t] !== undefined) trackTotal[t]++;
+  });
+
+  res.json({
+    cross: crossData,
+    objectPareto: objPareto,
+    trackTotal: trackTotal,
+    total: changes.length,
+  });
+}));
+
 app.get('/api/changes', requireAuth, asyncHandler(async (req, res) => {
   var changes = await db.findAll('change_records');
   if (req.query.status) changes = changes.filter(function(c) { return c.status === req.query.status; });
