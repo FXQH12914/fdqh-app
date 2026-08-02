@@ -36,10 +36,15 @@
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
-      <a data-page="events" onclick="navigate('events')"><span class="icon">⚠️</span> 质量事件</a>
-      <a data-page="complaints" onclick="navigate('complaints')"><span class="icon">📢</span> 投诉看板</a>
-      <a data-page="capa" onclick="navigate('capa')"><span class="icon">🔧</span> CAPA 管理</a>
-      <a data-page="workshop" onclick="navigate('workshop')"><span class="icon">🏭</span> 研发生产质量一体化</a>
+      <!-- 质量事件 — 可展开子菜单 -->
+      <div class="nav-parent" id="navEventsParent">
+        <a data-page="events" onclick="toggleNavSub('events')"><span class="icon">⚠️</span> 质量事件<span class="nav-arrow" id="navEventsArrow">▼</span></a>
+        <div class="nav-sub" id="navEventsSub">
+          <a data-page="complaints" onclick="navigate('complaints')"><span class="icon">📢</span> 投诉看板</a>
+          <a data-page="capa" onclick="navigate('capa')"><span class="icon">🔧</span> CAPA 管理</a>
+          <a data-page="workshop" onclick="navigate('workshop')"><span class="icon">🏭</span> 研发生产质量一体化</a>
+        </div>
+      </div>
       <a data-page="changes" onclick="navigate('changes')"><span class="icon">🔄</span> 变更控制</a>
       <a data-page="qcp" onclick="navigate('qcp')"><span class="icon">🎯</span> 控制点库</a>
       <a data-page="masters" onclick="navigate('masters')"><span class="icon">📋</span> 主数据管理</a>
@@ -377,7 +382,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.9.2"></script>
+<script src="/js/app.js?v=2.9.3"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
