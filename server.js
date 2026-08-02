@@ -2167,8 +2167,91 @@ var auditFindings = [
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' }
 ];
 
-// GET — 返回分类分析结果
+// GET — 返回分类分析结果（含 ISO 13485 对照 + 条款帕累托）
 app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
+  // ISO 13485 条款映射表
+  var isoMap = {
+    '§2.4.1': 'ISO 13485 7.3.9 / 4.1.4',
+    '§3.3.1': 'ISO 13485 6.1 / 6.2',
+    '§3.8.2': 'ISO 13485 7.5.1',
+    '§3.10.1': 'ISO 13485 6.2',
+    '§3.10.2': 'ISO 13485 6.2',
+    '§3.11.1': 'ISO 13485 6.4',
+    '§4.5.1': 'ISO 13485 7.5.11',
+    '§4.7.1': 'ISO 13485 6.4 / 7.5.1',
+    '§4.7.2': 'ISO 13485 6.4 / 7.5.1',
+    '§5.1.1': 'ISO 13485 6.3',
+    '§5.4.1': 'ISO 13485 6.3 / 7.5.3',
+    '§5.5.1': 'ISO 13485 7.6',
+    '§5.5.2': 'ISO 13485 7.6',
+    '§5.5.3': 'ISO 13485 7.6',
+    '§6.3.1': 'ISO 13485 4.2.1',
+    '§6.4.1': 'ISO 13485 4.2.4',
+    '§7.1.1': 'ISO 13485 7.3.1',
+    '§7.3.1': 'ISO 13485 7.3.2',
+    '§7.3.2': 'ISO 13485 7.3.2',
+    '§7.5.2': 'ISO 13485 7.3.4',
+    '§7.6.1': 'ISO 13485 7.3.8',
+    '§7.8.1': 'ISO 13485 7.3.6',
+    '§7.10.1': 'ISO 13485 7.3.9',
+    '§7.11.1': 'ISO 13485 4.2.3 / 7.3.10',
+    '§8.1.1': 'ISO 13485 7.4.1',
+    '§8.3.2': 'ISO 13485 7.4.1',
+    '§8.4.2': 'ISO 13485 7.4.1',
+    '§8.5.1': 'ISO 13485 7.4.1',
+    '§8.7.1': 'ISO 13485 7.4.3',
+    '§8.8.1': 'ISO 13485 7.5.11',
+    '§8.10.2': 'ISO 13485 7.4.1',
+    '§9.4.2': 'ISO 13485 7.5.6',
+    '§9.9.1': 'ISO 13485 7.5.6 / 4.1.6',
+    '§10.1.1': 'ISO 13485 7.5.1',
+    '§10.4.1': 'ISO 13485 7.5.1 / 4.2.4',
+    '§10.4.2': 'ISO 13485 7.5.1 / 4.2.4',
+    '§10.5.1': 'ISO 13485 7.5.1 / 8.2.6',
+    '§10.7.1': 'ISO 13485 7.5.1 / 4.2.3',
+    '§10.14.1': 'ISO 13485 7.5.8 / 7.5.9',
+    '§11.3.1': 'ISO 13485 8.2.6',
+    '§11.6.1': 'ISO 13485 8.2.6',
+    '§12.1.1': 'ISO 13485 4.1',
+    '§12.2.1': 'ISO 13485 7.4.1',
+    '§12.6.1': 'ISO 13485 7.4.1 / 4.1.4',
+    '§13.1.1': 'ISO 13485 7.5.1',
+    '§13.2.1': 'ISO 13485 7.5.11'
+  };
+
+  // 为每条目附加 ISO 条款
+  var itemsWithISO = auditFindings.map(function(item) {
+    var clauses = item.clause_ref.split(', ');
+    var isoRefs = [];
+    clauses.forEach(function(c) {
+      var iso = isoMap[c.trim()];
+      if (iso) isoRefs.push(iso);
+    });
+    return Object.assign({}, item, { iso_clause: isoRefs.join('; ') || isoRefs[0] || '' });
+  });
+
+  // === 条款帕累托分析 ===
+  var clauseFreq = {};
+  auditFindings.forEach(function(item) {
+    var clauses = item.clause_ref.split(', ');
+    clauses.forEach(function(c) {
+      var key = c.trim();
+      clauseFreq[key] = (clauseFreq[key] || 0) + 1;
+    });
+  });
+  // 转为数组并降序排列
+  var clausePareto = Object.keys(clauseFreq).map(function(k) {
+    return { clause: k, iso: isoMap[k] || '', count: clauseFreq[k] };
+  }).sort(function(a, b) { return b.count - a.count; });
+  // 计算累积占比
+  var totalOccurrences = clausePareto.reduce(function(s, x) { return s + x.count; }, 0);
+  var cum = 0;
+  clausePareto.forEach(function(c) {
+    cum += c.count;
+    c.pct = Math.round(c.count / totalOccurrences * 100);
+    c.cumPct = Math.round(cum / totalOccurrences * 100);
+  });
+
   var summary = {
     total: auditFindings.length,
     systemCount: auditFindings.filter(function(f) { return f.category === '体系风险'; }).length,
@@ -2181,7 +2264,6 @@ app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
     criticalCount: auditFindings.filter(function(f) { return f.risk_level === 'Critical'; }).length,
     highCount: auditFindings.filter(function(f) { return f.risk_level === 'High'; }).length,
     lowCount: auditFindings.filter(function(f) { return f.risk_level === 'Low'; }).length,
-    // 判定结论模拟
     conclusion: (function() {
       var keyItems = auditFindings.filter(function(f) { return f.item_type === '关键项目'; }).length;
       var majorItems = auditFindings.filter(function(f) { return f.item_type === '主要项目'; }).length;
@@ -2192,7 +2274,7 @@ app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
       return '限期整改';
     })()
   };
-  res.json({ items: auditFindings, summary: summary, updated: '2026-07' });
+  res.json({ items: itemsWithISO, summary: summary, clausePareto: clausePareto, updated: '2026-07' });
 }));
 
 // POST — 一键导入事件库（创建品质事件记录，去重）
