@@ -278,6 +278,25 @@ app.delete('/api/events/:id', requireAuth, asyncHandler(async (req, res) => {
 // ============================================================
 // CAPA
 // ============================================================
+// CAPA摘要看板
+app.get('/api/capa/summary', requireAuth, asyncHandler(async (req, res) => {
+  var capas = await db.findAll('capa_records');
+  var byStatus = {}, bySource = {}, byDept = {};
+  capas.forEach(function(c) {
+    byStatus[c.status||'Open'] = (byStatus[c.status||'Open']||0) + 1;
+    var src = c.audit_source || '未分类';
+    bySource[src] = (bySource[src]||0) + 1;
+    var dept = c.audit_dept || c.assignee || '未分类';
+    byDept[dept] = (byDept[dept]||0) + 1;
+  });
+  res.json({
+    total: capas.length,
+    open: capas.filter(function(c) { return c.status !== 'Closed'; }).length,
+    closed: capas.filter(function(c) { return c.status === 'Closed'; }).length,
+    byStatus: byStatus, bySource: bySource, byDept: byDept,
+  });
+}));
+
 app.get('/api/capa', requireAuth, asyncHandler(async (req, res) => {
   var { status, assignee, search, page, limit } = req.query;
   var capas = await db.findAll('capa_records');
@@ -304,8 +323,8 @@ app.get('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
 
 app.post('/api/capa', requireAuth, asyncHandler(async (req, res) => {
   requireFields(req.body, ['title', 'action_plan']);
-  var data = whitelistFields(req.body, ['title', 'event_id', 'root_cause', 'action_plan', 'assignee', 'due_date', 'effectiveness']);
-  data.status = 'Open';
+  var data = whitelistFields(req.body, ['title', 'event_id', 'root_cause', 'action_plan', 'assignee', 'due_date', 'effectiveness', 'status', 'description', 'audit_source', 'audit_dept', 'clause_no', 'capa_no', 'imported']);
+  data.status = data.status || 'Open';
 
   var capa = await db.insert('capa_records', data, req.user.username);
 
