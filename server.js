@@ -166,6 +166,28 @@ app.put('/api/auth/reset-password/:userId', requireAuth, asyncHandler(async (req
   res.json({ success: true, message: '密码已重置' });
 }));
 
+// 批量创建用户
+app.post('/api/auth/seed-users', requireAuth, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: '仅管理员可操作' });
+  var presetUsers = [
+    { username: 'qa_engineer', password: 'qa123456', role: 'user', name: '质量工程师', base: '上海基地', dept: 'QA' },
+    { username: 'qa_manager', password: 'qa123456', role: 'manager', name: 'QA经理', base: '上海基地', dept: 'QA' },
+    { username: 'prod_manager', password: 'prod123', role: 'manager', name: '生产部经理', base: '苏州基地', dept: '生产部' },
+    { username: 'rd_engineer', password: 'rd123456', role: 'user', name: '研发工程师', base: '上海基地', dept: '研发中心' },
+    { username: 'quality_dir', password: 'dir123456', role: 'admin', name: '质量总监', base: '集团', dept: '质量部' },
+  ];
+  var users = await db.findAll('users');
+  var created = [], skipped = [];
+  for (var i = 0; i < presetUsers.length; i++) {
+    var p = presetUsers[i];
+    var exists = users.find(function(u) { return u.username === p.username; });
+    if (exists) { skipped.push(p.username); continue; }
+    await db.insert('users', { username: p.username, password: bcrypt.hashSync(p.password, 10), role: p.role, name: p.name, base: p.base, dept: p.dept }, req.user.username);
+    created.push({ username: p.username, password: p.password, name: p.name });
+  }
+  res.json({ created: created, skipped: skipped });
+}));
+
 // ============================================================
 // QUALITY EVENTS
 // ============================================================
