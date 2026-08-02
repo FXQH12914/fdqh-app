@@ -646,6 +646,8 @@ app.get('/api/changes/guide', requireAuth, asyncHandler(async (req, res) => {
     updated: '2026-08'
   };
 
+  res.json(guide);
+}));
 
 app.get('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
   var change = await db.findById('change_records', req.params.id);
