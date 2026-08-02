@@ -2382,9 +2382,84 @@ async function switchPlmTab(tab) {
         '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewBatchPassport(\'' + b.batchId + '\')">📋 详情</button></td></tr>';
     });
     html += '</tbody></table></div></div>';
+  } else if (tab === 'registry') {
+    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载产品注册档案...</div></div>';
+    var regData = await apiGet('/plm/registry');
+    if (!regData) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">❌ 加载失败</div></div>'; return; }
+    
+    var items = regData.data || [];
+    var rs = regData.summary;
+    html = '';
+    
+    html += '<div class="module-summary" style="margin-bottom:16px;">' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + rs.total + '</div><div class="ms-label">📋 有效注册证总数</div><div class="ms-target">湖南基地</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + rs.reagentCount + '</div><div class="ms-label">🧪 试剂类</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + rs.instrumentCount + '</div><div class="ms-label">🔩 仪器类</div></div>' +
+      '<div class="module-summary-card ' + (rs.expiringSoon > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + rs.expiringSoon + '</div><div class="ms-label">⚠️ 即将到期</div><div class="ms-target">2027年前</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + rs.newStdCount + '</div><div class="ms-label">🔄 新标准变更</div><div class="ms-target">仪器适用标准更新</div></div>' +
+      '</div>';
+    
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">' +
+      '<select onchange="filterRegistry(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
+        '<option value="">全部类型</option><option value="试剂">试剂类</option><option value="仪器">仪器类</option><option value="新标准">新标准变更中</option></select>' +
+      '<input type="text" id="regCertSearch" placeholder="🔍 搜索产品名称/注册证号..." style="flex:1;min-width:150px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onkeyup="if(event.key===\'Enter\')filterRegistry()">' +
+      '<button class="btn btn-sm btn-outline" onclick="filterRegistry()">搜索</button>' +
+      '</div>';
+    
+    html += '<div class="card"><div class="card-header"><h3>📋 有效注册证一览表</h3><span style="font-size:11px;">来源：湖南基地有效注册证一览表 2026-07-24 · 第' + regData.page + '/' + regData.totalPages + '页</span></div>' +
+      '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" style="font-size:12px;"><thead><tr>' +
+      '<th>产品名称</th><th>型号</th><th>类别</th><th>注册证编号</th><th>批准日期</th><th>生效日期</th><th>有效期至</th><th>类型</th><th>新标准</th>' +
+      '</tr></thead><tbody>';
+    
+    items.forEach(function(r) {
+      var expired = r.expireDate < '2027-01-01';
+      html += '<tr' + (expired ? ' style="background:#FFF7ED;"' : '') + '>' +
+        '<td><b>' + r.name + '</b></td><td>' + r.model + '</td><td>' + r.cat + '</td>' +
+        '<td style="font-size:10px;">' + r.regNo + '</td>' +
+        '<td>' + r.approveDate + '</td><td>' + r.effectiveDate + '</td>' +
+        '<td style="' + (expired ? 'color:#DC2626;font-weight:600;' : '') + '">' + r.expireDate + (expired ? ' ⚠️' : '') + '</td>' +
+        '<td><span class="badge badge-' + (r.type==='仪器'?'info':'success') + '">' + r.type + '</span></td>' +
+        '<td style="font-size:10px;">' + (r.standards ? '<span style="color:#D97706;">' + r.standards + '</span>' : '—') + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    
+    // Simple pagination
+    html += '<div style="display:flex;justify-content:center;gap:6px;padding:12px;">';
+    for (var p = 1; p <= regData.totalPages; p++) {
+      html += '<button class="btn btn-sm ' + (p === regData.page ? 'btn-primary' : 'btn-outline') + '" onclick="loadRegCertPage(' + p + ')">' + p + '</button>';
+    }
+    html += '<span style="font-size:12px;color:var(--text-muted);margin-left:8px;">共 ' + regData.total + ' 条</span></div>';
+    html += '</div>';
   }
 
   container.innerHTML = html;
+}
+
+// ===== 注册档案辅助 =====
+async function loadRegCertPage(page) {
+  var container = document.getElementById('plmContent');
+  if (!container) return;
+  container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>';
+  var data = await apiGet('/plm/registry?page=' + page);
+  if (!data) return;
+  switchPlmTab('registry'); // Re-render with new data via callback
+  // Simpler: just re-fetch
+  window._regCertData = data;
+  switchPlmTab('registry');
+}
+
+function filterRegistry(filterVal) {
+  var f = filterVal || document.querySelector('#plmContent select')?.value || '';
+  var s = document.getElementById('regCertSearch')?.value || '';
+  var container = document.getElementById('plmContent');
+  if (!container) return;
+  container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>';
+  var url = '/plm/registry?page=1&pageSize=50';
+  if (f === '新标准') url += '&filter=仪器'; else if (f) url += '&filter=' + encodeURIComponent(f);
+  if (s) url += '&search=' + encodeURIComponent(s);
+  apiGet(url).then(function(data) {
+    if (data) { window._regCertData = data; switchPlmTab('registry'); }
+  });
 }
 
 async function loadQCP() {
