@@ -109,14 +109,41 @@ async function changePassword() {
 }
 
 // ---- NAVIGATION ----
+function toggleNavSub(page) {
+  var parent = document.getElementById('navEventsParent');
+  var arrow = document.getElementById('navEventsArrow');
+  if (parent.classList.contains('expanded')) {
+    parent.classList.remove('expanded');
+    arrow.textContent = '▶';
+  } else {
+    parent.classList.add('expanded');
+    arrow.textContent = '▼';
+  }
+  // Also navigate to the parent page
+  navigate(page);
+}
+
 function navigate(page) {
   if (dashboardTimer) { clearInterval(dashboardTimer); dashboardTimer = null; }
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   var pageEl = document.getElementById('page-' + page);
   if (pageEl) pageEl.classList.add('active');
+  
+  // Clear all active states
   document.querySelectorAll('.sidebar nav a').forEach(function(a) { a.classList.remove('active'); });
-  var navEl = document.querySelector('.sidebar nav a[data-page="' + page + '"]');
+  document.querySelectorAll('.nav-sub a').forEach(function(a) { a.classList.remove('active'); });
+  document.querySelectorAll('.nav-parent > a').forEach(function(a) { a.classList.remove('active'); });
+  
+  // Set active state on the target link
+  var navEl = document.querySelector('.sidebar a[data-page="' + page + '"]');
   if (navEl) navEl.classList.add('active');
+  
+  // Auto-expand events sub-menu when sub-item is active
+  var subPages = ['complaints', 'capa', 'workshop'];
+  if (subPages.indexOf(page) >= 0) {
+    document.getElementById('navEventsParent').classList.add('expanded');
+    document.getElementById('navEventsArrow').textContent = '▼';
+  }
 
   switch(page) {
     case 'dashboard': loadDashboard(); break;
