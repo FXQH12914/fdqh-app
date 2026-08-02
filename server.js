@@ -639,7 +639,6 @@ function recentComplaintsCheck(events) {
   var cutoff = new Date(Date.now() - 90*86400000).toISOString();
   return events.filter(function(e) { return e.event_type === 'Complaint' && e.created_at > cutoff; }).length < 2;
 }
-}));
 
 // Traffic Light 红黄绿预警
 app.get('/api/dashboard/alerts', requireAuth, asyncHandler(async (req, res) => {
