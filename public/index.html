@@ -183,10 +183,8 @@
         <button class="btn btn-sm btn-outline" onclick="showChangesSubPage('guide')">📋 操作指南提示卡</button>
       </div>
       </div>
-      <div id="changesDashboard">
+      <div id="changesDashboardWrap">
       <div class="module-summary" id="changeSummary"></div>
-      </div>
-      <div id="changesGuideContent" style="display:none;"></div>
       <!-- 变更看板图表 -->
       <div class="charts-row" style="margin-bottom:20px;">
         <div class="card"><div class="card-header"><h3>🏭 分基地变更数</h3></div><div class="card-body"><div class="chart-container"><canvas id="changeBase"></canvas></div></div></div>
@@ -214,6 +212,8 @@
         </div>
         <div class="card-body no-padding"><table id="changesTable"><thead><tr><th>变更编号</th><th>基地</th><th>产品</th><th>变更等级</th><th>类型</th><th>状态</th><th>风险</th><th>操作</th></tr></thead><tbody></tbody></table></div>
       </div>
+      </div>
+      <div id="changesGuideContent" style="display:none;"></div>
     </div>
 
     <!-- ============ MASTERS PAGE ============ -->
@@ -389,7 +389,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.10.0"></script>
+<script src="/js/app.js?v=2.10.1"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
