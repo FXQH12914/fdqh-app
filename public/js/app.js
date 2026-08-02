@@ -989,27 +989,36 @@ function showEventsSubPage(sub) {
   var catTabs = document.getElementById('eventCatTabs');
   var catContent = document.getElementById('eventCatContent');
   var afContent = document.getElementById('auditFindingsContent');
+  var aiContent = document.getElementById('aiRiskPredictContent');
   var eventsTable = document.querySelector('#page-events .card');
   var btns = document.querySelectorAll('#page-events .page-header .btn-group .btn');
   
   btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
   
-  if (sub === 'auditFindings') {
-    auditFindingsActive = true;
-    if (btns[1]) { btns[1].classList.remove('btn-outline'); btns[1].classList.add('btn-primary'); }
-    if (catTabs) catTabs.style.display = 'none';
-    if (catContent) catContent.style.display = 'none';
-    if (afContent) afContent.style.display = 'block';
-    if (eventsTable) eventsTable.style.display = 'none';
-    loadAuditFindings();
-  } else {
+  // Hide all sub-pages
+  if (catTabs) catTabs.style.display = 'none';
+  if (catContent) catContent.style.display = 'none';
+  if (afContent) afContent.style.display = 'none';
+  if (aiContent) aiContent.style.display = 'none';
+  if (eventsTable) eventsTable.style.display = 'none';
+  
+  if (sub === 'categories') {
     auditFindingsActive = false;
     if (btns[0]) { btns[0].classList.remove('btn-outline'); btns[0].classList.add('btn-primary'); }
     if (catTabs) catTabs.style.display = '';
     if (catContent) catContent.style.display = '';
-    if (afContent) afContent.style.display = 'none';
     if (eventsTable) eventsTable.style.display = '';
     loadEventCategories();
+  } else if (sub === 'auditFindings') {
+    auditFindingsActive = true;
+    if (btns[1]) { btns[1].classList.remove('btn-outline'); btns[1].classList.add('btn-primary'); }
+    if (afContent) afContent.style.display = 'block';
+    loadAuditFindings();
+  } else if (sub === 'aiRiskPredict') {
+    auditFindingsActive = false;
+    if (btns[2]) { btns[2].classList.remove('btn-outline'); btns[2].classList.add('btn-primary'); }
+    if (aiContent) aiContent.style.display = 'block';
+    loadAIRiskPredict();
   }
 }
 
@@ -1159,6 +1168,90 @@ async function seedAuditFindings() {
     if (result) result.innerHTML = '<span style="color:#DC2626;">❌ 导入失败</span>';
   }
   if (btn) { btn.disabled = false; btn.textContent = '📤 一键导入事件库'; }
+}
+
+// ===== AI 质量风险预测 =====
+async function loadAIRiskPredict() {
+  var container = document.getElementById('aiRiskPredictContent');
+  if (!container) return;
+  
+  // Initial state: show button
+  var html = '<div class="card"><div class="card-header"><h3>🤖 AI 质量风险预测</h3><span style="font-size:11px;">基于当前质量事件数据，AI 分析风险趋势与预警</span></div>' +
+    '<div class="card-body" style="text-align:center;padding:40px;">' +
+    '<p style="color:var(--text-muted);margin-bottom:16px;">AI 将分析全部质量事件、CAPA、产品和供应商数据，生成风险预测报告</p>' +
+    '<button class="btn btn-accent" onclick="runAIRiskPredict()" id="aiPredictBtn" style="padding:12px 32px;font-size:15px;">🚀 开始 AI 风险预测分析</button>' +
+    '<div id="aiPredictResult" style="margin-top:20px;text-align:left;"></div>' +
+    '</div></div>';
+  
+  container.innerHTML = html;
+}
+
+async function runAIRiskPredict() {
+  var btn = document.getElementById('aiPredictBtn');
+  var result = document.getElementById('aiPredictResult');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ AI 分析中，请稍候...'; }
+  if (result) result.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);">⏳ AI 正在分析质量数据，生成风险预测报告...</div>';
+  
+  try {
+    var data = await apiPost('/ai/risk-predict', {});
+    if (!data) {
+      if (result) result.innerHTML = '<div style="color:#DC2626;text-align:center;padding:20px;">❌ AI 服务暂不可用，请检查 API Key 配置</div>';
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 重试分析'; }
+      return;
+    }
+    
+    var ctx = data.data;
+    
+    var html = '';
+    
+    // === Statistical Summary Cards ===
+    html += '<div style="margin-top:16px;"><b style="font-size:14px;">📊 数据统计摘要</b></div>' +
+      '<div class="module-summary" style="margin-top:8px;">' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + (ctx.summary.totalEvents || 0) + '</div><div class="ms-label">📋 事件总数</div></div>' +
+      '<div class="module-summary-card ms-fail"><div class="ms-value">' + (ctx.summary.openEvents || 0) + '</div><div class="ms-label">🔴 未关闭事件</div></div>' +
+      '<div class="module-summary-card ms-warn"><div class="ms-value">' + (ctx.summary.criticalEvents || 0) + '</div><div class="ms-label">⚠️ 高/严重风险</div></div>' +
+      '<div class="module-summary-card ' + ((ctx.summary.overdueCAPAs || 0) > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + (ctx.summary.overdueCAPAs || 0) + '</div><div class="ms-label">⏰ 逾期CAPA</div></div>' +
+      '</div>';
+    
+    // Risk distribution bars
+    var rd = ctx.riskDistribution || {};
+    var rdTotal = (rd.Low||0) + (rd.Medium||0) + (rd.High||0) + (rd.Critical||0) || 1;
+    html += '<div style="margin-top:12px;display:flex;gap:4px;height:20px;border-radius:10px;overflow:hidden;">' +
+      '<div style="width:' + Math.round((rd.Critical||0)/rdTotal*100) + '%;background:#DC2626;" title="Critical: '+(rd.Critical||0)+'"></div>' +
+      '<div style="width:' + Math.round((rd.High||0)/rdTotal*100) + '%;background:#F59E0B;" title="High: '+(rd.High||0)+'"></div>' +
+      '<div style="width:' + Math.round((rd.Medium||0)/rdTotal*100) + '%;background:#3B82F6;" title="Medium: '+(rd.Medium||0)+'"></div>' +
+      '<div style="width:' + Math.round((rd.Low||0)/rdTotal*100) + '%;background:#10B981;" title="Low: '+(rd.Low||0)+'"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:12px;font-size:10px;margin-top:4px;color:var(--text-muted);">' +
+      '<span>🔴 Critical '+(rd.Critical||0)+'</span><span>🟡 High '+(rd.High||0)+'</span><span>🔵 Medium '+(rd.Medium||0)+'</span><span>🟢 Low '+(rd.Low||0)+'</span>' +
+      '</div>';
+    
+    // Top risk products
+    var trp = ctx.topRiskProducts || [];
+    if (trp.length > 0) {
+      html += '<div style="margin-top:12px;"><b style="font-size:12px;">🏭 事件最多的产品 Top 5:</b>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">' +
+        trp.map(function(p, i) {
+          var colors = ['#DC2626','#F59E0B','#3B82F6','#8B5CF6','#6B7280'];
+          return '<span style="background:' + colors[i] + '15;border:1px solid ' + colors[i] + '30;border-radius:12px;padding:2px 10px;font-size:11px;">' + (p.name || '未知') + ': <b style="color:' + colors[i] + ';">' + p.count + '</b></span>';
+        }).join('') +
+        '</div></div>';
+    }
+    
+    // === AI Analysis Result ===
+    html += '<div style="margin-top:20px;border-top:2px solid #6366F1;padding-top:16px;">' +
+      '<b style="font-size:14px;color:#6366F1;">🤖 AI 风险预测报告</b>' +
+      '<div style="margin-top:12px;background:#F9FAFB;border-radius:8px;padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;">' + (data.content || 'AI 分析结果为空') + '</div>' +
+      '<div style="margin-top:8px;font-size:10px;color:var(--text-muted);">⚠️ AI 分析基于统计模型，仅供参考，关键决策需结合专业判断。</div>' +
+      '</div>';
+    
+    if (result) result.innerHTML = html;
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 重新分析'; }
+    
+  } catch(e) {
+    if (result) result.innerHTML = '<div style="color:#DC2626;text-align:center;padding:20px;">❌ 分析失败: ' + e.message + '</div>';
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 重试分析'; }
+  }
 }
 
 function filterEvents(status) {
