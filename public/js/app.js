@@ -152,6 +152,7 @@ function navigate(page) {
     case 'changes': loadChanges(); break;
     case 'masters': loadMasters(); break;
     case 'qcp': loadQCP(); break;
+    case 'plm': loadPlmDashboard(); break;
     case 'risks': loadRisks(); break;
     case 'audit': loadAuditLogs(); break;
     case 'ai': loadAIAssistant(); break;
@@ -2123,6 +2124,89 @@ async function viewProduct(id) {
   document.getElementById('eventDetailContent').innerHTML = html;
   document.getElementById('eventModalTitle') && (document.getElementById('eventModalTitle').textContent = '产品档案: ' + (p.product_code||p.id));
   openModal('eventDetailModal');
+}
+// ============================================================
+// ===== 产品全生命周期管理 (PLM) =====
+async function loadPlmDashboard() {
+  var container = document.getElementById('plmContent');
+  if (!container) return;
+  
+  var [stagesData, dashData] = await Promise.all([apiGet('/plm/stages'), apiGet('/plm/dashboard')]);
+  if (!stagesData || !dashData) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>'; return; }
+  
+  var stages = stagesData.stages || [];
+  var s = dashData.summary;
+  var html = '';
+  
+  // === KPI Cards ===
+  html += '<div class="module-summary" style="margin-bottom:20px;">' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalProducts + '</div><div class="ms-label">📦 产品总数</div><div class="ms-target">活跃' + s.activeProducts + ' / 研发' + s.inDevelopment + '</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalQCPs + '</div><div class="ms-label">🎯 QCP总数</div><div class="ms-target">7阶段全覆盖</div></div>' +
+    '<div class="module-summary-card ' + (s.openCAPAs > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + s.openCAPAs + '</div><div class="ms-label">🔧 待处理CAPA</div><div class="ms-target">共' + s.totalCAPAs + '条</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalEvents + '</div><div class="ms-label">⚠️ 质量事件</div><div class="ms-target">全生命周期</div></div>' +
+    '</div>';
+  
+  // === Lifecycle Stage Flow ===
+  html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — 7阶段数据链</h3><span style="font-size:11px;">基于PLQDP · 总QCP: ' + stagesData.totalQCP + '</span></div>' +
+    '<div class="card-body">' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">';
+  
+  stages.forEach(function(st, i) {
+    html += '<div style="flex:1;min-width:130px;background:linear-gradient(135deg,' + st.color + '10,' + st.color + '05);border:1px solid ' + st.color + '30;border-radius:10px;padding:14px;position:relative;border-top:3px solid ' + st.color + ';">' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:20px;">' + st.icon + '</span><b style="font-size:13px;color:' + st.color + ';">' + st.name + '</b></div>' +
+      '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">' + st.desc + '</div>' +
+      '<div style="font-size:10px;color:' + st.color + ';font-weight:600;">👤 ' + st.owner + '</div>' +
+      '<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">' +
+        '<span style="background:' + st.color + '15;border-radius:10px;padding:2px 8px;font-size:10px;color:' + st.color + ';">🎯 QCP×' + st.qcpCount + '</span>' +
+        '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📥 ' + st.inputs.length + '输入</span>' +
+        '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📤 ' + st.outputs.length + '输出</span>' +
+      '</div>';
+    
+    // Controls list
+    html += '<div style="margin-top:8px;font-size:10px;">' +
+      st.controls.slice(0, 3).map(function(c) { return '<div style="color:var(--text-muted);">• ' + c + '</div>'; }).join('') +
+      (st.controls.length > 3 ? '<div style="color:var(--text-muted);">…+' + (st.controls.length - 3) + '项</div>' : '') +
+      '</div>';
+    
+    html += '</div>';
+    
+    // Arrow between stages
+    if (i < stages.length - 1) {
+      html += '<div style="display:flex;align-items:center;color:#9CA3AF;font-size:18px;flex-shrink:0;">→</div>';
+    }
+  });
+  
+  html += '</div></div></div>';
+  
+  // === Product Passport Table ===
+  var pp = dashData.productPassports || [];
+  html += '<div class="card"><div class="card-header"><h3>📋 产品质量护照 (Product Quality Passport)</h3><span style="font-size:11px;">Top ' + pp.length + ' 产品 · 点击产品名称跳转产品详情</span></div>' +
+    '<div class="card-body no-padding" style="overflow-x:auto;">' +
+    '<table class="data-table" style="min-width:800px;"><thead><tr>' +
+    '<th>产品名称</th><th>技术平台</th><th>生命周期</th><th>注册号</th><th>QCP数</th><th>事件数</th><th>BQI</th>' +
+    '</tr></thead><tbody>';
+  
+  pp.forEach(function(p) {
+    var lcColor = p.lifecycle === '上市' || p.lifecycle === '量产' ? '#059669' : p.lifecycle === '研发' || p.lifecycle === '注册' ? '#6366F1' : '#9CA3AF';
+    html += '<tr style="cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')">' +
+      '<td><b>' + p.name + '</b></td>' +
+      '<td><span style="font-size:11px;">' + p.platform + '</span></td>' +
+      '<td><span style="color:' + lcColor + ';font-weight:600;font-size:11px;">' + p.lifecycle + '</span></td>' +
+      '<td style="font-size:11px;">' + p.regNo + '</td>' +
+      '<td>' + p.qcpCount + '</td>' +
+      '<td>' + p.eventCount + '</td>' +
+      '<td>' + (p.hasBQI ? '<span style="font-weight:700;color:#0F766E;">' + p.bqi + '</span>' : '<span style="color:#9CA3AF;">—</span>') + '</td>' +
+      '</tr>';
+  });
+  
+  html += '</tbody></table></div></div>';
+  
+  // === Link to QCP Library ===
+  html += '<div style="text-align:center;margin-top:16px;">' +
+    '<button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')" style="padding:10px 24px;">🎯 打开质量控制点库 → 查看全部 QCP</button>' +
+    '</div>';
+  
+  container.innerHTML = html;
 }
 // ============================================================
 async function loadQCP() {
