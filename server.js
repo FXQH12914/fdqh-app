@@ -1986,8 +1986,8 @@ app.get('/api/dashboard/workshop', requireAuth, asyncHandler(async (req, res) =>
 
   // ===== Sheet 2: 解决方案四象限 =====
   var solutions = [
-    { module: '供应链质量', cause: '供应商质量管控', solution: '供应商整合：集中采购，优化付款周期', difficulty: '难', impact: '高', owner: '徐滔', deadline: '2026.12.31', quad: 'strategic' },
-    { module: '供应链质量', cause: '物料变更频繁', solution: '物料选型优化：建立规划，供应链参与设计选型', difficulty: '难', impact: '高', owner: '徐滔', deadline: '待定', quad: 'strategic' },
+    { module: '供应链质量', cause: '供应商质量管控', solution: '供应商整合：集中采购，优化付款周期', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.12.31', quad: 'strategic' },
+    { module: '供应链质量', cause: '物料变更频繁', solution: '物料选型优化：建立规划，供应链参与设计选型', difficulty: '难', impact: '高', owner: '姚仁杰', deadline: '待定', quad: 'strategic' },
     { module: '供应链质量', cause: '物料风险', solution: '关键物料风险预警：安全库存', difficulty: '易', impact: '高', owner: '沈倩', deadline: '待定', quad: 'quick-win' },
     { module: '供应链质量', cause: '供应商变更流程', solution: '供应商变更流程优化（进行中）', difficulty: '易', impact: '高', owner: '刘建芳', deadline: '2026.10.30', quad: 'quick-win' },
     { module: '供应链质量', cause: '来料质量标准', solution: '关键物料质检标准更新', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.09.30', quad: 'strategic' },
