@@ -45,6 +45,7 @@
           <a data-page="workshop" onclick="navigate('workshop')"><span class="icon">🏭</span> 研发生产质量一体化</a>
         </div>
       </div>
+      <a data-page="plm" onclick="navigate('plm')"><span class="icon">🔗</span> 全生命周期</a>
       <a data-page="changes" onclick="navigate('changes')"><span class="icon">🔄</span> 变更控制</a>
       <a data-page="qcp" onclick="navigate('qcp')"><span class="icon">🎯</span> 控制点库</a>
       <a data-page="masters" onclick="navigate('masters')"><span class="icon">📋</span> 主数据管理</a>
@@ -244,6 +245,12 @@
       <div class="card"><div class="card-body no-padding"><div style="overflow-x:auto;"><table id="qcpTable"><thead><tr><th>QCP编号</th><th>模块</th><th>控制点名称</th><th>阶段</th><th>风险</th><th>控制方法</th><th>关键参数</th><th>CQA/CMA/CPP</th><th>标准</th><th>预警规则</th><th>频率</th><th>负责人</th></tr></thead><tbody></tbody></table></div></div></div>
     </div>
 
+    <!-- ============ PLM PAGE 产品全生命周期 ============ -->
+    <div id="page-plm" class="page">
+      <div class="page-header"><h2>🔗 产品全生命周期管理</h2><p>PLQDP · 7阶段 · 150+ QCP · 产品护照 · 基于ISO 13485 & Quality 4.0</p></div>
+      <div id="plmContent"></div>
+    </div>
+
     <!-- ============ RISK FMEA PAGE ============ -->
     <div id="page-risks" class="page">
       <div class="page-header"><h2>⚠️ 风险数据库 (Risk FMEA)</h2><p>DFMEA / PFMEA · 危害识别 · RPN评分 · 控制措施</p></div>
@@ -389,7 +396,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.10.2"></script>
+<script src="/js/app.js?v=2.11.0"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
