@@ -1,5 +1,5 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server v1.1
+// FDQH - FosunDx Quality Hub Server v1.6
 // MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
@@ -811,7 +811,7 @@ app.get('*', (req, res) => {
 
 db.connect().then(function() {
   app.listen(PORT, function() {
-    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v1.1                 ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
+	    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v1.6                 ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
     console.log('  默认账号: admin / admin123');
   });
 }).catch(function(err) {
