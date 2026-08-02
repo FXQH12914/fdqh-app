@@ -32,7 +32,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <h2>🩺 FDQH</h2>
-      <span>FosunDx Quality Hub v2.4</span>
+      <span>FosunDx Quality Hub v2.5</span>
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
@@ -111,8 +111,16 @@
 
     <!-- ============ EVENTS PAGE ============ -->
     <div id="page-events" class="page">
-      <div class="page-header"><h2>⚠️ 质量事件管理</h2><p>偏差 / OOS / 投诉 / CAPA 事件全生命周期管理</p></div>
-      <div class="card">
+      <div class="page-header"><h2>⚠️ 质量事件管理</h2><p>偏差 · 内审发现 · 日常发现 · 客户投诉 四分类看板</p></div>
+
+      <!-- 四分类 Tab -->
+      <div class="event-cats" id="eventCatTabs"></div>
+
+      <!-- 分类内容 -->
+      <div id="eventCatContent"></div>
+
+      <!-- 全量事件列表 (保留原有管理功能) -->
+      <div class="card" style="margin-top:24px;">
         <div class="card-header">
           <div class="btn-group">
             <button class="btn btn-sm" :class="active">全部</button>

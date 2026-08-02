@@ -292,6 +292,31 @@ tr.clickable { cursor: pointer; }
 .mod-summary-item .msi-label { font-size: 11px; color: var(--text-muted); }
 
 /* Cross table */
+/* ---- EVENT CATEGORY TABS (质量事件四分类) ---- */
+.event-cats { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.event-cat-tab {
+  flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; cursor: pointer;
+  border: 2px solid var(--border); background: var(--white); transition: all .2s;
+  display: flex; align-items: center; gap: 12px;
+}
+.event-cat-tab:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.event-cat-tab .ect-icon { font-size: 22px; }
+.event-cat-tab .ect-info { flex: 1; }
+.event-cat-tab .ect-name { font-size: 14px; font-weight: 700; }
+.event-cat-tab .ect-count { font-size: 22px; font-weight: 800; }
+.event-cat-tab .ect-desc { font-size: 10px; color: var(--text-muted); }
+.event-cat-tab.active { color: #fff; }
+.event-cat-tab.deviation.active { background: linear-gradient(135deg, #F59E0B, #F97316); border-color: #F59E0B; }
+.event-cat-tab.audit.active { background: linear-gradient(135deg, #6366F1, #8B5CF6); border-color: #6366F1; }
+.event-cat-tab.daily.active { background: linear-gradient(135deg, #10B981, #34D399); border-color: #10B981; }
+.event-cat-tab.complaint.active { background: linear-gradient(135deg, #EF4444, #DC2626); border-color: #EF4444; }
+
+.event-cat-detail { margin-bottom: 16px; }
+.event-cat-detail .card-header h3 { font-size: 15px; }
+.ect-mini-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.ect-mini-bar span { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: #F3F4F6; color: var(--text-secondary); }
+.ect-mini-bar span b { color: var(--primary); }
+
 .mod-cross { width: 100%; border-collapse: collapse; font-size: 12px; }
 .mod-cross th { background: #F1F5F9; padding: 7px; text-align: center; font-weight: 600; font-size: 11px; border: 1px solid #E2E8F0; }
 .mod-cross td { padding: 7px; text-align: center; border: 1px solid #E2E8F0; }

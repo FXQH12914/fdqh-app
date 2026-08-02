@@ -473,6 +473,7 @@ function renderPieChart(id, labels, data, colors) {
 // EVENTS
 // ============================================================
 async function loadEvents() {
+  loadEventCategories();
   var search = document.getElementById('eventSearch')?.value || '';
   var query = '?limit=100';
   if (currentEventFilter) query += '&status=' + currentEventFilter;
@@ -499,6 +500,72 @@ async function loadEvents() {
       '<button class="btn btn-outline btn-sm" onclick="editEvent(\'' + e.id + '\')">编辑</button> ' +
       '<button class="btn btn-danger btn-sm" onclick="deleteEvent(\'' + e.id + '\')">删除</button></td></tr>';
   }).join('') : '<tr><td colspan="13"><div class="empty-state">暂无质量事件记录</div></td></tr>';
+}
+
+// ===== 四分类事件看板 =====
+var activeEventCat = 'deviation';
+
+async function loadEventCategories() {
+  var data = await apiGet('/events/categories');
+  if (!data) return;
+
+  // Render tabs
+  var tabsHtml = data.categories.map(function(c) {
+    var active = c.id === activeEventCat ? ' active' : '';
+    return '<div class="event-cat-tab ' + c.id + active + '" onclick="switchEventCat(\'' + c.id + '\')">' +
+      '<span class="ect-icon">' + c.icon + '</span>' +
+      '<div class="ect-info"><div class="ect-name">' + c.name + '</div>' +
+      '<div class="ect-count">' + c.kpi.total + '</div>' +
+      '<div class="ect-desc">' + c.desc + '</div></div></div>';
+  }).join('');
+  document.getElementById('eventCatTabs').innerHTML = tabsHtml;
+
+  // Render active category detail
+  var cat = data.categories.find(function(c) { return c.id === activeEventCat; });
+  if (!cat) return;
+  var k = cat.kpi;
+
+  var html = '<div class="event-cat-detail card"><div class="card-header"><h3>' + cat.icon + ' ' + cat.name + '看板</h3>' +
+    '<span style="font-size:11px;">' + cat.types + '</span></div>' +
+    '<div class="card-body">' +
+    '<div class="module-summary">' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + k.total + '</div><div class="ms-label">📊 总数</div></div>' +
+    '<div class="module-summary-card ' + (k.open > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + k.open + '</div><div class="ms-label">🔴 未关闭</div></div>' +
+    '<div class="module-summary-card ms-pass"><div class="ms-value">' + k.closeRate + '%</div><div class="ms-label">✅ 关闭率</div><div class="ms-target">' + k.closed + ' 件已关闭</div></div>' +
+    '<div class="module-summary-card ' + (k.highRisk > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + k.highRisk + '</div><div class="ms-label">⚠️ 高风险</div></div>' +
+    '</div>' +
+    '<div class="charts-row" style="margin-bottom:0;">' +
+    '<div class="card" style="border:none;box-shadow:none;"><div class="card-header" style="padding:8px 0;"><h3 style="font-size:13px;">📈 月度分布</h3></div><div class="chart-container" style="height:180px;"><canvas id="ecMonth"></canvas></div></div>' +
+    '<div class="card" style="border:none;box-shadow:none;"><div class="card-header" style="padding:8px 0;"><h3 style="font-size:13px;">🏷️ 状态分布</h3></div><div class="chart-container" style="height:180px;"><canvas id="ecStatus"></canvas></div></div>' +
+    '</div>' +
+    '<div class="ect-mini-bar" style="margin-top:12px;">' +
+    Object.keys(cat.byRisk).map(function(r) {
+      return '<span>' + r + ': <b>' + cat.byRisk[r] + '</b></span>';
+    }).join('') +
+    Object.keys(cat.byStatus).map(function(s) {
+      return '<span>' + s + ': <b>' + cat.byStatus[s] + '</b></span>';
+    }).join('') +
+    '</div>' +
+    (cat.topProducts.length ? '<div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">Top 关联产品: ' + cat.topProducts.slice(0, 4).map(function(p) { return p.name + '(' + p.count + ')'; }).join(' · ') + '</div>' : '') +
+    '</div></div>';
+
+  document.getElementById('eventCatContent').innerHTML = html;
+
+  // Render charts
+  setTimeout(function() {
+    var months = ['1月','2月','3月','4月','5月','6月','7月'];
+    var monthData = months.map(function(m) { return cat.byMonth[parseInt(m)] || 0; });
+    renderChart('ecMonth', 'bar', months, monthData, '件数', cat.color);
+
+    var statusLabels = Object.keys(cat.byStatus);
+    var statusValues = Object.keys(cat.byStatus).map(function(s) { return cat.byStatus[s]; });
+    renderPieChart('ecStatus', statusLabels, statusValues, ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6']);
+  }, 200);
+}
+
+function switchEventCat(id) {
+  activeEventCat = id;
+  loadEventCategories();
 }
 
 function filterEvents(status) {

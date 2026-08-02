@@ -165,6 +165,65 @@ app.get('/api/events', requireAuth, asyncHandler(async (req, res) => {
   res.json({ data: paged, total: total, page: pageNum, pageSize: pageSize, totalPages: Math.ceil(total / pageSize) });
 }));
 
+// ============================================================
+// EVENTS CATEGORIES — 质量事件四分类看板 (偏差/内审/日常/投诉)
+// ============================================================
+app.get('/api/events/categories', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+
+  // 四分类映射
+  function classify(e) {
+    switch (e.event_type) {
+      case 'Deviation': case 'OOS': case 'OOT': return 'deviation';
+      case 'Audit-Finding': return 'audit';
+      case 'NCR': case 'SCAR': return 'daily';
+      case 'Complaint': return 'complaint';
+      default: return 'other';
+    }
+  }
+
+  var CATS = [
+    { id: 'deviation', name: '偏差', icon: '⚠️', types: 'Deviation / OOS / OOT', color: '#F59E0B', desc: '生产过程偏差与超标调查' },
+    { id: 'audit', name: '内审发现', icon: '📋', types: 'Audit-Finding', color: '#6366F1', desc: '内部审核发现的体系缺陷' },
+    { id: 'daily', name: '日常发现', icon: '🔍', types: 'NCR / SCAR', color: '#10B981', desc: '日常巡检与IPQC发现问题' },
+    { id: 'complaint', name: '客户投诉', icon: '📢', types: 'Complaint', color: '#EF4444', desc: '客户投诉与市场反馈' },
+  ];
+
+  var result = CATS.map(function(cat) {
+    var items = events.filter(function(e) { return classify(e) === cat.id; });
+    var byMonth = {}, byStatus = {}, byRisk = {}, byProduct = {};
+    items.forEach(function(e) {
+      var m = e.complaint_month || (e.created_at ? new Date(e.created_at).getMonth() + 1 : null);
+      if (m) byMonth[m] = (byMonth[m] || 0) + 1;
+      byStatus[e.status || 'Unknown'] = (byStatus[e.status || 'Unknown'] || 0) + 1;
+      byRisk[e.risk_level || 'Unknown'] = (byRisk[e.risk_level || 'Unknown'] || 0) + 1;
+      var p = e.product_name || '未分类';
+      byProduct[p] = (byProduct[p] || 0) + 1;
+    });
+    var topProducts = Object.keys(byProduct).map(function(p) { return { name: p, count: byProduct[p] }; })
+      .sort(function(a, b) { return b.count - a.count; }).slice(0, 5);
+
+    return {
+      id: cat.id, name: cat.name, icon: cat.icon, types: cat.types, color: cat.color, desc: cat.desc,
+      kpi: {
+        total: items.length,
+        open: items.filter(function(e) { return e.status !== 'Closed'; }).length,
+        closed: items.filter(function(e) { return e.status === 'Closed'; }).length,
+        closeRate: items.length ? Math.round(items.filter(function(e) { return e.status === 'Closed'; }).length / items.length * 100) : 0,
+        highRisk: items.filter(function(e) { return e.risk_level === 'High' || e.risk_level === 'Critical'; }).length,
+      },
+      byMonth: byMonth, byStatus: byStatus, byRisk: byRisk, topProducts: topProducts,
+    };
+  });
+
+  // 汇总
+  var totalAll = events.length;
+  var totalByType = {};
+  events.forEach(function(e) { totalByType[e.event_type] = (totalByType[e.event_type] || 0) + 1; });
+
+  res.json({ categories: result, total: totalAll, byType: totalByType });
+}));
+
 app.get('/api/events/:id', requireAuth, asyncHandler(async (req, res) => {
   var event = await db.findById('quality_events', req.params.id);
   if (!event) return res.status(404).json({ error: 'Not found' });
