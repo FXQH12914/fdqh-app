@@ -1743,19 +1743,27 @@ function filterChanges(filter) {
 function showChangesSubPage(sub) {
   var wrap = document.getElementById('changesDashboardWrap');
   var guide = document.getElementById('changesGuideContent');
+  var reg = document.getElementById('changesRegContent');
   var btns = document.querySelectorAll('#page-changes .page-header .btn-group .btn');
   
   btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
   
+  // Hide all
+  if (wrap) wrap.style.display = 'none';
+  if (guide) guide.style.display = 'none';
+  if (reg) reg.style.display = 'none';
+  
   if (sub === 'guide') {
     if (btns[1]) { btns[1].classList.remove('btn-outline'); btns[1].classList.add('btn-primary'); }
-    if (wrap) wrap.style.display = 'none';
     if (guide) guide.style.display = 'block';
     loadChangesGuide();
+  } else if (sub === 'registration') {
+    if (btns[2]) { btns[2].classList.remove('btn-outline'); btns[2].classList.add('btn-primary'); }
+    if (reg) reg.style.display = 'block';
+    loadRegChanges();
   } else {
     if (btns[0]) { btns[0].classList.remove('btn-outline'); btns[0].classList.add('btn-primary'); }
     if (wrap) wrap.style.display = '';
-    if (guide) guide.style.display = 'none';
   }
 }
 
@@ -1781,6 +1789,114 @@ async function loadChangesGuide() {
   container.innerHTML = html;
   window._changeGuideData = data;
   switchGuideTab('de');
+}
+
+// ===== 注册变更项目列表（分页）=====
+var regChangePage = 1;
+
+async function loadRegChanges(page) {
+  if (page) regChangePage = page; else page = regChangePage;
+  var container = document.getElementById('changesRegContent');
+  if (!container) return;
+  
+  var data = await apiGet('/changes/registration?page=' + page + '&pageSize=20');
+  if (!data) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>'; return; }
+  
+  var s = data.summary;
+  var items = data.data || [];
+  var html = '';
+  
+  // KPI cards
+  html += '<div class="module-summary" style="margin-bottom:16px;">' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.total + '</div><div class="ms-label">📑 注册变更总数</div><div class="ms-target">3类' + s.cat3Count + ' / 2类' + s.cat2Count + '</div></div>' +
+    '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.approved + '</div><div class="ms-label">✅ 已获批</div></div>' +
+    '<div class="module-summary-card ms-warn"><div class="ms-value">' + s.inProgress + '</div><div class="ms-label">⏳ 进行中</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + (s.byPlatform['生化']||0) + '/' + (s.byPlatform['发光']||0) + '/' + (s.byPlatform['分子']||0) + '</div><div class="ms-label">🧪 生化/发光/分子</div></div>' +
+    '</div>';
+  
+  // Issues callout
+  html += '<div style="background:#FEF3C7;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:11px;"><b style="color:#D97706;">⚠️ 变更普遍问题：</b>' +
+    s.issues.slice(0,4).map(function(iss) { return '<div style="margin-top:2px;">• ' + iss + '</div>'; }).join('') + '</div>';
+  
+  // Filters
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">' +
+    '<select onchange="filterRegChanges(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
+      '<option value="">全部类型</option><option value="3类">3类变更</option><option value="2类">2类变更</option><option value="生化">生化平台</option><option value="发光">发光平台</option><option value="分子">分子平台</option><option value="已获批">已获批</option><option value="进行中">进行中</option></select>' +
+    '<input type="text" id="regSearch" placeholder="🔍 搜索产品名称/缩写/注册号..." style="flex:1;min-width:150px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;" onkeyup="if(event.key===\'Enter\')filterRegChanges()">' +
+    '<button class="btn btn-sm btn-outline" onclick="filterRegChanges()">搜索</button>' +
+    '</div>';
+  
+  // Table
+  html += '<div class="card"><div class="card-header"><h3>📑 注册变更项目列表</h3><span style="font-size:11px;">来源：变更项目汇总&变更沟通意见 — 第' + page + '/' + data.totalPages + '页，共' + data.total + '条</span></div>' +
+    '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" style="font-size:12px;"><thead><tr>' +
+    '<th>类型</th><th>类别</th><th>平台</th><th>缩写</th><th>项目名称</th><th>注册证号</th><th>变更点</th><th>负责人</th><th>状态</th>' +
+    '</tr></thead><tbody>';
+  
+  items.forEach(function(r) {
+    var statusBadge = r.status === '已获批' ? 'badge-success' : 'badge-warning';
+    html += '<tr><td><span style="font-size:10px;">' + r.type + '</span></td>' +
+      '<td>' + r.cat + '</td><td>' + r.platform + '</td><td><b>' + r.abbr + '</b></td>' +
+      '<td style="max-width:200px;font-size:11px;">' + r.name + '</td>' +
+      '<td style="font-size:10px;">' + r.regNo + '</td>' +
+      '<td style="max-width:180px;font-size:11px;">' + (r.change||'') + '</td>' +
+      '<td>' + r.person + '</td>' +
+      '<td><span class="badge ' + statusBadge + '">' + r.status + '</span></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // Pagination
+  html += '<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:12px;">';
+  html += '<button class="btn btn-sm btn-outline" onclick="loadRegChanges(1)" ' + (page <= 1 ? 'disabled' : '') + '>« 首页</button>';
+  html += '<button class="btn btn-sm btn-outline" onclick="loadRegChanges(' + (page - 1) + ')" ' + (page <= 1 ? 'disabled' : '') + '>‹ 上页</button>';
+  var startP = Math.max(1, page - 2);
+  var endP = Math.min(data.totalPages, page + 2);
+  for (var p = startP; p <= endP; p++) {
+    html += '<button class="btn btn-sm ' + (p === page ? 'btn-primary' : 'btn-outline') + '" onclick="loadRegChanges(' + p + ')">' + p + '</button>';
+  }
+  html += '<button class="btn btn-sm btn-outline" onclick="loadRegChanges(' + (page + 1) + ')" ' + (page >= data.totalPages ? 'disabled' : '') + '>下页 ›</button>';
+  html += '<button class="btn btn-sm btn-outline" onclick="loadRegChanges(' + data.totalPages + ')" ' + (page >= data.totalPages ? 'disabled' : '') + '>末页 »</button>';
+  html += '<span style="font-size:12px;color:var(--text-muted);margin-left:8px;">共 ' + data.total + ' 条</span>';
+  html += '</div>';
+  
+  html += '</div>';
+  
+  container.innerHTML = html;
+}
+
+function filterRegChanges(filterVal) {
+  var filter = filterVal || document.querySelector('#changesRegContent select')?.value || '';
+  var search = document.getElementById('regSearch')?.value || '';
+  window._regFilter = filter;
+  window._regSearch = search;
+  regChangePage = 1;
+  // Re-load with filter
+  var container = document.getElementById('changesRegContent');
+  if (container) container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>';
+  apiGet('/changes/registration?page=1&pageSize=20&filter=' + encodeURIComponent(filter) + '&search=' + encodeURIComponent(search)).then(function(data) {
+    if (data) {
+      window._regData = data;
+      renderRegList(1);
+    }
+  });
+}
+
+function renderRegList(page) {
+  var data = window._regData;
+  if (!data) return loadRegChanges(page);
+  // Re-calc pagination with same data
+  var filter = window._regFilter || '';
+  var search = (window._regSearch || '').toLowerCase();
+  var filtered = data.data;
+  if (filter || search) {
+    // Need to re-fetch since filter is server-side
+    loadRegChanges(page);
+    return;
+  }
+  // Simple repagination
+  var total = data.total;
+  var pageSize = data.pageSize;
+  var totalPages = Math.ceil(total / pageSize);
+  loadRegChanges(page);
 }
 
 function switchGuideTab(tab) {
