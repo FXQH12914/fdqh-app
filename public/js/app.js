@@ -1807,16 +1807,19 @@ async function loadRegChanges(page) {
   var html = '';
   
   // KPI cards
+  var approveRate = Math.round(s.approved / Math.max(s.total, 1) * 100);
   html += '<div class="module-summary" style="margin-bottom:16px;">' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.total + '</div><div class="ms-label">📑 注册变更总数</div><div class="ms-target">3类' + s.cat3Count + ' / 2类' + s.cat2Count + '</div></div>' +
-    '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.approved + '</div><div class="ms-label">✅ 已获批</div></div>' +
-    '<div class="module-summary-card ms-warn"><div class="ms-value">' + s.inProgress + '</div><div class="ms-label">⏳ 进行中</div></div>' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + (s.byPlatform['生化']||0) + '/' + (s.byPlatform['发光']||0) + '/' + (s.byPlatform['分子']||0) + '</div><div class="ms-label">🧪 生化/发光/分子</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.total + '</div><div class="ms-label">📑 注册变更总数</div><div class="ms-target">3类' + s.cat3Count + '项 / 2类' + s.cat2Count + '项</div></div>' +
+    '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.approved + '</div><div class="ms-label">✅ 已获批</div><div class="ms-target">获批率 ' + approveRate + '%</div></div>' +
+    '<div class="module-summary-card ms-warn"><div class="ms-value">' + s.inProgress + '</div><div class="ms-label">⏳ 进行中</div><div class="ms-target">' + (s.inProgress > 0 ? '待完成' + s.inProgress + '项' : '全部完成') + '</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + approveRate + '%</div><div class="ms-label">📊 完成率</div><div class="ms-target">生化' + (s.byPlatform['生化']||0) + ' / 发光' + (s.byPlatform['发光']||0) + ' / 分子' + (s.byPlatform['分子']||0) + '</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">2.75→1万</div><div class="ms-label">💰 二类变更费</div><div class="ms-target">2026年减免后1万/项</div></div>' +
     '</div>';
   
-  // Issues callout
-  html += '<div style="background:#FEF3C7;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:11px;"><b style="color:#D97706;">⚠️ 变更普遍问题：</b>' +
-    s.issues.slice(0,4).map(function(iss) { return '<div style="margin-top:2px;">• ' + iss + '</div>'; }).join('') + '</div>';
+  // Issues callout — show all
+  html += '<div style="background:#FEF3C7;border-left:4px solid #D97706;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:11px;">' +
+    '<b style="color:#D97706;">⚠️ 变更普遍问题（来源：变更沟通意见汇总）</b>' +
+    s.issues.map(function(iss, i) { return '<div style="margin-top:3px;">' + (i+1) + '. ' + iss + '</div>'; }).join('') + '</div>';
   
   // Filters
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">' +
