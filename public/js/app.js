@@ -565,7 +565,11 @@ async function showMasterTab(tab) {
     var products = await apiGet('/products');
     var tbody = document.querySelector('#productsTable tbody');
     tbody.innerHTML = (products||[]).map(function(p) {
-      return '<tr><td>' + p.id + '</td><td>' + p.product_name + '</td><td>' + (p.product_category||'-') + '</td><td>' + (p.detection_tech||'-') + '</td><td><span class="badge badge-' + getRiskBadge(p.risk_class) + '">' + p.risk_class + '</span></td><td>' + (p.lifecycle_status||'-') + '</td><td>' + (p.regulatory_status||'-') + '</td><td>' + (p.reg_no||'-') + '</td></tr>';
+      return '<tr class="clickable" onclick="viewProduct(\'' + p.id + '\')" title="点击查看产品详情">' +
+        '<td>' + p.id + '</td><td>' + p.product_name + '</td><td>' + (p.product_category||'-') + '</td><td>' + (p.detection_tech||'-') + '</td>' +
+        '<td><span class="badge badge-' + getRiskBadge(p.risk_class) + '">' + p.risk_class + '</span></td>' +
+        '<td>' + (p.lifecycle_status||'-') + '</td><td>' + (p.regulatory_status||'-') + '</td><td>' + (p.reg_no||p.product_code||'-') + '</td>' +
+        '<td>' + (p.bqi ? '<span style="font-weight:700;color:' + (p.bqi>=90?'#10B981':p.bqi>=70?'#F59E0B':'#EF4444') + ';">' + p.bqi + '</span>' : '-') + '</td></tr>';
     }).join('') || '<tr><td colspan="8"><div class="empty-state">暂无产品数据</div></td></tr>';
   } else {
     var suppliers = await apiGet('/suppliers');
@@ -634,7 +638,57 @@ async function loadAuditLogs() {
 }
 
 // ============================================================
-// QCP
+// PRODUCT DETAIL — 产品质量档案
+// ============================================================
+async function viewProduct(id) {
+  var products = await apiGet('/products');
+  var p = (products||[]).find(function(x) { return x.id === id; });
+  if (!p) return;
+
+  var bqiColor = (p.bqi||0) >= 90 ? '#10B981' : (p.bqi||0) >= 70 ? '#F59E0B' : '#EF4444';
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">' +
+    '<div><span style="color:var(--text-secondary);">产品编码</span><br><strong>' + (p.product_code||p.id) + '</strong></div>' +
+    '<div><span style="color:var(--text-secondary);">产品名称</span><br><strong>' + (p.product_name||'-') + '</strong></div>' +
+    '<div><span style="color:var(--text-secondary);">类别</span><br>' + (p.product_category||'-') + '</div>' +
+    '<div><span style="color:var(--text-secondary);">检测技术</span><br>' + (p.detection_tech||'-') + '</div>' +
+    '<div><span style="color:var(--text-secondary);">风险等级</span><br><span class="badge badge-' + getRiskBadge(p.risk_class) + '">' + (p.risk_class||'-') + '</span></div>' +
+    '<div><span style="color:var(--text-secondary);">BQI 批次健康指数</span><br><span style="font-size:24px;font-weight:700;color:' + bqiColor + ';">' + (p.bqi||'N/A') + '</span></div>' +
+    '<div><span style="color:var(--text-secondary);">注册编号</span><br>' + (p.reg_no||'-') + '</div>' +
+    '<div><span style="color:var(--text-secondary);">规格</span><br>' + (p.spec_model||'-') + '</div>' +
+    '<div><span style="color:var(--text-secondary);">储运条件</span><br>' + (p.storage_condition||'-') + '</div>' +
+    '<div><span style="color:var(--text-secondary);">有效期</span><br>' + (p.shelf_life||'-') + '</div>' +
+    (p.throughput ? '<div><span style="color:var(--text-secondary);">通量</span><br>' + p.throughput + '</div>' : '') +
+    '<div><span style="color:var(--text-secondary);">适应症</span><br>' + (p.indications||'-') + '</div>' +
+    '</div>';
+
+  // Batch info
+  if (p.batch_no) {
+    html += '<div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:var(--radius);"><strong>📦 当前批次</strong><br>' +
+      '批号: ' + p.batch_no + ' | 生产日期: ' + (p.batch_date||'-') + '<br>' +
+      '基地: ' + (p.base||'-') + ' | 产线: ' + (p.line||'-') + ' | 数量: ' + (p.batch_qty||'-') + '<br>' +
+      '状态: <span class="badge badge-warning">' + (p.batch_status||'-') + '</span></div>';
+  }
+
+  // Components
+  if (p.components) {
+    html += '<div style="margin-top:10px;"><span style="color:var(--text-secondary);font-size:12px;">🧪 <b>组分</b></span><br>' + p.components.replace(/\//g, '<br>') + '</div>';
+  }
+
+  // CQA/CMA/CPP
+  if (p.cqa_list || p.cma_list || p.cpp_list) {
+    html += '<div style="margin-top:14px;padding:12px;background:var(--accent-light);border-radius:var(--radius);">' +
+      '<strong>🧬 CLIA 质量属性</strong><br>' +
+      (p.cqa_list ? '📊 <b>CQA:</b> ' + p.cqa_list + '<br>' : '') +
+      (p.cma_list ? '🧪 <b>CMA:</b> ' + p.cma_list + '<br>' : '') +
+      (p.cpp_list ? '⚙️ <b>CPP:</b> ' + p.cpp_list : '') +
+      '</div>';
+  }
+
+  // Show in event detail modal
+  document.getElementById('eventDetailContent').innerHTML = html;
+  document.getElementById('eventModalTitle') && (document.getElementById('eventModalTitle').textContent = '产品档案: ' + (p.product_code||p.id));
+  openModal('eventDetailModal');
+}
 // ============================================================
 async function loadQCP() {
   var result = await apiGet('/qcp?limit=200');
