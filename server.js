@@ -533,41 +533,6 @@ app.get('/api/changes', requireAuth, asyncHandler(async (req, res) => {
   res.json({ data: changes.slice(start, start + pageSize), total: total, page: pageNum, pageSize: pageSize });
 }));
 
-app.get('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
-  var change = await db.findById('change_records', req.params.id);
-  if (!change) return res.status(404).json({ error: 'Not found' });
-  var auditLogs = await db.getAuditLogs('change_records', req.params.id);
-  res.json({ change, auditLogs });
-}));
-
-app.post('/api/changes', requireAuth, asyncHandler(async (req, res) => {
-  requireFields(req.body, ['change_type', 'risk', 'impact']);
-  if (!VALID_CHANGE_TYPES.includes(req.body.change_type)) return res.status(400).json({ error: '无效的变更类型: ' + req.body.change_type });
-  if (!VALID_RISK_LEVELS.includes(req.body.risk)) return res.status(400).json({ error: '无效的风险等级' });
-
-  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'change_level', 'change_no', 'product_type_desc', 'base', 'description', 'status', 'imported', 'change_object', 'change_desc', 'change_track']);
-  data.status = data.status || 'Pending Approval';
-  data.initiator = req.user.username;
-
-  var change = await db.insert('change_records', data, req.user.username);
-  res.status(201).json(change);
-}));
-
-app.put('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
-  var allowed = ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'status'];
-  var data = whitelistFields(req.body, allowed);
-  if (data.change_type && !VALID_CHANGE_TYPES.includes(data.change_type)) return res.status(400).json({ error: '无效的变更类型' });
-  if (data.risk && !VALID_RISK_LEVELS.includes(data.risk)) return res.status(400).json({ error: '无效的风险等级' });
-
-  var updated = await db.update('change_records', req.params.id, data, req.user.username);
-  res.json(updated);
-}));
-
-app.delete('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
-  await db.delete('change_records', req.params.id, req.user.username);
-  res.json({ success: true });
-}));
-
 // ============================================================
 // 变更操作指南提示卡 API
 // 来源：变更分类与举例 Excel + 变更控制体系优化建议 + 仪器物料变更指南
@@ -680,11 +645,43 @@ app.get('/api/changes/guide', requireAuth, asyncHandler(async (req, res) => {
 
     updated: '2026-08'
   };
-  res.json(guide);
+
+
+app.get('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
+  var change = await db.findById('change_records', req.params.id);
+  if (!change) return res.status(404).json({ error: 'Not found' });
+  var auditLogs = await db.getAuditLogs('change_records', req.params.id);
+  res.json({ change, auditLogs });
 }));
 
-// ============================================================
-// PRODUCTS & SUPPLIERS
+app.post('/api/changes', requireAuth, asyncHandler(async (req, res) => {
+  if (!VALID_CHANGE_TYPES.includes(req.body.change_type)) return res.status(400).json({ error: '无效的变更类型: ' + req.body.change_type });
+  if (!VALID_RISK_LEVELS.includes(req.body.risk)) return res.status(400).json({ error: '无效的风险等级' });
+
+  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'change_level', 'change_no', 'product_type_desc', 'base', 'description', 'status', 'imported', 'change_object', 'change_desc', 'change_track']);
+  data.status = data.status || 'Pending Approval';
+  data.initiator = req.user.username;
+
+  var change = await db.insert('change_records', data, req.user.username);
+  res.status(201).json(change);
+}));
+
+app.put('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
+  var allowed = ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'status'];
+  var data = whitelistFields(req.body, allowed);
+  if (data.change_type && !VALID_CHANGE_TYPES.includes(data.change_type)) return res.status(400).json({ error: '无效的变更类型' });
+  if (data.risk && !VALID_RISK_LEVELS.includes(data.risk)) return res.status(400).json({ error: '无效的风险等级' });
+
+  var updated = await db.update('change_records', req.params.id, data, req.user.username);
+  res.json(updated);
+}));
+
+app.delete('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
+  await db.delete('change_records', req.params.id, req.user.username);
+  res.json({ success: true });
+}));
+
+
 // ============================================================
 app.get('/api/products', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('products'));
