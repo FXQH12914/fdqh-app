@@ -686,19 +686,97 @@ app.delete('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
 
 // ============================================================
 // PLM — 产品全生命周期管理 (PLQDP)
-// 来源：复星诊断PLQDP设计方案 + IVD产品全生命周期质量数据对象模型
+// 标准 7 阶段：立项 → 设计开发 → 注册 → 转产 → 量产 → 上市 → 退市
+// 质量指标映射：三层级×三类型（战略/策略/执行 × 红线/经营/提升）
+// 来源：复星诊断PLQDP设计方案 + 数据对象模型 + 质量指标体系设计建议
 // ============================================================
 app.get('/api/plm/stages', requireAuth, asyncHandler(async (req, res) => {
   var stages = [
-    { id: '01', code: '01', name: '产品立项', icon: '🎯', color: '#6366F1', desc: '市场需求 → 临床需求 → 竞争分析 → QTPP质量目标', inputs: ['市场需求文档', '临床需求分析', '竞争分析报告'], controls: ['需求评审100%完成', '风险识别完成', 'QTPP签批'], outputs: ['产品质量目标QTPP', '立项批准书'], qcpCount: 8, owner: '产品经理 + 市场部' },
-    { id: '02', code: '02', name: '研发设计', icon: '🔬', color: '#8B5CF6', desc: '设计输入 → CQA/CMA/CPP定义 → 风险分析 → 设计验证', inputs: ['QTPP', '用户需求URS', '法规标准'], controls: ['CQA关键质量属性识别', 'CMA关键物料属性定义', 'CPP关键工艺参数确定', 'FMEA风险分析', '设计验证方案'], outputs: ['设计冻结文件', 'CQA/CMA/CPP清单', 'DHF文档'], qcpCount: 20, owner: '研发中心 + DQE' },
-    { id: '03', code: '03', name: '注册转移', icon: '📋', color: '#0EA5E9', desc: '注册申报 → 工艺一致性 → 性能一致性 → 量产工艺包', inputs: ['设计冻结文件', '注册申报资料', '试产数据'], controls: ['注册标准符合性', '工艺一致性验证', '性能一致性验证', '文件完整性审核'], outputs: ['注册证书', '量产工艺包', '转产确认报告'], qcpCount: 15, owner: 'RA法规事务 + 工艺工程' },
-    { id: '04', code: '04', name: '供应链质量', icon: '🏭', color: '#F59E0B', desc: '供应商审核 → 物料分级 → 来料检验 → Material Passport', inputs: ['供应商清单', '物料规格书', '采购合同'], controls: ['供应商审核评分', 'A/B/C物料分级', '来料检验标准', '供应商绩效监控'], outputs: ['Material Passport', '合格供应商清单', '来料检验报告'], qcpCount: 50, owner: 'SQE供应商质量 + 采购部' },
-    { id: '05', code: '05', name: '生产制造', icon: '⚙️', color: '#10B981', desc: '工艺执行 → 参数监控 → SPC → Batch Passport', inputs: ['量产工艺包', '生产计划', '物料批次'], controls: ['关键工艺参数CPP监控', 'SPC统计过程控制', '偏差管理', '批记录完整性'], outputs: ['Batch Passport批次护照', '批生产记录', 'SPC报告'], qcpCount: 30, owner: '生产部 + 制程质量' },
-    { id: '06', code: '06', name: 'QC放行', icon: '✅', color: '#059669', desc: '性能检验 → 稳定性 → 批间一致性 → 电子放行', inputs: ['检验规程', '批样品', '标准品/参考品'], controls: ['成品全项检验', '稳定性考察', '批间一致性分析', 'OOS/OOT处理'], outputs: ['检验报告', '放行审核单', '稳定性数据'], qcpCount: 35, owner: 'QC + QA放行审核' },
-    { id: '07', code: '07', name: '上市后', icon: '🌐', color: '#EF4444', desc: '投诉处理 → EQA → CAPA → 持续改进', inputs: ['客户投诉', 'EQA结果', '不良事件报告', 'PMS数据'], controls: ['投诉调查与关闭', 'EQA性能监控', 'CAPA有效性', '不良事件报告时效', '召回管理'], outputs: ['PMS年度报告', 'CAPA记录', '持续改进计划'], qcpCount: 15, owner: '市场质量 + 体系QA' }
+    { id: '01', code: '01', name: '立项', icon: '🎯', color: '#6366F1',
+      desc: '市场需求 → 临床需求 → 竞争分析 → QTPP质量目标',
+      inputs: ['市场需求文档', '临床需求分析', '竞争分析报告'],
+      controls: ['需求评审100%完成', '风险识别完成', 'QTPP签批'],
+      outputs: ['产品质量目标QTPP', '立项批准书'],
+      qcpCount: 8, owner: '产品经理 + 市场部',
+      indicators: [
+        { name: '项目质量指标达成率', type: '经营', level: '策略', target: '≥90%', desc: '新产品导入与开发质量' }
+      ] },
+    { id: '02', code: '02', name: '设计开发', icon: '🔬', color: '#8B5CF6',
+      desc: '设计输入 → CQA/CMA/CPP定义 → 风险分析 → 设计验证',
+      inputs: ['QTPP', '用户需求URS', '法规标准'],
+      controls: ['CQA关键质量属性识别', 'CMA关键物料属性定义', 'CPP关键工艺参数确定', 'FMEA风险分析', '设计验证方案'],
+      outputs: ['设计冻结文件', 'CQA/CMA/CPP清单', 'DHF文档'],
+      qcpCount: 20, owner: '研发中心 + DQE',
+      indicators: [
+        { name: '设计输入输出追溯率', type: '红线', level: '策略', target: '100%', desc: 'ISO13485设计控制闭环' },
+        { name: '风险管理文件更新及时率', type: '红线', level: '策略', target: '100%', desc: '新GMP风险持续管理' },
+        { name: '关键性能验证覆盖率', type: '经营', level: '策略', target: '100%', desc: '关键性能/可靠性/接口验证覆盖' },
+        { name: '需求变更控制率', type: '经营', level: '策略', target: '100%', desc: '区分外部需求与内部返工' },
+        { name: '里程碑评审一次通过率', type: '经营', level: '策略', target: '≥80%', desc: '设计纪律与跨部门协同' },
+        { name: '注册资料一次通过率', type: '提升', level: '提升', target: '≥85%', desc: '从合规开发到高质量开发' }
+      ] },
+    { id: '03', code: '03', name: '注册', icon: '📋', color: '#0EA5E9',
+      desc: '注册申报 → 注册检验 → 标准符合性 → 取得注册证',
+      inputs: ['设计冻结文件', '注册申报资料', '型式检验报告'],
+      controls: ['注册标准符合性', '型式检验通过', '文件完整性审核', '注册审评答复'],
+      outputs: ['注册证书', '注册检验报告'],
+      qcpCount: 12, owner: 'RA法规事务',
+      indicators: [
+        { name: '注册资料一次通过率', type: '提升', level: '提升', target: '≥85%', desc: '注册审评一次通过' },
+        { name: '注册时限达成率', type: '经营', level: '策略', target: '≥95%', desc: '注册周期控制' }
+      ] },
+    { id: '04', code: '04', name: '转产', icon: '🏭', color: '#F59E0B',
+      desc: '工艺转移 → 试产验证 → 首件确认 → 量产工艺包',
+      inputs: ['注册证书', 'DHF/DMR文件', '试产计划'],
+      controls: ['工艺一致性验证', '性能一致性验证', '试产样机直通率', '首件/首批确认'],
+      outputs: ['量产工艺包', '转产确认报告', '试产报告'],
+      qcpCount: 15, owner: '工艺工程 + 研发质量',
+      indicators: [
+        { name: '试产样机直通率', type: '提升', level: '提升', target: '≥85%', desc: '可制造性与设计转化能力' },
+        { name: '产品成熟度评分', type: '提升', level: '提升', target: '≥80分', desc: '转产就绪度评估' }
+      ] },
+    { id: '05', code: '05', name: '量产', icon: '⚙️', color: '#10B981',
+      desc: '工艺执行 → CPP监控 → SPC → Batch Passport',
+      inputs: ['量产工艺包', '生产计划', '物料批次'],
+      controls: ['关键工艺参数CPP监控', 'SPC统计过程控制', '偏差管理', '批记录完整性'],
+      outputs: ['Batch Passport批次护照', '批生产记录', 'SPC报告'],
+      qcpCount: 30, owner: '生产部 + 制程质量',
+      indicators: [
+        { name: '过程检验一次合格率', type: '经营', level: '经营', target: '≥98%', desc: '制造过程稳健性' },
+        { name: 'CPP超标率', type: '经营', level: '策略', target: '0', desc: '关键工艺参数受控' },
+        { name: '返工/重加工批次占比', type: '经营', level: '策略', target: '<2%', desc: '过程稳定性' },
+        { name: 'OOS/偏差调查关闭周期', type: '经营', level: '策略', target: '≤14天', desc: '快速闭环' },
+        { name: 'SPC覆盖关键工序率', type: '提升', level: '提升', target: '≥90%', desc: '统计过程控制覆盖率' },
+        { name: '批间CV/过程波动收敛率', type: '提升', level: '提升', target: '收敛', desc: '跨批次一致性' }
+      ] },
+    { id: '06', code: '06', name: '上市', icon: '✅', color: '#059669',
+      desc: '成品放行 → 上市监控 → 投诉/不良事件 → EQA',
+      inputs: ['检验规程', '成品批', 'PMS数据'],
+      controls: ['成品全项检验', '放行审核', '投诉调查与关闭', '不良事件报告', 'EQA性能监控'],
+      outputs: ['检验报告', '放行单', 'PMS年度报告'],
+      qcpCount: 35, owner: 'QC + QA放行 + 市场质量',
+      indicators: [
+        { name: '出货产品合格率', type: '红线', level: '战略', target: '100%', desc: '市场放行与患者安全' },
+        { name: '不良事件按时报告率', type: '红线', level: '战略', target: '100%', desc: '法定时限履行' },
+        { name: '电气安全不良事件数', type: '红线', level: '战略', target: '0起', desc: '患者与使用安全' },
+        { name: '客户投诉率', type: '经营', level: '战略', target: '持续下降', desc: '市场端质量感知' },
+        { name: '质量原因退货率', type: '经营', level: '战略', target: '≤目标值', desc: '市场端真实质量' },
+        { name: 'EQA合格率', type: '经营', level: '战略', target: '100%', desc: '产品一致性与场景适用性' },
+        { name: '客户投诉闭环率', type: '红线', level: '策略', target: '100%', desc: '上市后快速闭环' },
+        { name: '上市后设计相关CAPA闭环率', type: '提升', level: '提升', target: '按期关闭', desc: '持续改进与风险前移' }
+      ] },
+    { id: '07', code: '07', name: '退市', icon: '📉', color: '#6B7280',
+      desc: '退市评估 → 剩余库存处理 → 客户通知 → 备件保障',
+      inputs: ['退市申请', '市场数据', '库存数据'],
+      controls: ['退市风险评估', '剩余库存处置', '客户/在用设备通知', '备件供应计划'],
+      outputs: ['退市评估报告', '退市通知', '备件保障计划'],
+      qcpCount: 5, owner: '产品管理 + 法规事务',
+      indicators: [
+        { name: '备件满足率', type: '提升', level: '提升', target: '≥95%', desc: '退市后服务保障' },
+        { name: '在用设备影响评估覆盖率', type: '提升', level: '提升', target: '100%', desc: '客户延续性保障' }
+      ] }
   ];
-  res.json({ stages: stages, totalQCP: stages.reduce(function(s, st) { return s + st.qcpCount; }, 0), updated: '2026-08' });
+  res.json({ stages: stages, totalQCP: stages.reduce(function(s, st) { return s + st.qcpCount; }, 0), stageCount: 7, standard: 'PLM 7阶段: 立项/设计开发/注册/转产/量产/上市/退市', updated: '2026-08' });
 }));
 
 app.get('/api/plm/dashboard', requireAuth, asyncHandler(async (req, res) => {
