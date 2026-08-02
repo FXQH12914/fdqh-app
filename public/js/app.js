@@ -881,9 +881,9 @@ async function loadCAPA(filter) {
     if (gtbody && groups.length) {
       gtbody.innerHTML = groups.map(function(g) {
         var pct = Math.round(g.count ? g.closed/g.count*100 : 0);
-        return '<tr><td style="font-weight:500;">' + g.prefix + '</td><td><b>' + g.count + '</b></td>' +
+        return '<tr><td style="font-weight:500;">' + g.source + '</td><td><b>' + g.count + '</b></td>' +
           '<td style="font-size:11px;text-align:left;">' + g.capaNos + '</td>' +
-          '<td style="font-size:11px;">' + g.depts + '</td>' +
+          '<td style="font-size:11px;">' + (g.summary||'') + '</td>' +
           '<td><span style="font-weight:600;color:' + (pct>=80?'#10B981':pct>=50?'#F59E0B':'#EF4444') + ';">' + pct + '%</span></td></tr>';
       }).join('');
     }

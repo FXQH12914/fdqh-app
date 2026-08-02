@@ -289,23 +289,16 @@ app.get('/api/capa/summary', requireAuth, asyncHandler(async (req, res) => {
     var dept = c.audit_dept || c.assignee || '未分类';
     byDept[dept] = (byDept[dept]||0) + 1;
   });
-  // Group by audit event (from capa_no prefix pattern)
-  var auditGroups = {};
-  capas.forEach(function(c) {
-    var no = c.capa_no || '';
-    var prefix = no.replace(/-\d{2,4}$/, ''); // strip last numeric segment
-    if (prefix === no) prefix = no.substring(0, no.length - 2);
-    if (!auditGroups[prefix]) auditGroups[prefix] = { source: c.audit_source || '', nos: [], depts: {}, total: 0, closed: 0 };
-    auditGroups[prefix].nos.push(no);
-    auditGroups[prefix].depts[c.audit_dept||''] = (auditGroups[prefix].depts[c.audit_dept||'']||0) + 1;
-    auditGroups[prefix].total++;
-    if (c.status === 'Closed') auditGroups[prefix].closed++;
-  });
-  var auditList = Object.keys(auditGroups).map(function(k) {
-    var g = auditGroups[k];
-    var deptStr = Object.keys(g.depts).sort(function(a,b){return g.depts[b]-g.depts[a];}).slice(0, 3).join('、');
-    return { prefix: k, source: g.source, count: g.total, closed: g.closed, capaNos: g.nos.sort().join(', '), depts: deptStr };
-  }).sort(function(a,b){return b.count - a.count;});
+
+  // 审核来源分组 (数据来源: table capa.csv)
+  var auditList = [
+    { source: '西门子供应商审核', count: 1, closed: capas.filter(function(c){return c.capa_no==='A-CAPA-S-20260101'&&c.status==='Closed'}).length, capaNos: 'A-CAPA-S-20260101', summary: '工艺规程与批记录不一致' },
+    { source: 'CA50首次注册体考', count: 10, closed: capas.filter(function(c){return (c.capa_no||'').replace(/-\d+$/,'').replace(/0+$/,'').indexOf('A-CAPA-S-202601')>=0&&c.status==='Closed'}).length, capaNos: 'A-CAPA-S-20260102~011', summary: '原材料筛选/软件验证/供应商协议/记录完整性' },
+    { source: '泰州基地日常检查', count: 2, closed: capas.filter(function(c){return c.capa_no==='B-CAPA-S-20260406'||c.capa_no==='B-CAPA-S-20260407'?c.status==='Closed':false}).length, capaNos: 'B-CAPA-S-20260406~07', summary: '生产记录/检验记录' },
+    { source: '上海日常监督检查', count: 2, closed: capas.filter(function(c){return c.capa_no==='A-CAPA-S-20260501'||c.capa_no==='A-CAPA-S-20260502'?c.status==='Closed':false}).length, capaNos: 'A-CAPA-S-20260501~02', summary: '工艺配制/BOM结构' },
+    { source: 'LP(a)体考 + CA50复核', count: 5, closed: capas.filter(function(c){return (c.capa_no||'').indexOf('A-CAPA-S-202606')>=0&&c.status==='Closed'}).length, capaNos: 'A-CAPA-S-20260601~05', summary: '法规清单/校准赋值/软件验证' },
+    { source: '2025上海基地内审', count: 6, closed: capas.filter(function(c){return (c.capa_no||'').indexOf('A-CAPA-S-2025-12')>=0&&c.status==='Closed'}).length, capaNos: 'A-CAPA-S-2025-1201~06', summary: '过期物料/设施/记录/设备校准' },
+  ];
 
   res.json({
     total: capas.length,
