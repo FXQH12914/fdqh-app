@@ -198,7 +198,7 @@ async function loadQualityModules() {
   // Render active module
   renderModule(data.modules.find(function(m) { return m.id === currentModule; }), months);
 
-  function renderModule(mod, months) {
+  function renderModule(mod, defaultMonths) {
     if (!mod) return;
     var html = '';
 
@@ -212,26 +212,26 @@ async function loadQualityModules() {
 
     // Sections
     mod.sections.forEach(function(sec) {
+      var secMonths = sec.months || defaultMonths;
       html += '<div class="module-section"><div class="module-section-title">' + sec.title + '</div>';
 
       if (sec.type === 'table') {
         html += '<table class="mod-table"><thead><tr>' + sec.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
         sec.rows.forEach(function(row) {
           var cls = 'c-' + row.status;
-          html += '<tr><td>' + row.name + (row.note ? ' <span style="color:#DC2626;font-size:10px;">' + row.note + '</span>' : '') + '</td><td><b>' + row.target + '</b></td>';
-          months.forEach(function(mo) {
+          html += '<tr><td>' + row.name + (row.note ? ' <span style="color:#DC2626;font-size:10px;">' + row.note + '</span>' : '') + (row.desc ? ' <small style="color:var(--text-muted)">' + row.desc + '</small>' : '') + '</td><td><b>' + row.target + '</b></td>';
+          secMonths.forEach(function(mo) {
             var v = row.months[mo];
             var dir = row.direction || 'gte';
             var c = v === '--' || v === null || v === undefined ? 'c-na' : (dir === 'lt' ? (v <= parseFloat(row.target) ? 'c-pass' : 'c-fail') : (v >= parseFloat(row.target) ? 'c-pass' : 'c-fail'));
-            var disp = v === '--' ? '-' : (v !== null && v !== undefined ? (v >= 100 ? '100' : Number(v).toFixed(1)) + '%' : '-');
+            var disp = v === '--' ? '-' : (v !== null && v !== undefined ? (v >= 100 ? '100' : Number(v).toFixed(1)) + (isNaN(parseFloat(row.target)) ? '' : '%') : '-');
             html += '<td class="' + c + '">' + disp + '</td>';
           });
           html += '<td class="' + cls + '"><b>' + row.ytd + '</b></td></tr>';
-          // Children
           if (row.children) {
             row.children.forEach(function(ch) {
               html += '<tr class="sub-row"><td>↳ ' + ch.name + '</td><td>' + ch.target + '</td>';
-              months.forEach(function(mo) {
+              secMonths.forEach(function(mo) {
                 var v = ch.months[mo];
                 var c = v === '--' || v === null || v === undefined ? 'c-na' : (v <= parseFloat(ch.target) ? 'c-pass' : 'c-fail');
                 html += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';
@@ -264,13 +264,13 @@ async function loadQualityModules() {
         html += '</div>';
 
       } else if (sec.type === 'cross') {
-        html += '<table class="mod-cross"><thead><tr><th>机型</th><th>指标</th>' + months.map(function(m){return '<th>'+m+'</th>';}).join('') + '<th>YTD</th><th>状态</th></tr></thead><tbody>';
+        html += '<table class="mod-cross"><thead><tr><th>机型</th><th>指标</th>' + secMonths.map(function(m){return '<th>'+m+'</th>';}).join('') + '<th>YTD</th><th>状态</th></tr></thead><tbody>';
         sec.models.forEach(function(model) {
           sec.metrics.forEach(function(met) {
             var d = met.data[model];
             if (!d) return;
             html += '<tr><td class="rl">' + model + '</td><td>' + met.label + ' ≤' + met.target + '</td>';
-            months.forEach(function(mo) {
+            secMonths.forEach(function(mo) {
               var v = d.months[mo];
               var c = v === null || v === undefined ? 'c-na' : (v <= parseFloat(met.target) ? 'c-pass' : 'c-fail');
               html += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';

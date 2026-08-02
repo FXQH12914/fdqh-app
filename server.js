@@ -1101,6 +1101,45 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
           { issue: 'TT4试剂瓶裂痕漏液', product: 'TT4试剂', line: '发光', status: 'closed' },
         ]
       },
+      { title: 'IQC 来料检验周数据 (2026 H1累计)', type: 'table',
+        headers: ['类别','来料批数','不合格批','合格率','目标'],
+        rows: [
+          { name: '仪器-原辅料', target: '≥98.5%', months: {'批数':7874}, ytd:'98.6%', status:'pass', direction:'gte', desc:'不合格111批' },
+          { name: '仪器-包材', target: '≥98.8%', months: {'批数':363}, ytd:'97.8%', status:'warning', direction:'gte', desc:'不合格8批' },
+          { name: '试剂-原辅料(长沙)', target: '≥99.3%', months: {'批数':1616}, ytd:'99.8%', status:'pass', direction:'gte', desc:'不合格4批' },
+          { name: '试剂-包材(长沙)', target: '≥99.3%', months: {'批数':439}, ytd:'99.1%', status:'pass', direction:'gte', desc:'不合格4批' },
+          { name: '原料漏检率(试剂)', target: '≤0.2%', months: {'上线数':341590}, ytd:'0.01%', status:'pass', direction:'lt', desc:'上线不合格19件' },
+        ]
+      },
+      { title: 'IQC 材料异常处理', type: 'summary',
+        items: [
+          { label: '仪器供应商问题', value: '135件', color: '#F59E0B' },
+          { label: '仪器非供应商', value: '101件', color: '#3B82F6' },
+          { label: '试剂供应商问题', value: '8件', color: '#10B981' },
+          { label: '试剂非供应商', value: '53件', color: '#8B5CF6' },
+          { label: '异常关闭率', value: '99.1%', color: '#059669' },
+        ]
+      },
+      { title: '仓储物流 KPI (长沙工厂)', type: 'summary',
+        items: [
+          { label: '入库及时率', value: '100%', color: '#10B981' },
+          { label: '入库准确率', value: '100%', color: '#10B981' },
+          { label: '出库及时率', value: '100%', color: '#10B981' },
+          { label: '出库准确率', value: '100%', color: '#10B981' },
+          { label: '领料及时率', value: '98.3%', color: '#D97706' },
+          { label: '领料准确率', value: '100%', color: '#10B981' },
+        ]
+      },
+      { title: 'IPQC 过程巡查问题分布 (累计)', type: 'summary',
+        items: [
+          { label: '批记录问题', value: '2件', color: '#F59E0B' },
+          { label: '物料标识问题', value: '5件', color: '#F59E0B' },
+          { label: '5S问题', value: '5件', color: '#EF4444' },
+          { label: '设备/工装问题', value: '4件', color: '#3B82F6' },
+          { label: '辅料效期问题', value: '1件', color: '#F59E0B' },
+          { label: '点检记录问题', value: '1件', color: '#3B82F6' },
+        ]
+      },
     ]
   };
 
@@ -1130,6 +1169,42 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
         metrics: [
           { label:'DOA', target:'≤8%', data:{'F-C800P':{months:{'1月':0,'2月':0,'3月':0,'4月':0,'5月':20.0},ytd:'9.1%',status:'fail'},'F-i3000':{months:{'1月':0,'2月':0,'3月':0,'4月':0,'5月':0},ytd:'0%',status:'pass'},'F-i1000':{months:{'1月':0,'2月':0,'3月':0,'4月':50.0,'5月':0},ytd:'50%',status:'fail'},'药敏':{months:{'1月':33.3,'2月':0,'3月':0,'4月':0,'5月':0},ytd:'9.1%',status:'fail'}} },
           { label:'FFR', target:'≤8%', data:{'F-C800P':{months:{'1月':15.7,'2月':11.7,'3月':8.5,'4月':9.2,'5月':7.3},ytd:'10.5%',status:'fail'},'F-i3000':{months:{'1月':17.2,'2月':8.4,'3月':7.3,'4月':6.7,'5月':7.4},ytd:'9.4%',status:'fail'},'F-i1000':{months:{'1月':11.7,'2月':3.9,'3月':5.2,'4月':3.8,'5月':2.5},ytd:'5.4%',status:'pass'},'药敏':{months:{'1月':7.3,'2月':2.8,'3月':2.8,'4月':4.9,'5月':3.8},ytd:'4.3%',status:'pass'}} },
+        ]
+      },
+      { title: '仪器成品一次通过率 (周数据 · 2026 W2W-W7W)', type: 'table',
+        headers: ['指标','目标','W2W','W3W','W4W','W5W','W6W','W7W'],
+        rows: [
+          { name: '生化F-C800P', target: '≥97%', months: {'W2W':100,'W3W':100,'W4W':100,'W5W':100,'W6W':'--','W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: 'F-i3000', target: '≥97%', months: {'W2W':100,'W3W':'--','W4W':'--','W5W':'--','W6W':'--','W7W':'--'}, ytd:'--', status:'na', direction:'gte' },
+          { name: 'F-i1000', target: '≥97%', months: {'W2W':'--','W3W':'--','W4W':'--','W5W':'--','W6W':'--','W7W':'--'}, ytd:'--', status:'na', direction:'gte' },
+          { name: '药敏', target: '≥97%', months: {'W2W':'--','W3W':'--','W4W':100,'W5W':100,'W6W':'--','W7W':'--'}, ytd:'--', status:'na', direction:'gte' },
+        ]
+      },
+      { title: '试剂半成品一次通过率 (周数据 · 2026 W2W-W7W)', type: 'table',
+        headers: ['指标','目标','W2W','W3W','W4W','W5W','W6W','W7W'],
+        rows: [
+          { name: '发光试剂', target: '≥97%', months: {'W2W':100,'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: '微生物试剂', target: '≥97%', months: {'W2W':80,'W3W':75,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'92.5%', status:'warning', direction:'gte' },
+          { name: '分子试剂', target: '≥97%', months: {'W2W':100,'W3W':92,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'98.7%', status:'pass', direction:'gte' },
+          { name: '生化试剂', target: '≥99%', months: {'W2W':'--','W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+        ]
+      },
+      { title: '试剂成品一次通过率 (周数据 · 2026 W2W-W7W)', type: 'table',
+        headers: ['指标','目标','W3W','W4W','W5W','W6W','W7W'],
+        rows: [
+          { name: '发光试剂', target: '≥99%', months: {'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: '微生物试剂', target: '≥99%', months: {'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: '分子试剂', target: '≥99%', months: {'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: '生化试剂', target: '≥99%', months: {'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+        ]
+      },
+      { title: '生产效率 & 交付 (周数据)', type: 'table',
+        headers: ['指标','目标','W2W','W3W','W4W','W5W','W6W','W7W'],
+        rows: [
+          { name: '仪器生产效率', target: '≥110%', months: {'W2W':101,'W3W':107,'W4W':113,'W5W':113,'W6W':131,'W7W':130}, ytd:'115.8%', status:'pass', direction:'gte' },
+          { name: '试剂生产效率', target: '≥110%', months: {'W2W':80,'W3W':88,'W4W':100,'W5W':103,'W6W':112,'W7W':107}, ytd:'98.3%', status:'warning', direction:'gte' },
+          { name: '工单完工率(仪器)', target: '≥95%', months: {'W2W':'--','W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: '工单完工率(试剂)', target: '≥95%', months: {'W2W':100,'W3W':100,'W4W':90,'W5W':100,'W6W':100,'W7W':100}, ytd:'98.3%', status:'pass', direction:'gte' },
         ]
       },
     ]
