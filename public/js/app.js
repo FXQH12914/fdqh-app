@@ -2133,15 +2133,13 @@ async function loadPlmDashboard() {
 }
 
 // ===== PLM 标签切换 =====
-function switchPlmTab(tab) {
+async function switchPlmTab(tab) {
   var btns = document.querySelectorAll('#page-plm .page-header .btn-group .btn');
   btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
   var active = document.getElementById('pt' + tab.charAt(0).toUpperCase() + tab.slice(1));
   if (active) { active.classList.remove('btn-outline'); active.classList.add('btn-primary'); }
   
   var container = document.getElementById('plmContent');
-  var stages = window._plmStages;
-  var dash = window._plmDash;
   var c = window._plmCockpit;
   var html = '';
   
@@ -2150,13 +2148,13 @@ function switchPlmTab(tab) {
     var s = window._plmDash.summary;
     
     html += '<div class="module-summary" style="margin-bottom:20px;">' +
-      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalProducts + '</div><div class="ms-label">📦 产品总数</div><div class="ms-target">活跃' + s.activeProducts + ' / 研发' + s.inDevelopment + '</div></div>' +
-      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalQCPs + '</div><div class="ms-label">🎯 QCP总数</div><div class="ms-target">7阶段全覆盖</div></div>' +
-      '<div class="module-summary-card ' + (s.openCAPAs > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + s.openCAPAs + '</div><div class="ms-label">🔧 待处理CAPA</div><div class="ms-target">共' + s.totalCAPAs + '条</div></div>' +
-      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalEvents + '</div><div class="ms-label">⚠️ 质量事件</div><div class="ms-target">全生命周期</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalProducts + '</div><div class="ms-label">📦 产品总数</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalQCPs + '</div><div class="ms-label">🎯 QCP总数</div></div>' +
+      '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.openCAPAs + '</div><div class="ms-label">🔧 待处理CAPA</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalEvents + '</div><div class="ms-label">⚠️ 质量事件</div></div>' +
       '</div>';
     
-    html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — PLM标准7阶段</h3><span style="font-size:11px;">立项→设计开发→注册→转产→量产→上市→退市 · 总QCP: ' + window._plmStages.totalQCP + ' · ' + (window._plmStages.standard||'') + '</span></div>' +
+    html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — PLM标准7阶段</h3></div>' +
       '<div class="card-body"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">';
     
     stagesArr.forEach(function(st, i) {
@@ -2168,17 +2166,10 @@ function switchPlmTab(tab) {
           '<span style="background:' + st.color + '15;border-radius:10px;padding:2px 8px;font-size:10px;color:' + st.color + ';">🎯 QCP×' + st.qcpCount + '</span>' +
           '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📥' + st.inputs.length + '输入</span>' +
           '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📤' + st.outputs.length + '输出</span>' +
-        '</div><div style="margin-top:8px;font-size:10px;">' +
-        st.controls.slice(0,3).map(function(ctrl){return '<div style="color:var(--text-muted);">• '+ctrl+'</div>';}).join('') +
-        (st.controls.length>3?'<div style="color:var(--text-muted);">…+'+(st.controls.length-3)+'项</div>':'') +
         '</div>' +
         (st.indicators && st.indicators.length ? '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,.08);">' +
-          st.indicators.slice(0,3).map(function(ind) {
-            var ic = ind.type==='红线'?'#DC2626':ind.type==='经营'?'#D97706':'#2563EB';
-            return '<div style="font-size:9px;color:'+ic+';"><span style="background:'+ic+'15;border-radius:8px;padding:0 5px;font-weight:600;">'+ind.type+'</span> '+ind.name+' <b>'+ind.target+'</b></div>';
-          }).join('') +
-          (st.indicators.length>3?'<div style="font-size:9px;color:var(--text-muted);">…'+(st.indicators.length-3)+'项更多</div>':'') +
-          '</div>' : '') +
+          st.indicators.slice(0,3).map(function(ind) { var ic = ind.type==='红线'?'#DC2626':ind.type==='经营'?'#D97706':'#2563EB'; return '<div style="font-size:9px;color:'+ic+';"><span style="background:'+ic+'15;border-radius:8px;padding:0 5px;font-weight:600;">'+ind.type+'</span> '+ind.name+' <b>'+ind.target+'</b></div>'; }).join('') +
+          (st.indicators.length>3?'<div style="font-size:9px;color:var(--text-muted);">…'+(st.indicators.length-3)+'项更多</div>':'') + '</div>' : '') +
         '</div>';
       if (i < stagesArr.length - 1) html += '<div style="display:flex;align-items:center;color:#9CA3AF;font-size:18px;flex-shrink:0;">→</div>';
     });
@@ -2186,18 +2177,16 @@ function switchPlmTab(tab) {
     html += '</div></div></div>';
     
     var pp = window._plmDash.productPassports || [];
-    html += '<div class="card"><div class="card-header"><h3>📋 产品质量护照</h3><span style="font-size:11px;">Top ' + pp.length + ' 产品</span></div>' +
-      '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" style="min-width:800px;"><thead><tr>' +
-      '<th>产品名称</th><th>技术平台</th><th>生命周期</th><th>注册号</th><th>QCP数</th><th>事件数</th><th>BQI</th></tr></thead><tbody>';
+    html += '<div class="card"><div class="card-header"><h3>📋 产品质量护照</h3></div>' +
+      '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table"><thead><tr>' +
+      '<th>产品名称</th><th>技术平台</th><th>生命周期</th><th>注册号</th><th>QCP数</th><th>事件数</th></tr></thead><tbody>';
     pp.forEach(function(p) {
-      var lcColor = p.lifecycle === '上市' || p.lifecycle === '量产' ? '#059669' : p.lifecycle === '研发' || p.lifecycle === '注册' ? '#6366F1' : '#9CA3AF';
-      html += '<tr style="cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')"><td><b>' + p.name + '</b></td><td><span style="font-size:11px;">' + p.platform + '</span></td>' +
-        '<td><span style="color:' + lcColor + ';font-weight:600;font-size:11px;">' + p.lifecycle + '</span></td><td style="font-size:11px;">' + p.regNo + '</td>' +
-        '<td>' + p.qcpCount + '</td><td>' + p.eventCount + '</td>' +
-        '<td>' + (p.hasBQI ? '<span style="font-weight:700;color:#0F766E;">' + p.bqi + '</span>' : '<span style="color:#9CA3AF;">—</span>') + '</td></tr>';
+      var lcColor = p.lifecycle === '上市' || p.lifecycle === '量产' ? '#059669' : '#6366F1';
+      html += '<tr style="cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')"><td><b>' + p.name + '</b></td><td>' + p.platform + '</td>' +
+        '<td style="color:' + lcColor + ';">' + p.lifecycle + '</td><td>' + p.regNo + '</td><td>' + p.qcpCount + '</td><td>' + p.eventCount + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
-    html += '<div style="text-align:center;margin-top:16px;"><button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')" style="padding:10px 24px;">🎯 打开质量控制点库 →</button></div>';
+    html += '<div style="text-align:center;margin-top:16px;"><button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')">🎯 打开质量控制点库 →</button></div>';
     
   } else if (tab === 'qkpi' && c) {
     var kpis = c.qkpi;
@@ -2208,83 +2197,71 @@ function switchPlmTab(tab) {
       html += '<div class="card" style="border-top:3px solid #6366F1;"><div class="card-header"><h3>' + k.icon + ' ' + k.label + '</h3></div><div class="card-body">';
       k.metrics.forEach(function(m) {
         var tc = m.trend === 'up' ? '#059669' : m.trend === 'down' ? '#DC2626' : '#6B7280';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;">' +
-          '<span style="font-size:13px;">' + m.name + '</span>' +
-          '<span><b style="font-size:16px;">' + m.value + '</b><span style="font-size:11px;color:var(--text-muted);">' + m.unit + '</span> <span style="color:' + tc + ';">' + (m.trend==='up'?'↑':m.trend==='down'?'↓':'→') + '</span></span></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6;">' +
+          '<span style="font-size:13px;">' + m.name + '</span><span><b style="font-size:16px;">' + m.value + '</b><span style="font-size:11px;">' + m.unit + '</span> <span style="color:' + tc + ';">' + (m.trend==='up'?'↑':m.trend==='down'?'↓':'→') + '</span></span></div>';
       });
       html += '</div></div>';
     });
     html += '</div>';
   } else if (tab === 'risk' && c) {
     var pr = c.productRisk || [];
-    html += '<div class="card"><div class="card-header"><h3>🎯 产品风险矩阵</h3><span style="font-size:11px;">风险评分: Critical×3 + High×3 + Medium×1</span></div>' +
+    html += '<div class="card"><div class="card-header"><h3>🎯 产品风险矩阵</h3></div>' +
       '<div class="card-body" style="overflow-x:auto;"><table class="data-table"><thead><tr><th>产品</th><th>平台</th><th>风险评分</th><th>业务影响</th><th>风险等级</th><th>事件数</th></tr></thead><tbody>';
     pr.forEach(function(p) {
       var badge = p.level === 'high' ? 'badge-danger' : p.level === 'medium' ? 'badge-warning' : 'badge-success';
       html += '<tr><td><b>' + p.name + '</b></td><td>' + p.platform + '</td>' +
         '<td><b style="color:' + (p.riskScore>=10?'#DC2626':p.riskScore>=5?'#D97706':'#059669') + ';">' + p.riskScore + '</b></td>' +
-        '<td>' + p.bizImpact + '</td><td><span class="badge ' + badge + '">' + (p.level==='high'?'🔴 高':p.level==='medium'?'🟡 中':'🟢 低') + '</span></td>' +
+        '<td>' + p.bizImpact + '</td><td><span class="badge ' + badge + '">' + (p.level==='high'?'🔴高':p.level==='medium'?'🟡中':'🟢低') + '</span></td>' +
         '<td>' + p.eventCount + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
   } else if (tab === 'alerts' && c) {
     var alerts = c.alerts || [];
-    html += '<div class="card"><div class="card-header"><h3>🚨 AI 风险预警中心</h3><span style="font-size:11px;">基于实时数据自动检测</span></div><div class="card-body">' +
+    html += '<div class="card"><div class="card-header"><h3>🚨 AI 风险预警中心</h3></div><div class="card-body">' +
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">' +
-      '<div style="background:#FEE2E2;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔴</div><div style="font-weight:700;color:#DC2626;">重大风险</div><div style="font-size:11px;">需立即行动</div></div>' +
-      '<div style="background:#FEF3C7;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🟡</div><div style="font-weight:700;color:#D97706;">关注风险</div><div style="font-size:11px;">趋势监控</div></div>' +
-      '<div style="background:#DBEAFE;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔵</div><div style="font-weight:700;color:#2563EB;">优化机会</div><div style="font-size:11px;">持续改进</div></div></div>';
+      '<div style="background:#FEE2E2;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔴</div><div style="font-weight:700;color:#DC2626;">重大风险</div></div>' +
+      '<div style="background:#FEF3C7;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🟡</div><div style="font-weight:700;color:#D97706;">关注风险</div></div>' +
+      '<div style="background:#DBEAFE;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔵</div><div style="font-weight:700;color:#2563EB;">优化机会</div></div></div>';
     alerts.forEach(function(a) {
       var bg = a.level==='red'?'#FEE2E2':a.level==='yellow'?'#FEF3C7':'#DBEAFE';
       var color = a.level==='red'?'#DC2626':a.level==='yellow'?'#D97706':'#2563EB';
       html += '<div style="background:' + bg + ';border-left:4px solid ' + color + ';border-radius:6px;padding:12px;margin-bottom:8px;">' +
-        (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🔵') + ' <b style="color:' + color + ';">' + a.msg + '</b> <span style="color:var(--text-muted);">×' + a.count + '</span></div>';
+        (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🔵') + ' <b style="color:' + color + ';">' + a.msg + '</b> ×' + a.count + '</div>';
     });
-    html += '<div style="margin-top:16px;text-align:center;"><button class="btn btn-accent btn-sm" onclick="navigate(\'events\');setTimeout(function(){showEventsSubPage(\'aiRiskPredict\');},300);">🤖 完整 AI 风险预测 →</button></div></div></div>';
-  }
-  
+    html += '</div></div>';
   } else if (tab === 'batch') {
-    // ===== 批次质量护照 =====
+    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载批次数据...</div></div>';
     var batchData = await apiGet('/batch-passport');
-    if (!batchData) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>'; return; }
+    if (!batchData) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">❌ 加载失败</div></div>'; return; }
     
     var batches = batchData.batches || [];
     var bs = batchData.summary;
+    html = '';
     
-    // Search + Summary
     html += '<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">' +
       '<div style="flex:1;min-width:200px;"><input type="text" id="batchSearch" placeholder="🔍 搜索批号或产品名称..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;" oninput="filterBatchPassport()"></div>' +
-      '<button class="btn btn-accent btn-sm" onclick="filterBatchPassport()">搜索</button>' +
-      '</div>';
+      '<button class="btn btn-accent btn-sm" onclick="filterBatchPassport()">搜索</button></div>';
     
-    // KPI cards
     html += '<div class="module-summary" style="margin-bottom:16px;">' +
       '<div class="module-summary-card ms-info"><div class="ms-value">' + bs.total + '</div><div class="ms-label">📦 批次总数</div><div class="ms-target">BQI均分 ' + bs.avgBQI + '</div></div>' +
-      '<div class="module-summary-card ms-pass"><div class="ms-value">' + bs.greenCount + '</div><div class="ms-label">🟢 健康批次</div><div class="ms-target">BQI ≥ 85</div></div>' +
-      '<div class="module-summary-card ms-warn"><div class="ms-value">' + bs.yellowCount + '</div><div class="ms-label">🟡 关注批次</div><div class="ms-target">70 ≤ BQI &lt; 85</div></div>' +
-      '<div class="module-summary-card ' + (bs.redCount > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + bs.redCount + '</div><div class="ms-label">🔴 风险批次</div><div class="ms-target">BQI &lt; 70</div></div>' +
-      '</div>';
+      '<div class="module-summary-card ms-pass"><div class="ms-value">' + bs.greenCount + '</div><div class="ms-label">🟢 健康批次</div></div>' +
+      '<div class="module-summary-card ms-warn"><div class="ms-value">' + bs.yellowCount + '</div><div class="ms-label">🟡 关注批次</div></div>' +
+      '<div class="module-summary-card ' + (bs.redCount > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + bs.redCount + '</div><div class="ms-label">🔴 风险批次</div></div></div>';
     
-    // Batch list
-    html += '<div class="card"><div class="card-header"><h3>📦 批次质量护照列表</h3><span style="font-size:11px;">基于DO06数据对象模型 · 点击查看详情</span></div>' +
+    html += '<div class="card"><div class="card-header"><h3>📦 批次质量护照列表</h3></div>' +
       '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" id="batchTable"><thead><tr>' +
-      '<th>批号</th><th>产品</th><th>平台</th><th>日期</th><th>基地</th><th>批量</th><th>BQI</th><th>状态</th><th>操作</th>' +
-      '</tr></thead><tbody>';
+      '<th>批号</th><th>产品</th><th>平台</th><th>日期</th><th>基地</th><th>批量</th><th>BQI</th><th>状态</th><th>操作</th></tr></thead><tbody>';
     
     batches.forEach(function(b) {
       var bqiColor = b.bqiLevel === 'green' ? '#059669' : b.bqiLevel === 'yellow' ? '#D97706' : '#DC2626';
       var bqiBg = b.bqiLevel === 'green' ? '#D1FAE5' : b.bqiLevel === 'yellow' ? '#FEF3C7' : '#FEE2E2';
-      var statusBadge = b.status === '放行' ? 'badge-success' : b.status === '调查中' ? 'badge-warning' : 'badge-info';
-      
-      html += '<tr class="batch-row" data-batch="' + b.batchId + '" data-product="' + (b.productName||'') + '" style="cursor:pointer;">' +
-        '<td><b>' + b.batchId + '</b></td>' +
-        '<td>' + b.productName + '</td><td>' + b.platform + '</td>' +
-        '<td>' + b.productionDate + '</td><td>' + b.site + '</td>' +
-        '<td>' + b.quantity + '盒</td>' +
+      var statusBadge = b.status === '放行' ? 'badge-success' : 'badge-warning';
+      html += '<tr class="batch-row" data-batch="' + b.batchId + '" data-product="' + (b.productName||'') + '">' +
+        '<td><b>' + b.batchId + '</b></td><td>' + b.productName + '</td><td>' + b.platform + '</td>' +
+        '<td>' + b.productionDate + '</td><td>' + b.site + '</td><td>' + b.quantity + '盒</td>' +
         '<td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;background:' + bqiBg + ';color:' + bqiColor + ';">' + b.bqi + '</span></td>' +
         '<td><span class="badge ' + statusBadge + '">' + b.status + '</span></td>' +
-        '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewBatchPassport('' + b.batchId + '')">📋 详情</button></td>' +
-        '</tr>';
+        '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewBatchPassport(\'' + b.batchId + '\')">📋 详情</button></td></tr>';
     });
     html += '</tbody></table></div></div>';
   }
@@ -2292,67 +2269,6 @@ function switchPlmTab(tab) {
   container.innerHTML = html;
 }
 
-// ===== 批次护照过滤 =====
-function filterBatchPassport() {
-  var search = (document.getElementById('batchSearch')?.value || '').toLowerCase();
-  var rows = document.querySelectorAll('#batchTable .batch-row');
-  rows.forEach(function(row) {
-    var batch = (row.getAttribute('data-batch') || '').toLowerCase();
-    var product = (row.getAttribute('data-product') || '').toLowerCase();
-    row.style.display = (!search || batch.indexOf(search) >= 0 || product.indexOf(search) >= 0) ? '' : 'none';
-  });
-}
-
-// ===== 批次护照详情 =====
-async function viewBatchPassport(batchId) {
-  var data = await apiGet('/batch-passport/' + batchId);
-  if (!data) return;
-  var b = data.batch;
-  var bqiColor = b.bqiLevel === 'green' ? '#059669' : b.bqiLevel === 'yellow' ? '#D97706' : '#DC2626';
-  
-  var html = '<div class="card" style="margin-bottom:16px;"><div class="card-header"><h3>📦 批次质量护照: ' + b.batchId + '</h3><button class="btn btn-sm btn-outline" onclick="switchPlmTab(\'batch\')">← 返回列表</button></div><div class="card-body">';
-  
-  html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px;">' +
-    '<div style="background:' + bqiColor + '10;border:2px solid ' + bqiColor + '30;border-radius:12px;padding:20px;text-align:center;"><div style="font-size:12px;color:var(--text-muted);">Batch Quality Index</div><div style="font-size:56px;font-weight:800;color:' + bqiColor + ';line-height:1;">' + b.bqi + '</div><div style="font-size:14px;color:' + bqiColor + ';font-weight:600;">' + (b.bqiLevel==='green'?'🟢 健康':b.bqiLevel==='yellow'?'🟡 关注':'🔴 风险') + '</div></div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-      '<div style="background:#F9FAFB;border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--text-muted);">产品</div><b>' + b.productName + '</b></div>' +
-      '<div style="background:#F9FAFB;border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--text-muted);">平台</div><b>' + b.platform + '</b></div>' +
-      '<div style="background:#F9FAFB;border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--text-muted);">生产日期</div><b>' + b.productionDate + '</b></div>' +
-      '<div style="background:#F9FAFB;border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--text-muted);">基地</div><b>' + b.site + '</b></div>' +
-      '<div style="background:#F9FAFB;border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--text-muted);">批 量</div><b>' + b.quantity + ' 盒</b></div>' +
-      '<div style="background:#F9FAFB;border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--text-muted);">状态</div><b style="color:' + (b.status==='放行'?'#059669':'#D97706') + ';">' + b.status + '</b></div></div></div>';
-  
-  html += '<b style="font-size:13px;">🧬 物料谱系 (Material Genealogy)</b><div style="overflow-x:auto;margin-top:6px;"><table class="data-table" style="font-size:11px;"><thead><tr><th>物料名称</th><th>物料批号</th><th>供应商</th><th>检验结果</th><th>关键等级</th></tr></thead><tbody>';
-  (b.materials||[]).forEach(function(m) {
-    var cc = m.criticality==='A'?'#DC2626':m.criticality==='B'?'#D97706':'#059669';
-    html += '<tr><td>' + m.name + '</td><td>' + m.lot + '</td><td>' + m.supplier + '</td><td style="color:' + (m.result==='合格'?'#059669':'#DC2626') + ';font-weight:600;">' + m.result + '</td><td><b style="color:' + cc + ';">' + m.criticality + '</b></td></tr>';
-  });
-  html += '</tbody></table></div>';
-  
-  html += '<b style="font-size:13px;display:block;margin-top:16px;">⚙️ 工艺参数 (Process Parameters)</b><div style="overflow-x:auto;margin-top:6px;"><table class="data-table" style="font-size:11px;"><thead><tr><th>工序</th><th>参数</th><th>实际值</th><th>目标值</th><th>结果</th></tr></thead><tbody>';
-  (b.process||[]).forEach(function(p) {
-    var rc = p.result.indexOf('✅')>=0?'#059669':p.result.indexOf('⚠')>=0?'#D97706':'#DC2626';
-    html += '<tr><td>' + p.step + '</td><td>' + p.param + '</td><td>' + p.value + '</td><td>' + p.target + '</td><td style="color:' + rc + ';">' + p.result + '</td></tr>';
-  });
-  html += '</tbody></table></div>';
-  
-  html += '<b style="font-size:13px;display:block;margin-top:16px;">🔬 QC检验结果</b><div style="overflow-x:auto;margin-top:6px;"><table class="data-table" style="font-size:11px;"><thead><tr><th>检验项目</th><th>实测值</th><th>标准</th><th>结果</th></tr></thead><tbody>';
-  (b.qcResults||[]).forEach(function(q) {
-    html += '<tr><td>' + q.item + '</td><td>' + q.value + '</td><td>' + q.standard + '</td><td><span class="badge badge-' + (q.result==='pass'?'success':'danger') + '">' + (q.result==='pass'?'✅ 合格':'❌ 不合格') + '</span></td></tr>';
-  });
-  html += '</tbody></table></div>';
-  
-  if ((b.events||[]).length + (b.capas||[]).length > 0) {
-    html += '<b style="font-size:13px;display:block;margin-top:16px;">⚠️ 关联事件与CAPA</b>';
-    b.events.forEach(function(e) { html += '<div style="padding:6px 10px;background:#FEF3C7;border-radius:4px;margin:4px 0;font-size:11px;">⚠️ ' + e.type + ': ' + e.desc + ' <span class="badge badge-' + (e.risk==='High'?'danger':'success') + '">' + e.risk + '</span></div>'; });
-    b.capas.forEach(function(c) { html += '<div style="padding:6px 10px;background:#DBEAFE;border-radius:4px;margin:4px 0;font-size:11px;">🔧 CAPA: ' + c.title + '</div>'; });
-  }
-  
-  html += '</div></div>';
-  document.getElementById('plmContent').innerHTML = html;
-}
-
-// ============================================================// ============================================================
 async function loadQCP() {
   var result = await apiGet('/qcp?limit=200');
   if (!result) return;
