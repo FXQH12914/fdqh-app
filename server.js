@@ -403,6 +403,34 @@ app.get('/api/audit-logs', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // ============================================================
+// QCP LIBRARY - 质量控制点库 (QO08)
+// ============================================================
+app.get('/api/qcp', requireAuth, asyncHandler(async (req, res) => {
+  var qcps = await db.findAll('qcp_library');
+  res.json(qcps);
+}));
+
+app.get('/api/qcp/:id', requireAuth, asyncHandler(async (req, res) => {
+  var qcp = await db.findById('qcp_library', req.params.id);
+  if (!qcp) return res.status(404).json({ error: 'Not found' });
+  res.json(qcp);
+}));
+
+// ============================================================
+// RISK DATABASE - 风险数据库 (QO09)
+// ============================================================
+app.get('/api/risks', requireAuth, asyncHandler(async (req, res) => {
+  var risks = await db.findAll('risk_database');
+  res.json(risks);
+}));
+
+app.get('/api/risks/:id', requireAuth, asyncHandler(async (req, res) => {
+  var risk = await db.findById('risk_database', req.params.id);
+  if (!risk) return res.status(404).json({ error: 'Not found' });
+  res.json(risk);
+}));
+
+// ============================================================
 // AI ASSISTANT
 // ============================================================
 app.get('/api/ai/status', requireAuth, (req, res) => {
