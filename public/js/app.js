@@ -118,95 +118,71 @@ async function loadDashboard() {
   var stats = await apiGet('/dashboard/stats');
   if (!stats) return;
 
-  document.getElementById('statsGrid').innerHTML =
-    '<div class="stat-card"><div class="label">质量事件总数</div><div class="value">' + stats.totalEvents + '</div><div class="sub">全部类型</div></div>' +
-    '<div class="stat-card warn"><div class="label">待处理事件</div><div class="value">' + stats.openEvents + '</div><div class="sub">Open / 调查中</div></div>' +
-    '<div class="stat-card"><div class="label">CAPA 总数</div><div class="value">' + stats.totalCAPAs + '</div><div class="sub">待处理 ' + stats.openCAPAs + '</div></div>' +
-    '<div class="stat-card danger"><div class="label">逾期 CAPA</div><div class="value">' + stats.overdueCAPAs + '</div><div class="sub">需紧急处理</div></div>' +
-    '<div class="stat-card danger"><div class="label">风险记录</div><div class="value">' + (stats.totalRisks||0) + '</div><div class="sub">FMEA 风险库</div></div>' +
-    '<div class="stat-card"><div class="label">控制点库</div><div class="value">' + (stats.totalQCPs||0) + '</div><div class="sub">QCP 总数</div></div>' +
-    '<div class="stat-card"><div class="label">变更申请</div><div class="value">' + stats.totalChanges + '</div><div class="sub">待审批 ' + stats.pendingChanges + '</div></div>' +
-    '<div class="stat-card"><div class="label">已关闭事件</div><div class="value">' + stats.closedEvents + '</div><div class="sub">闭环率 ' + (stats.totalEvents ? Math.round(stats.closedEvents/stats.totalEvents*100) : 0) + '%</div></div>';
-
   // ========== TQM 三层驾驶舱 ==========
   var qhi = await apiGet('/dashboard/qhi');
   if (qhi && qhi.tqm) {
     var lc = qhi.level === 'green' ? '#10B981' : qhi.level === 'yellow' ? '#F59E0B' : '#EF4444';
     var t = qhi.tqm;
-
-    // === 战略层: QHI + TQM三维 ===
-    var qhiHtml = '<div class="card tqm-strategic" style="margin-bottom:16px;">' +
-      '<div class="tqm-header"><span>TQM 战略驾驶舱</span><span style="font-size:11px;">Quality Health Index · 企业质量健康指数</span></div>' +
-      '<div class="tqm-qhi-row">' +
-      '<div class="tqm-qhi-big"><div style="font-size:11px;opacity:0.5;">QHI</div><div style="font-size:52px;font-weight:700;color:' + lc + ';">' + qhi.qhi + '</div><div style="font-size:11px;">' + (qhi.level === 'green' ? '🟢 健康' : qhi.level === 'yellow' ? '🟡 关注' : '🔴 预警') + '</div></div>' +
-      '<div class="tqm-pillars">' +
-      '<div class="tqm-pillar patient"><div class="pillar-icon">🏥</div><div class="pillar-label">患者结果</div><div class="pillar-score" style="color:#3B82F6;">' + t.patient.score + '</div><div class="pillar-sub">投诉' + t.patient.detail.complaints + '% 批合格' + t.patient.detail.batch + '%</div></div>' +
-      '<div class="tqm-pillar compliance"><div class="pillar-icon">📋</div><div class="pillar-label">合规质量</div><div class="pillar-score" style="color:#10B981;">' + t.compliance.score + '</div><div class="pillar-sub">CAPA关闭' + t.compliance.detail.capa + '% 审计' + t.compliance.detail.audit + '%</div></div>' +
-      '<div class="tqm-pillar efficiency"><div class="pillar-icon">⚡</div><div class="pillar-label">经营效率</div><div class="pillar-score" style="color:#F59E0B;">' + t.efficiency.score + '</div><div class="pillar-sub">偏差率' + t.efficiency.detail.deviation + '% 供应' + t.efficiency.detail.supply + '%</div></div>' +
-      '</div></div></div>';
-
-    // === 策略层: 四域指标 ===
     var d = qhi.domains || {};
-    var domainRow = '<div class="card" style="margin-bottom:16px;">' +
-      '<div class="card-header"><h3>🎯 四域质量指标 · 策略层</h3><span style="font-size:11px;">研发 · 供应链 · 生产 · 上市后</span></div>' +
-      '<div class="tqm-domains">' +
-      '<div class="domain-item"><div class="domain-name">🔬 ' + (d.rd||{}).name + '</div><div class="domain-score" style="color:#3B82F6;">' + ((d.rd||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.rd||{}).designReview||0) + '%"></span></div></div>' +
-      '<div class="domain-item"><div class="domain-name">📦 ' + (d.supply||{}).name + '</div><div class="domain-score" style="color:#10B981;">' + ((d.supply||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.supply||{}).score||0) + '%"></span></div></div>' +
-      '<div class="domain-item"><div class="domain-name">🏭 ' + (d.mfg||{}).name + '</div><div class="domain-score" style="color:#F59E0B;">' + ((d.mfg||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.mfg||{}).score||0) + '%"></span></div></div>' +
-      '<div class="domain-item"><div class="domain-name">🌐 ' + (d.pms||{}).name + '</div><div class="domain-score" style="color:#8B5CF6;">' + ((d.pms||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.pms||{}).score||0) + '%"></span></div></div>' +
-      '</div></div>';
 
-    // === 执行层: 预警 + 待办 ===
-    var alertData = await apiGet('/dashboard/alerts');
-    var alertRows = '';
-    if (alertData && alertData.alerts) {
-      alertRows = alertData.alerts.map(function(a) {
-        var b = a.level==='red'?'danger':a.level==='yellow'?'warning':'success';
-        return '<tr><td><span class="badge badge-' + b + '">' + (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🟢') + '</span></td><td style="font-size:12px;">' + a.message + '</td></tr>';
-      }).join('');
-    }
-    var execHtml = '<div class="card"><div class="card-header"><h3>📋 执行层 · 实时预警与待办</h3></div>' +
-      '<div class="card-body no-padding"><table>' + (alertRows || '<tr><td><div class="empty-state">✅ 所有指标正常</div></td></tr>') + '</table></div></div>';
+    // === 战略层: QHI Big Card ===
+    document.getElementById('tqmQhiRow').innerHTML =
+      '<div class="tqm-qhi-total"><div class="qhi-number">' + qhi.qhi + '</div><div class="qhi-label">' + (qhi.level === 'green' ? '🟢 健康' : qhi.level === 'yellow' ? '🟡 关注' : '🔴 预警') + '</div></div>' +
+      '<div class="tqm-pillars">' +
+      '<div class="tqm-pillar patient"><div class="pillar-value">' + t.patient.score + '</div><div class="pillar-label">🏥 患者结果</div><div class="pillar-weight">权重 40% · 投诉' + t.patient.detail.complaints + '% 批合格' + t.patient.detail.batch + '%</div></div>' +
+      '<div class="tqm-pillar compliance"><div class="pillar-value">' + t.compliance.score + '</div><div class="pillar-label">📋 合规质量</div><div class="pillar-weight">权重 30% · CAPA关闭' + t.compliance.detail.capa + '% 审计' + t.compliance.detail.audit + '%</div></div>' +
+      '<div class="tqm-pillar efficiency"><div class="pillar-value">' + t.efficiency.score + '</div><div class="pillar-label">⚡ 经营效率</div><div class="pillar-weight">权重 30% · 偏差率' + t.efficiency.detail.deviation + '% 供应' + t.efficiency.detail.supply + '%</div></div>' +
+      '</div>';
 
-    // 清理旧元素并插入 TQM 布局
-    var oldQhi = document.getElementById('qhiCard'); if (oldQhi) oldQhi.remove();
-    var oldAlert = document.getElementById('alertCard'); if (oldAlert) oldAlert.remove();
-    var target = document.getElementById('statsGrid');
-    if (target) {
-      var container = document.createElement('div');
-      container.innerHTML = qhiHtml + domainRow + execHtml;
-      target.parentNode.insertBefore(container, target);
-    }
+    // === 策略层: 四域 =====
+    var domains = [
+      { icon: '🔬', label: '研发质量 RD', cls: 'rd', score: (d.rd||{}).score||'--', detail: '设计验证通过率 ' + ((d.rd||{}).designReview||'--') + '%' },
+      { icon: '📦', label: '供应链质量 SC', cls: 'supply', score: (d.supply||{}).score||'--', detail: '来料合格率 ' + ((d.supply||{}).incoming||'--') + '% 供应PPM ' + ((d.supply||{}).ppm||'--') },
+      { icon: '🏭', label: '生产质量 MFG', cls: 'mfg', score: (d.mfg||{}).score||'--', detail: '批合格率 ' + ((d.mfg||{}).batch||'--') + '% CPP达标率 ' + ((d.mfg||{}).cpp||'--') + '%' },
+      { icon: '🌐', label: '上市后质量 PMS', cls: 'pms', score: (d.pms||{}).score||'--', detail: '投诉关闭率 ' + ((d.pms||{}).complaints||'--') + '% PMS及时率 ' + ((d.pms||{}).pmsReport||'--') + '%' },
+    ];
+    document.getElementById('tqmDomainBars').innerHTML = '<div class="domain-bars">' +
+      domains.map(function(dm) {
+        var w = isNaN(dm.score) ? 0 : Math.min(100, dm.score);
+        return '<div class="domain-bar-row"><span class="domain-icon">' + dm.icon + '</span><span class="domain-label">' + dm.label + '</span><div class="domain-bar-track"><div class="domain-bar-fill ' + dm.cls + '" style="width:' + w + '%">' + dm.score + '</div></div><span style="font-size:11px;color:var(--text-muted);">' + dm.detail + '</span></div>';
+      }).join('') + '</div>';
   }
 
-  // AI prediction button
-  var aiBtnHtml = '<div class="card" style="margin-bottom:20px;"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;">' +
-    '<div><span style="font-size:18px;">📈</span> <strong>AI 质量风险预测</strong> <span style="color:var(--text-secondary);font-size:13px;">基于历史数据智能分析</span></div>' +
-    '<button class="btn btn-accent btn-sm" onclick="runRiskPrediction()">🤖 立即分析</button></div></div>';
-  var existing = document.getElementById('aiPredictBtn');
-  if (existing) existing.remove();
-  var aiDiv = document.createElement('div');
-  aiDiv.id = 'aiPredictBtn';
-  aiDiv.innerHTML = aiBtnHtml;
-  var statsGrid = document.getElementById('statsGrid');
-  if (statsGrid) statsGrid.after(aiDiv);
+  // ========== 三类指标卡 (红线 / 经营 / 提升) ==========
+  var kpis = await apiGet('/dashboard/kpis');
+  if (kpis) {
+    function renderKpiCard(icon, title, cssClass, items) {
+      var rows = items.map(function(k) {
+        var statusIcon = k.status === 'pass' ? '🟢' : k.status === 'fail' ? '🔴' : k.status === 'warning' ? '🟡' : '🔵';
+        return '<li><span class="kpi-name">' + k.name + (k.trend === 'up' ? ' ↑' : k.trend === 'down' ? ' ↓' : '') + '</span><span class="kpi-value">' + k.value + (k.unit||'') + '</span><span class="kpi-target">目标 ' + k.target + (k.unit||'') + '</span><span class="kpi-status ' + k.status + '"></span></li>';
+      }).join('');
+      return '<div class="tqm-kpi-card"><div class="kpi-card-header ' + cssClass + '"><span class="kpi-icon">' + icon + '</span>' + title + '</div><ul class="tqm-kpi-list">' + rows + '</ul></div>';
+    }
+    document.getElementById('tqmKpiSection').innerHTML =
+      renderKpiCard('🔴', '红线类 · 一票否决', 'redline', kpis.redlines) +
+      renderKpiCard('📊', '经营类 · 稳定运行', 'operation', kpis.operations) +
+      renderKpiCard('🚀', '提升类 · 持续改进', 'improvement', kpis.improvements);
+  }
 
+  // ========== 执行层：实时预警 + 待办 ==========
+  var alertData = await apiGet('/dashboard/alerts');
+  var alertRows = '';
+  if (alertData && alertData.alerts && alertData.alerts.length) {
+    alertRows = alertData.alerts.map(function(a) {
+      var b = a.level === 'red' ? 'danger' : a.level === 'yellow' ? 'warning' : 'success';
+      return '<tr><td><span class="badge badge-' + b + '">' + (a.level === 'red' ? '🔴' : a.level === 'yellow' ? '🟡' : '🟢') + '</span></td><td style="font-size:12px;">' + a.message + '</td></tr>';
+    }).join('');
+  } else {
+    alertRows = '<tr><td><div class="empty-state">✅ 所有指标正常，无需预警</div></td></tr>';
+  }
+  document.getElementById('recentEvents').innerHTML = '<table>' + alertRows + '</table>';
+
+  // Charts
   renderChart('chartMonthly', 'line', stats.monthlyTrends.map(function(t) { return t.month; }), stats.monthlyTrends.map(function(t) { return t.count; }), '事件数', '#D4875A');
   var rd = stats.riskDistribution;
   renderPieChart('chartRisk', ['Low','Medium','High','Critical'], [rd.Low, rd.Medium, rd.High, rd.Critical], ['#10B981','#F59E0B','#EF4444','#7C3AED']);
-  var et = stats.eventTypes;
-  renderPieChart('chartTypes', ['Deviation','OOS','Complaint','CAPA','Other'], [et.Deviation, et.OOS, et.Complaint, et.CAPA, et.Other], ['#3B82F6','#F59E0B','#EF4444','#10B981','#6B7280']);
 
-  var recent = await apiGet('/dashboard/recent-events');
-  if (recent) {
-    document.getElementById('recentEvents').innerHTML = recent.length ?
-      '<table>' + recent.map(function(e) {
-        return '<tr class="clickable" onclick="viewEvent(\'' + e.id + '\')"><td><span class="badge badge-' + getRiskBadge(e.risk_level) + '">' + e.risk_level + '</span></td><td>' + e.id + '</td><td>' + e.event_type + '</td><td>' + (e.description||'').slice(0,40) + '...</td><td><span class="badge badge-' + getStatusBadge(e.status) + '">' + e.status + '</span></td></tr>';
-      }).join('') + '</table>' :
-      '<div class="empty-state"><div class="icon">✅</div>暂无待处理事件</div>';
-  }
-
-  // Auto-refresh every 60 seconds
+  // Auto-refresh
   if (document.getElementById('page-dashboard').classList.contains('active')) {
     if (dashboardTimer) clearInterval(dashboardTimer);
     dashboardTimer = setInterval(loadDashboard, 60000);
