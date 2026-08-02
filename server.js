@@ -63,11 +63,12 @@ function asyncHandler(fn) {
 // ============================================================
 // VALIDATION HELPERS
 // ============================================================
-var VALID_EVENT_TYPES = ['Deviation', 'OOS', 'Complaint', 'CAPA', 'Other'];
+var VALID_EVENT_TYPES = ['Deviation', 'OOS', 'OOT', 'Complaint', 'CAPA', 'Audit-Finding', 'SCAR', 'NCR'];
 var VALID_RISK_LEVELS = ['Low', 'Medium', 'High', 'Critical'];
-var VALID_CHANGE_TYPES = ['工艺变更', '设备变更', '物料变更', '文件变更'];
+var VALID_CHANGE_TYPES = ['工艺变更', '设备变更', '物料变更', '文件变更', '产品变更'];
 var VALID_CAPA_STATUSES = ['Open', 'In Progress', 'Closed'];
 var VALID_EVENT_STATUSES = ['Open', 'In Investigation', 'Root Cause Analysis', 'CAPA Created', 'Closed', 'Closed - No Action'];
+var VALID_PRODUCT_LIFECYCLE = ['开发中', '试生产', '上市', '变更中', '退市'];
 
 function requireFields(body, fields) {
   for (var i = 0; i < fields.length; i++) {
@@ -346,6 +347,21 @@ app.get('/api/suppliers', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('suppliers'));
 }));
 
+// Supplier Score 评分模型
+app.get('/api/suppliers/scores', requireAuth, asyncHandler(async (req, res) => {
+  var suppliers = await db.findAll('suppliers');
+  var scores = suppliers.map(function(s) {
+    var qualityScore = (s.quality_score || 0) * 0.5;
+    var deliveryScore = ((s.incoming_pass_rate || 0)) * 0.2;
+    var systemScore = (s.certification ? (s.certification.includes('13485') ? 100 : 80) : 50) * 0.2;
+    var strategyScore = (s.risk_level === 'Low' ? 90 : s.risk_level === 'Medium' ? 70 : 50) * 0.1;
+    var total = Math.round(qualityScore + deliveryScore + systemScore + strategyScore);
+    return { id: s.id, name: s.supplier_name, supplier_code: s.supplier_code, quality: Math.round(qualityScore * 2), delivery: Math.round(deliveryScore * 5), system: Math.round(systemScore * 5), strategy: Math.round(strategyScore * 10), total: total, risk_level: s.risk_level };
+  });
+  scores.sort(function(a, b) { return b.total - a.total; });
+  res.json(scores);
+}));
+
 app.get('/api/suppliers/:id', requireAuth, asyncHandler(async (req, res) => {
   var supplier = await db.findById('suppliers', req.params.id);
   if (!supplier) return res.status(404).json({ error: 'Not found' });
@@ -370,6 +386,34 @@ app.put('/api/suppliers/:id', requireAuth, asyncHandler(async (req, res) => {
 app.delete('/api/suppliers/:id', requireAuth, asyncHandler(async (req, res) => {
   await db.delete('suppliers', req.params.id, req.user.username);
   res.json({ success: true });
+}));
+
+// ============================================================
+// PRODUCT LIFECYCLE - 产品状态流转
+// ============================================================
+var PRODUCT_TRANSITIONS = {
+  '开发中': ['试生产'],
+  '试生产': ['上市', '开发中'],
+  '上市': ['变更中', '退市'],
+  '变更中': ['上市', '退市'],
+  '退市': [],
+};
+
+app.put('/api/products/:id/lifecycle', requireAuth, asyncHandler(async (req, res) => {
+  var product = await db.findById('products', req.params.id);
+  if (!product) return res.status(404).json({ error: 'Not found' });
+
+  var newStatus = req.body.lifecycle_status;
+  if (!newStatus || !VALID_PRODUCT_LIFECYCLE.includes(newStatus)) return res.status(400).json({ error: '无效的状态值' });
+
+  var current = product.lifecycle_status || '开发中';
+  var allowed = PRODUCT_TRANSITIONS[current];
+  if (allowed && !allowed.includes(newStatus)) {
+    return res.status(400).json({ error: '无效的状态流转: ' + current + ' -> ' + newStatus });
+  }
+
+  var updated = await db.update('products', req.params.id, { lifecycle_status: newStatus }, req.user.username);
+  res.json(updated);
 }));
 
 // ============================================================
@@ -428,6 +472,68 @@ app.get('/api/risks/:id', requireAuth, asyncHandler(async (req, res) => {
   var risk = await db.findById('risk_database', req.params.id);
   if (!risk) return res.status(404).json({ error: 'Not found' });
   res.json(risk);
+}));
+
+// ============================================================
+// PMS ALERTS - 投诉趋势检测
+// ============================================================
+app.get('/api/pms/alerts', requireAuth, asyncHandler(async (req, res) => {
+  var events = (await db.findAll('quality_events'))
+    .filter(function(e) { return e.event_type === 'Complaint'; })
+    .sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+
+  var alerts = [];
+  // Group complaints by product
+  var byProduct = {};
+  events.forEach(function(e) {
+    var key = e.product_id || 'unknown';
+    if (!byProduct[key]) byProduct[key] = { product: e.product_name, count: 0, events: [] };
+    byProduct[key].count++;
+    byProduct[key].events.push(e);
+  });
+
+  // Alert if product has 3+ complaints in 6 months
+  Object.values(byProduct).forEach(function(g) {
+    if (g.count >= 3) {
+      alerts.push({ type: 'complaint_spike', severity: 'High', product: g.product, count: g.count, message: g.product + ' 近期投诉达' + g.count + '起，建议重点关注' });
+    }
+  });
+
+  // Alert on high-risk open events
+  events.filter(function(e) { return e.status !== 'Closed' && (e.risk_level === 'High' || e.risk_level === 'Critical'); }).forEach(function(e) {
+    alerts.push({ type: 'high_risk_open', severity: e.risk_level, product: e.product_name, eventId: e.id, message: e.product_name + ' 存在未关闭的' + e.risk_level + '风险事件: ' + (e.description||'').slice(0, 60) });
+  });
+
+  res.json({ alerts: alerts.slice(0, 10), totalComplaints: events.length });
+}));
+
+// ============================================================
+// SUPPLIER SCORE - 供应商评分模型
+// ============================================================
+app.get('/api/suppliers/scores', requireAuth, asyncHandler(async (req, res) => {
+  var suppliers = await db.findAll('suppliers');
+  var scores = suppliers.map(function(s) {
+    var qualityScore = (s.quality_score || 0) * 0.5;
+    var deliveryScore = ((s.incoming_pass_rate || 0)) * 0.2;
+    var systemScore = (s.certification ? (s.certification.includes('13485') ? 100 : 80) : 50) * 0.2;
+    var strategyScore = (s.risk_level === 'Low' ? 90 : s.risk_level === 'Medium' ? 70 : 50) * 0.1;
+    var total = Math.round(qualityScore + deliveryScore + systemScore + strategyScore);
+
+    return {
+      id: s.id,
+      name: s.supplier_name,
+      supplier_code: s.supplier_code,
+      quality: Math.round(qualityScore * 2),
+      delivery: Math.round(deliveryScore * 5),
+      system: Math.round(systemScore * 5),
+      strategy: Math.round(strategyScore * 10),
+      total: total,
+      risk_level: s.risk_level,
+    };
+  });
+
+  scores.sort(function(a, b) { return b.total - a.total; });
+  res.json(scores);
 }));
 
 // ============================================================
