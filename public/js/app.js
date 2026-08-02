@@ -1749,6 +1749,207 @@ function filterChanges(filter) {
   loadChanges();
 }
 
+// ===== 变更控制子页面切换 =====
+function showChangesSubPage(sub) {
+  var db = document.getElementById('changesDashboard');
+  var guide = document.getElementById('changesGuideContent');
+  var btns = document.querySelectorAll('#page-changes .page-header .btn-group .btn');
+  
+  btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
+  
+  if (sub === 'guide') {
+    if (btns[1]) { btns[1].classList.remove('btn-outline'); btns[1].classList.add('btn-primary'); }
+    if (db) db.style.display = 'none';
+    if (guide) guide.style.display = 'block';
+    // Hide chart rows
+    document.querySelectorAll('#page-changes .charts-row, #page-changes .card').forEach(function(el) {
+      if (!el.closest('#changesGuideContent')) el.style.display = 'none';
+    });
+    loadChangesGuide();
+  } else {
+    if (btns[0]) { btns[0].classList.remove('btn-outline'); btns[0].classList.add('btn-primary'); }
+    if (db) db.style.display = '';
+    if (guide) guide.style.display = 'none';
+    document.querySelectorAll('#page-changes .charts-row, #page-changes .card').forEach(function(el) {
+      if (!el.closest('#changesGuideContent')) el.style.display = '';
+    });
+  }
+}
+
+// ===== 变更操作指南提示卡 =====
+async function loadChangesGuide() {
+  var container = document.getElementById('changesGuideContent');
+  if (!container) return;
+  
+  var data = await apiGet('/changes/guide');
+  if (!data) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载指南中...</div></div>'; return; }
+  
+  var html = '';
+  
+  // === Tab navigation ===
+  html += '<div class="btn-group" style="margin-bottom:16px;" id="guideTabs">' +
+    '<button class="btn btn-sm btn-primary" onclick="switchGuideTab(\'de\')" id="gtDE">🔀 设计/工程变更</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="switchGuideTab(\'risk\')" id="gtRisk">⚖️ I/II/III 风险分级</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="switchGuideTab(\'material\')" id="gtMat">🔩 仪器物料变更</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="switchGuideTab(\'flow\')" id="gtFlow">📋 六阶段流程</button>' +
+    '</div>' +
+    '<div id="guideTabContent"></div>';
+  
+  container.innerHTML = html;
+  window._changeGuideData = data;
+  switchGuideTab('de');
+}
+
+function switchGuideTab(tab) {
+  var data = window._changeGuideData;
+  if (!data) return;
+  
+  var btns = document.querySelectorAll('#guideTabs .btn');
+  btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
+  var activeBtn = document.getElementById('gt' + (tab === 'de' ? 'DE' : tab === 'risk' ? 'Risk' : tab === 'material' ? 'Mat' : 'Flow'));
+  if (activeBtn) { activeBtn.classList.remove('btn-outline'); activeBtn.classList.add('btn-primary'); }
+  
+  var content = document.getElementById('guideTabContent');
+  if (!content) return;
+  
+  var html = '';
+  
+  if (tab === 'de') {
+    var d = data.designVsEngineering;
+    html += '<div class="card"><div class="card-header"><h3>🔀 ' + d.title + '</h3><span style="font-size:11px;">先判定变更类型，再进入对应管理轨道</span></div><div class="card-body">';
+    
+    // FFF Decision
+    html += '<div style="background:#EEF2FF;border-radius:8px;padding:16px;margin-bottom:16px;"><b style="color:#4F46E5;">🧭 ' + d.decision.title + '</b>';
+    d.decision.questions.forEach(function(q) {
+      html += '<div style="margin-top:8px;font-size:13px;">• <b>' + q.q + '</b>：' + q.desc + '</div>';
+    });
+    html += '<div style="margin-top:10px;font-size:12px;color:#DC2626;font-weight:600;">⚠ ' + d.decision.rule + '</div></div>';
+    
+    // Comparison table
+    html += '<table class="data-table" style="font-size:12px;"><thead><tr><th>维度</th><th style="color:#0F766E;">🔵 设计变更</th><th style="color:#D97706;">🟠 工程变更</th></tr></thead><tbody>';
+    d.comparison.forEach(function(r) {
+      html += '<tr><td><b>' + r.dim + '</b></td><td>' + r.design + '</td><td>' + r.engineering + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    
+    // Examples
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;">' +
+      '<div style="background:#D1FAE5;border-radius:8px;padding:14px;"><b style="color:#065F46;">🔵 设计变更示例</b><ul style="margin:8px 0 0 16px;font-size:12px;">' +
+      d.designExamples.map(function(e) { return '<li>' + e + '</li>'; }).join('') + '</ul></div>' +
+      '<div style="background:#FEF3C7;border-radius:8px;padding:14px;"><b style="color:#92400E;">🟠 工程变更示例</b><ul style="margin:8px 0 0 16px;font-size:12px;">' +
+      d.engineeringExamples.map(function(e) { return '<li>' + e + '</li>'; }).join('') + '</ul></div>' +
+      '</div>';
+    
+    html += '</div></div>';
+    
+  } else if (tab === 'risk') {
+    var r = data.riskLevels;
+    html += '<div class="card"><div class="card-header"><h3>⚖️ ' + r.title + '</h3><span style="font-size:11px;color:#DC2626;">' + r.principle + '</span></div><div class="card-body">';
+    
+    // Risk level cards
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">';
+    r.levels.forEach(function(l) {
+      var color = l.badge === 'b-high' ? '#DC2626' : l.badge === 'b-mid' ? '#D97706' : '#059669';
+      var bg = l.badge === 'b-high' ? '#FEE2E2' : l.badge === 'b-mid' ? '#FEF3C7' : '#D1FAE5';
+      html += '<div style="background:' + bg + ';border-radius:8px;padding:14px;border-top:3px solid ' + color + ';">' +
+        '<b style="color:' + color + ';">' + l.level + ' / ' + l.risk + '</b>' +
+        '<p style="font-size:11px;margin:6px 0;">' + l.def + '</p>' +
+        '<div style="font-size:11px;margin-top:8px;"><b>验证：</b>' + l.validation + '</div>' +
+        '<div style="font-size:11px;"><b>审批：</b>' + l.approval + '</div>' +
+        '<div style="font-size:11px;"><b>法规：</b>' + l.regulatory + '</div></div>';
+    });
+    html += '</div>';
+    
+    // Reagent examples
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">' +
+      '<div><b style="font-size:13px;">🧪 试剂变更示例</b>' +
+      '<div style="background:#D1FAE5;border-radius:6px;padding:10px;margin-top:6px;font-size:11px;"><b style="color:#059669;">I 类（低风险）</b><ul style="margin:4px 0 0 14px;">' + r.reagentExamples.I.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></div>' +
+      '<div style="background:#FEF3C7;border-radius:6px;padding:10px;margin-top:6px;font-size:11px;"><b style="color:#D97706;">II 类（中风险）</b><ul style="margin:4px 0 0 14px;">' + r.reagentExamples.II.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></div>' +
+      '<div style="background:#FEE2E2;border-radius:6px;padding:10px;margin-top:6px;font-size:11px;"><b style="color:#DC2626;">III 类（高风险）</b><ul style="margin:4px 0 0 14px;">' + r.reagentExamples.III.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></div>' +
+      '</div>' +
+      '<div><b style="font-size:13px;">🔩 仪器变更示例</b>' +
+      '<div style="background:#D1FAE5;border-radius:6px;padding:10px;margin-top:6px;font-size:11px;"><b style="color:#059669;">I 类（低风险）</b><ul style="margin:4px 0 0 14px;">' + r.instrumentExamples.I.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></div>' +
+      '<div style="background:#FEF3C7;border-radius:6px;padding:10px;margin-top:6px;font-size:11px;"><b style="color:#D97706;">II 类（中风险）</b><ul style="margin:4px 0 0 14px;">' + r.instrumentExamples.II.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></div>' +
+      '<div style="background:#FEE2E2;border-radius:6px;padding:10px;margin-top:6px;font-size:11px;"><b style="color:#DC2626;">III 类（高风险）</b><ul style="margin:4px 0 0 14px;">' + r.instrumentExamples.III.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></div>' +
+      '</div></div>';
+    
+    html += '<div style="margin-top:12px;background:#FEE2E2;border-radius:6px;padding:10px;font-size:11px;color:#991B1B;">⚠ ' + r.gateRule + '</div>';
+    html += '</div></div>';
+    
+  } else if (tab === 'material') {
+    var m = data.instrumentMaterial;
+    html += '<div class="card"><div class="card-header"><h3>🔩 ' + m.title + '</h3></div><div class="card-body">';
+    
+    // Material level cards
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">';
+    var colors = ['#DC2626','#D97706','#059669'];
+    var bgs = ['#FEE2E2','#FEF3C7','#D1FAE5'];
+    m.materialLevels.forEach(function(l, i) {
+      html += '<div style="background:' + bgs[i] + ';border-radius:8px;padding:14px;border-top:3px solid ' + colors[i] + ';">' +
+        '<b style="color:' + colors[i] + ';">' + l.level + '</b><p style="font-size:11px;margin:6px 0;">' + l.def + '</p>' +
+        '<div style="font-size:11px;margin-top:8px;"><b>验证：</b>' + l.validation + '</div>' +
+        '<div style="font-size:11px;"><b>审批：</b>' + l.approval + '</div>' +
+        '<div style="font-size:11px;margin-top:4px;color:#6B7280;">示例：' + l.examples + '</div></div>';
+    });
+    html += '</div>';
+    
+    // Risk matrix
+    html += '<b style="font-size:13px;">📊 物料分级 × 变更类型 → 风险等级矩阵</b>' +
+      '<div style="overflow-x:auto;margin-top:6px;"><table class="data-table" style="font-size:11px;"><thead><tr>' +
+      m.riskMatrix.header.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
+    m.riskMatrix.rows.forEach(function(row) {
+      html += '<tr>' + row.map(function(c, i) {
+        var style = i === 0 ? 'font-weight:600;' : '';
+        if (c === 'III') style += 'color:#DC2626;font-weight:700;';
+        else if (c && c.indexOf('III') >= 0) style += 'color:#DC2626;';
+        else if (c === 'II' || (c && c.indexOf('II') >= 0 && c.indexOf('III') < 0)) style += 'color:#D97706;';
+        return '<td style="' + style + '">' + c + '</td>';
+      }).join('') + '</tr>';
+    });
+    html += '</tbody></table></div>';
+    
+    // Validation matrix
+    html += '<b style="font-size:13px;display:block;margin-top:16px;">✅ 按物料类别验证矩阵</b>' +
+      '<div style="overflow-x:auto;margin-top:6px;"><table class="data-table" style="font-size:11px;"><thead><tr>' +
+      m.validationMatrix.header.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
+    m.validationMatrix.rows.forEach(function(row) {
+      html += '<tr>' + row.map(function(c, i) {
+        var style = i === 0 ? 'font-weight:600;' : '';
+        if (c === '必须') style += 'color:#DC2626;font-weight:600;';
+        else if (c === '按需') style += 'color:#D97706;';
+        else if (c === '无需') style += 'color:#9CA3AF;';
+        return '<td style="' + style + '">' + c + '</td>';
+      }).join('') + '</tr>';
+    });
+    html += '</tbody></table></div>';
+    
+    // Change types
+    html += '<b style="font-size:13px;display:block;margin-top:16px;">🔍 按变更类型验证侧重</b>';
+    m.changeTypes.forEach(function(ct) {
+      html += '<div style="margin-top:6px;padding:8px 12px;background:#F9FAFB;border-radius:6px;font-size:11px;"><b>' + ct.type + '：</b>' + ct.focus + '</div>';
+    });
+    
+    html += '</div></div>';
+    
+  } else if (tab === 'flow') {
+    var f = data.processFlow;
+    html += '<div class="card"><div class="card-header"><h3>📋 ' + f.title + '</h3></div><div class="card-body">';
+    
+    f.stages.forEach(function(s) {
+      html += '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;">' +
+        '<div style="background:#0F766E;color:#fff;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;">' + s.id + '</div>' +
+        '<div style="flex:1;"><b style="font-size:14px;">' + s.name + '</b>' +
+        '<div style="font-size:11px;color:#0F766E;margin-top:2px;">👤 ' + s.owner + '</div>' +
+        '<ul style="margin:6px 0 0 16px;font-size:12px;">' + s.tasks.map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
+        '<div style="margin-top:8px;font-size:11px;background:#EEF2FF;border-radius:4px;padding:4px 8px;color:#4F46E5;font-weight:600;">🚪 ' + s.gate + '</div></div></div>';
+    });
+    
+    html += '</div></div>';
+  }
+  
+  content.innerHTML = html;
+}
+
 async function openChangeModal() {
   var products = await apiGet('/products');
   document.getElementById('chgProduct').innerHTML = '<option value="">请选择</option>' + (products||[]).map(function(p) { return '<option value="' + p.id + '">' + p.product_name + '</option>'; }).join('');
