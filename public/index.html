@@ -32,7 +32,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <h2>🩺 FDQH</h2>
-      <span>FosunDx Quality Hub v2.16.1</span>
+      <span>FosunDx Quality Hub v2.16.2</span>
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
@@ -46,9 +46,14 @@
           <a href="#" data-page="workshop" onclick="navigate('workshop');return false;"><span class="icon">🏭</span> 研发生产质量一体化</a>
         </div>
       </div>
-      <a href="#" data-page="plm" onclick="navigate('plm');return false;"><span class="icon">🔗</span> 全生命周期</a>
+      <div class="nav-parent" id="navPlmParent">
+        <a href="#" data-page="plm" onclick="navigate('plm');return false;"><span class="icon">🔗</span> 全生命周期</a>
+        <span class="nav-arrow" id="navPlmArrow" onclick="toggleNavSubPlm()" style="position:absolute;right:12px;top:14px;cursor:pointer;color:rgba(255,255,255,.5);font-size:10px;z-index:2;">▶</span>
+        <div class="nav-sub" id="navPlmSub">
+          <a href="#" data-page="qcp" onclick="navigate('qcp');return false;"><span class="icon">🎯</span> 控制点库</a>
+        </div>
+      </div>
       <a href="#" data-page="changes" onclick="navigate('changes');return false;"><span class="icon">🔄</span> 变更控制</a>
-      <a href="#" data-page="qcp" onclick="navigate('qcp');return false;"><span class="icon">🎯</span> 控制点库</a>
       <a href="#" data-page="masters" onclick="navigate('masters');return false;"><span class="icon">📋</span> 主数据管理</a>
       <a href="#" data-page="risks" onclick="navigate('risks');return false;"><span class="icon">⚠️</span> 风险FMEA</a>
       <a href="#" data-page="ai" onclick="navigate('ai');return false;"><span class="icon">🤖</span> AI 助手</a>
@@ -258,7 +263,6 @@
         <button class="btn btn-sm btn-outline" onclick="switchPlmTab('alerts')" id="ptAlerts">🚨 AI预警</button>
         <button class="btn btn-sm btn-outline" onclick="switchPlmTab('batch')" id="ptBatch">📦 批次护照</button>
         <button class="btn btn-sm btn-outline" onclick="switchPlmTab('registry')" id="ptRegistry">📋 产品注册档案</button>
-        <button class="btn btn-sm btn-outline" onclick="switchPlmTab('qcp')" id="ptQcp">🎯 控制点库</button>
       </div>
       </div>
       <div id="plmContent"></div>
@@ -411,7 +415,7 @@
 
 </div><!-- /appLayout -->
 
-<script src="/js/app.js?v=2.16.1"></script>
+<script src="/js/app.js?v=2.16.2"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
