@@ -2430,10 +2430,50 @@ async function switchPlmTab(tab) {
     }
     html += '<span style="font-size:12px;color:var(--text-muted);margin-left:8px;">共 ' + regData.total + ' 条</span></div>';
     html += '</div>';
+  } else if (tab === 'qcp') {
+    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载控制点库...</div></div>';
+    var qcpData = await apiGet('/qcp');
+    if (!qcpData || !qcpData.length) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">❌ 无数据</div></div>'; return; }
+    
+    // Group by stage
+    var stageNames = ['01 立项','02 设计开发','03 注册','04 转产','05 量产','06 上市','07 退市'];
+    var stageMap = {};
+    qcpData.forEach(function(q) {
+      var s = q.stage || q.phase || '未分类';
+      if (!stageMap[s]) stageMap[s] = [];
+      stageMap[s].push(q);
+    });
+    
+    html = '<div class="module-summary" style="margin-bottom:16px;">' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + qcpData.length + '</div><div class="ms-label">🎯 QCP总数</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + Object.keys(stageMap).length + '</div><div class="ms-label">📊 覆盖阶段</div></div>' +
+      '</div>';
+    
+    html += '<div style="text-align:center;margin-bottom:12px;">' +
+      '<button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')">📋 打开完整控制点库管理 →</button></div>';
+    
+    // Render by stage
+    Object.keys(stageMap).sort().forEach(function(stage) {
+      var items = stageMap[stage];
+      html += '<div class="card" style="margin-bottom:12px;"><div class="card-header"><h3>🎯 ' + stage + '</h3><span style="font-size:11px;">' + items.length + ' 个控制点</span></div>' +
+        '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" style="font-size:11px;"><thead><tr>' +
+        '<th>QCP编号</th><th>控制点名称</th><th>模块</th><th>风险</th><th>控制方法</th><th>负责人</th></tr></thead><tbody>';
+      items.forEach(function(q) {
+        var riskBadge = (q.risk||'').indexOf('高')>=0 || (q.risk||'').indexOf('High')>=0 ? 'badge-danger' : (q.risk||'').indexOf('中')>=0 || (q.risk||'').indexOf('Medium')>=0 ? 'badge-warning' : 'badge-success';
+        html += '<tr><td>' + (q.qcp_no || q.id || '-') + '</td><td><b>' + (q.name || q.title || '-') + '</b></td>' +
+          '<td>' + (q.module || '-') + '</td>' +
+          '<td><span class="badge ' + riskBadge + '">' + (q.risk || q.risk_level || '-') + '</span></td>' +
+          '<td>' + (q.control_method || q.method || '-') + '</td><td>' + (q.responsible || q.owner || '-') + '</td></tr>';
+      });
+      html += '</tbody></table></div></div>';
+    });
   }
 
   container.innerHTML = html;
 }
+
+// ===== QCP 控制点库（PLM内嵌）=====
+var qcpPLMPage = 1;
 
 // ===== 注册档案辅助 =====
 async function loadRegCertPage(page) {
