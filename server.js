@@ -1197,16 +1197,7 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
           { name: '分子试剂', target: '≥99%', months: {'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
           { name: '生化试剂', target: '≥99%', months: {'W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
         ]
-      },
-      { title: '生产效率 & 交付 (周数据)', type: 'table',
-        headers: ['指标','目标','W2W','W3W','W4W','W5W','W6W','W7W'],
-        rows: [
-          { name: '仪器生产效率', target: '≥110%', months: {'W2W':101,'W3W':107,'W4W':113,'W5W':113,'W6W':131,'W7W':130}, ytd:'115.8%', status:'pass', direction:'gte' },
-          { name: '试剂生产效率', target: '≥110%', months: {'W2W':80,'W3W':88,'W4W':100,'W5W':103,'W6W':112,'W7W':107}, ytd:'98.3%', status:'warning', direction:'gte' },
-          { name: '工单完工率(仪器)', target: '≥95%', months: {'W2W':'--','W3W':100,'W4W':100,'W5W':100,'W6W':100,'W7W':100}, ytd:'100%', status:'pass', direction:'gte' },
-          { name: '工单完工率(试剂)', target: '≥95%', months: {'W2W':100,'W3W':100,'W4W':90,'W5W':100,'W6W':100,'W7W':100}, ytd:'98.3%', status:'pass', direction:'gte' },
-        ]
-      },
+      }
     ]
   };
 
