@@ -60,11 +60,11 @@ a { color: var(--accent); text-decoration: none; }
 
 /* 子菜单 */
 .nav-parent { position: relative; }
-.nav-parent > a { display: flex; align-items: center; gap: 10px; padding: 12px 24px; color: rgba(255,255,255,.7);
+.nav-parent > a { display: flex; align-items: center; gap: 10px; padding: 12px 24px; padding-right: 40px; color: rgba(255,255,255,.7);
   font-size: 14px; transition: all .2s; border-left: 3px solid transparent; cursor: pointer; text-decoration: none; }
 .nav-parent > a:hover, .nav-parent > a.active { background: rgba(255,255,255,.08); color: white; border-left-color: var(--accent); }
-.nav-parent > a .nav-arrow { margin-left: auto; font-size: 10px; transition: transform .2s; }
-.nav-parent.expanded > a .nav-arrow { transform: rotate(180deg); }
+.nav-parent .nav-arrow { transition: transform .2s; }
+.nav-parent.expanded .nav-arrow { transform: rotate(180deg); }
 .nav-sub { display: none; }
 .nav-parent.expanded .nav-sub { display: block; }
 .nav-sub a {
