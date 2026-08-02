@@ -963,13 +963,25 @@ async function loadAuditFindings() {
     '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'体系风险\')" id="afSys">体系风险 (' + s.systemCount + ')</button>' +
     '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'产品风险\')" id="afProd">产品风险 (' + s.productCount + ')</button>' +
     '</div>';
-  
+
+  // === 条款不符合项帕累托图 ===
+  var cp = data.clausePareto || [];
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>📊 不符合条款帕累托图 (新GMP × ISO 13485)</h3><span style="font-size:11px;">按出现频次降序 — 24项风险清单中条款引用次数分布</span></div>' +
+    '<div class="card-body"><div class="chart-container" style="height:360px;"><canvas id="afClausePareto"></canvas></div>' +
+    '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;font-size:10px;">' +
+    cp.slice(0, 10).map(function(c) {
+      return '<span style="background:#F3F4F6;border-radius:4px;padding:2px 6px;">' + c.clause + ' (' + c.count + '次) → ' + (c.iso || '-') + '</span>';
+    }).join('') +
+    '</div></div></div>' +
+    '</div>';
+
   // === Table ===
   html += '<div class="card"><div class="card-header"><h3>📋 体系/产品风险清单 — 对照检查指导原则分类</h3><span style="font-size:11px;">来源: 20260724 体系、产品风险清单汇总 × 医疗器械生产质量管理规范检查指导原则（征求意见稿）</span></div>' +
     '<div class="card-body no-padding" style="overflow-x:auto;">' +
-    '<table class="data-table" style="min-width:1100px;" id="afTable">' +
+    '<table class="data-table" style="min-width:1200px;" id="afTable">' +
     '<thead><tr>' +
-    '<th>序号</th><th>类别</th><th>风险描述</th><th>规范条款</th><th>风险分级</th><th>项目分类</th><th>发现类型</th><th>风险等级</th><th>目前方案</th>' +
+    '<th>序号</th><th>类别</th><th>风险描述</th><th>GMP条款</th><th>ISO 13485</th><th>风险分级</th><th>项目分类</th><th>发现类型</th><th>风险等级</th><th>目前方案</th>' +
     '</tr></thead><tbody>';
   
   items.forEach(function(item) {
@@ -982,19 +994,39 @@ async function loadAuditFindings() {
     html += '<tr class="af-row" data-risk-class="' + item.risk_class + '" data-category="' + item.category + '">' +
       '<td>' + item.seq + '</td>' +
       '<td><span style="font-size:11px;color:var(--text-muted);">' + item.category + '</span></td>' +
-      '<td style="max-width:300px;font-size:12px;">' + item.risk_desc + '</td>' +
+      '<td style="max-width:280px;font-size:12px;">' + item.risk_desc + '</td>' +
       '<td><span style="font-weight:600;color:' + riskClassColor + ';">' + item.clause_ref + '</span><br><span style="font-size:10px;color:var(--text-muted);">' + (item.clause_content || '') + '</span></td>' +
+      '<td><span style="font-size:10px;font-weight:500;color:#6366F1;">' + (item.iso_clause || '—') + '</span></td>' +
       '<td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:700;font-size:13px;background:' + riskClassBg + ';color:' + riskClassColor + ';">' + item.risk_class + '</span></td>' +
       '<td><span style="font-size:12px;font-weight:600;color:' + riskClassColor + ';">' + item.item_type + '</span></td>' +
       '<td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:' + eventTypeColor + '15;color:' + eventTypeColor + ';font-weight:600;">' + eventTypeLabel + '</span></td>' +
       '<td><span class="badge badge-' + riskBadge + '">' + item.risk_level + '</span></td>' +
-      '<td style="max-width:200px;font-size:11px;color:var(--text-muted);">' + (item.current_mitigation || '-') + '</td>' +
+      '<td style="max-width:180px;font-size:11px;color:var(--text-muted);">' + (item.current_mitigation || '-') + '</td>' +
       '</tr>';
   });
   
   html += '</tbody></table></div></div>';
   
   document.getElementById('auditFindingsContent').innerHTML = html;
+  
+  // === Render Pareto chart ===
+  if (cp.length > 0) {
+    setTimeout(function() {
+      var ctx = document.getElementById('afClausePareto');
+      if (!ctx) return;
+      if (charts['afClausePareto']) charts['afClausePareto'].destroy();
+      charts['afClausePareto'] = new Chart(ctx.getContext('2d'), {
+        type: 'bar', data: {
+          labels: cp.map(function(x) { return x.clause; }),
+          datasets: [
+            { label: '出现次数', data: cp.map(function(x) { return x.count; }), backgroundColor: cp.map(function(x) { return x.count >= 3 ? '#DC2626' : x.count >= 2 ? '#F59E0B' : '#3B82F6'; }), borderRadius: 3, yAxisID: 'y' },
+            { label: '累积%', type: 'line', data: cp.map(function(x) { return x.cumPct; }), borderColor: '#10B981', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: '不符合项次' } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '累积占比%' } } }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { afterLabel: function(c) { var d = cp[c.dataIndex]; return 'ISO: ' + (d.iso || '-'); } } } } }
+      });
+    }, 400);
+  }
   
   // Store items for filtering
   window._auditFindingsData = items;
