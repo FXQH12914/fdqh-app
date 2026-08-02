@@ -174,141 +174,66 @@ function confirmAction(msg, callback) {
 // DASHBOARD
 // ============================================================
 async function loadDashboard() {
-  // Load cockpit data and QHI in parallel
-  var [cockpit, qhi, stats] = await Promise.all([
-    apiGet('/dashboard/cockpit'), apiGet('/dashboard/qhi'), apiGet('/dashboard/stats')
-  ]);
+  var stats = await apiGet('/dashboard/stats');
   if (!stats) return;
-  
-  window._cockpitData = cockpit;
-  window._qhiData = qhi;
-  window._statsData = stats;
-  
-  switchCockpitTab('overview');
-}
 
-// ===== 驾驶舱标签切换 =====
-function switchCockpitTab(tab) {
-  var btns = document.querySelectorAll('#page-dashboard .page-header .btn-group .btn');
-  btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
-  var active = document.getElementById('ct' + tab.charAt(0).toUpperCase() + tab.slice(1));
-  if (active) { active.classList.remove('btn-outline'); active.classList.add('btn-primary'); }
-  
-  var c = window._cockpitData;
-  var q = window._qhiData;
-  var stats = window._statsData;
-  var html = '';
-  
-  if (tab === 'overview') {
-    // ===== 总览: QHI + KPI + 趋势 =====
-    var lc = q && q.level === 'green' ? '#10B981' : q && q.level === 'yellow' ? '#F59E0B' : '#EF4444';
-    var qhiVal = q ? q.qhi : (stats.qhi || 85);
-    
-    html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;">' +
-      // QHI Big Card
-      '<div style="background:linear-gradient(135deg,' + lc + '08,' + lc + '03);border:2px solid ' + lc + '30;border-radius:12px;padding:20px;text-align:center;">' +
-        '<div style="font-size:12px;color:var(--text-muted);">Quality Health Index</div>' +
-        '<div style="font-size:56px;font-weight:800;color:' + lc + ';line-height:1;">' + qhiVal + '</div>' +
-        '<div style="font-size:14px;color:' + lc + ';font-weight:600;">' + (q ? (q.level==='green'?'🟢 健康':q.level==='yellow'?'🟡 关注':'🔴 风险') : '') + '</div>' +
-      '</div>' +
-      // Summary KPI
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-        '<div style="background:#EEF2FF;border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#4F46E5;">' + stats.totalEvents + '</div><div style="font-size:11px;color:#6B7280;">⚠️ 质量事件</div></div>' +
-        '<div style="background:#FEF3C7;border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#D97706;">' + stats.totalCAPAs + '</div><div style="font-size:11px;color:#6B7280;">🔧 CAPA记录</div></div>' +
-        '<div style="background:#D1FAE5;border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#059669;">' + stats.totalProducts + '</div><div style="font-size:11px;color:#6B7280;">📦 产品数</div></div>' +
-        '<div style="background:#FEE2E2;border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#DC2626;">' + (c ? c.summary.openCritical : 0) + '</div><div style="font-size:11px;color:#6B7280;">🔴 严重事件</div></div>' +
-      '</div></div>';
-    
-    // Charts row
-    html += '<div class="charts-row">' +
-      '<div class="card"><div class="card-header"><h3>📈 月度事件趋势</h3></div><div class="card-body"><div class="chart-container"><canvas id="chartMonthly"></canvas></div></div></div>' +
-      '<div class="card"><div class="card-header"><h3>🎯 风险等级分布</h3></div><div class="card-body"><div class="chart-container"><canvas id="chartRisk"></canvas></div></div></div>' +
+  var qhi = await apiGet('/dashboard/qhi');
+  if (qhi && qhi.tqm) {
+    var lc = qhi.level === 'green' ? '#10B981' : qhi.level === 'yellow' ? '#F59E0B' : '#EF4444';
+    var t = qhi.tqm;
+    var d = qhi.domains || {};
+    document.getElementById('tqmQhiRow').innerHTML =
+      '<div class="tqm-qhi-total"><div class="qhi-number">' + qhi.qhi + '</div><div class="qhi-label">' + (qhi.level === 'green' ? '🟢 健康' : qhi.level === 'yellow' ? '🟡 关注' : '🔴 预警') + '</div></div>' +
+      '<div class="tqm-pillars">' +
+      '<div class="tqm-pillar patient"><div class="pillar-value">' + t.patient.score + '</div><div class="pillar-label">🏥 患者结果</div><div class="pillar-weight">权重 40%</div></div>' +
+      '<div class="tqm-pillar compliance"><div class="pillar-value">' + t.compliance.score + '</div><div class="pillar-label">📋 合规质量</div><div class="pillar-weight">权重 30%</div></div>' +
+      '<div class="tqm-pillar efficiency"><div class="pillar-value">' + t.efficiency.score + '</div><div class="pillar-label">⚡ 经营效率</div><div class="pillar-weight">权重 30%</div></div>' +
       '</div>';
-    
-    // Alerts + Recent Events
-    html += '<div class="card"><div class="card-header"><h3>🔴 待处理事项</h3></div><div class="card-body no-padding" id="recentEvents"></div></div>';
-    
-  } else if (tab === 'qkpi' && c) {
-    // ===== Q-KPI 六大指标体系 =====
-    var kpis = c.qkpi;
-    var keys = ['product','production','qc','supply','customer','system'];
-    
-    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">';
-    keys.forEach(function(key) {
-      var k = kpis[key];
-      html += '<div class="card" style="border-top:3px solid #6366F1;"><div class="card-header"><h3>' + k.icon + ' ' + k.label + '</h3></div><div class="card-body">';
-      k.metrics.forEach(function(m) {
-        var tc = m.trend === 'up' ? '#059669' : m.trend === 'down' ? '#DC2626' : '#6B7280';
-        var ta = m.trend === 'up' ? '↑' : m.trend === 'down' ? '↓' : '→';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;">' +
-          '<span style="font-size:13px;">' + m.name + '</span>' +
-          '<span><b style="font-size:16px;">' + m.value + '</b><span style="font-size:11px;color:var(--text-muted);">' + m.unit + '</span> <span style="color:' + tc + ';">' + ta + '</span></span>' +
-          '</div>';
-      });
-      html += '</div></div>';
-    });
-    html += '</div>';
-    
-  } else if (tab === 'risk' && c) {
-    // ===== 产品风险矩阵 =====
-    var pr = c.productRisk || [];
-    html += '<div class="card"><div class="card-header"><h3>🎯 产品风险矩阵</h3><span style="font-size:11px;">风险评分: Critical×3 + High×3 + Medium×1 | 业务影响: 基于风险等级</span></div>' +
-      '<div class="card-body" style="overflow-x:auto;"><table class="data-table"><thead><tr><th>产品</th><th>平台</th><th>风险评分</th><th>业务影响</th><th>风险等级</th><th>事件数</th></tr></thead><tbody>';
-    pr.forEach(function(p) {
-      var badge = p.level === 'high' ? 'badge-danger' : p.level === 'medium' ? 'badge-warning' : 'badge-success';
-      html += '<tr>' +
-        '<td><b>' + p.name + '</b></td><td>' + p.platform + '</td>' +
-        '<td><b style="color:' + (p.riskScore >= 10 ? '#DC2626' : p.riskScore >= 5 ? '#D97706' : '#059669') + ';">' + p.riskScore + '</b></td>' +
-        '<td>' + p.bizImpact + '</td>' +
-        '<td><span class="badge ' + badge + '">' + (p.level==='high'?'🔴 高':p.level==='medium'?'🟡 中':'🟢 低') + '</span></td>' +
-        '<td>' + p.eventCount + '</td></tr>';
-    });
-    html += '</tbody></table></div></div>';
-    
-  } else if (tab === 'alerts' && c) {
-    // ===== AI 预警 =====
-    var alerts = c.alerts || [];
-    html += '<div class="card"><div class="card-header"><h3>🚨 AI 风险预警中心</h3><span style="font-size:11px;">基于实时数据自动检测 · 参照化学发光Quality Cockpit设计</span></div><div class="card-body">';
-    
-    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">' +
-      '<div style="background:#FEE2E2;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔴</div><div style="font-weight:700;color:#DC2626;">重大风险</div><div style="font-size:11px;color:#991B1B;">需立即行动</div></div>' +
-      '<div style="background:#FEF3C7;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🟡</div><div style="font-weight:700;color:#D97706;">关注风险</div><div style="font-size:11px;color:#92400E;">趋势监控</div></div>' +
-      '<div style="background:#DBEAFE;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔵</div><div style="font-weight:700;color:#2563EB;">优化机会</div><div style="font-size:11px;color:#1E40AF;">持续改进</div></div>' +
-      '</div>';
-    
-    alerts.forEach(function(a) {
-      var bg = a.level === 'red' ? '#FEE2E2' : a.level === 'yellow' ? '#FEF3C7' : '#DBEAFE';
-      var color = a.level === 'red' ? '#DC2626' : a.level === 'yellow' ? '#D97706' : '#2563EB';
-      var icon = a.level === 'red' ? '🔴' : a.level === 'yellow' ? '🟡' : '🔵';
-      html += '<div style="background:' + bg + ';border-left:4px solid ' + color + ';border-radius:6px;padding:12px;margin-bottom:8px;">' +
-        icon + ' <b style="color:' + color + ';">' + a.msg + '</b> <span style="color:var(--text-muted);">×' + a.count + '</span></div>';
-    });
-    
-    html += '<div style="margin-top:16px;text-align:center;">' +
-      '<button class="btn btn-accent btn-sm" onclick="navigate(\'events\');setTimeout(function(){showEventsSubPage(\'aiRiskPredict\');},300);">🤖 打开完整 AI 风险预测 →</button></div>';
-    
-    html += '</div></div>';
   }
-  
-  document.getElementById('cockpitContent').innerHTML = html;
-  
-  // Render charts for overview tab
-  if (tab === 'overview') {
-    setTimeout(function() {
-      renderChart('chartMonthly', 'line', stats.monthlyTrends.map(function(t) { return t.month; }), stats.monthlyTrends.map(function(t) { return t.count; }), '事件数', '#6366F1');
-      renderPieChart('chartRisk', Object.keys(stats.riskDist), Object.values(stats.riskDist), ['#DC2626','#F59E0B','#3B82F6','#10B981']);
-      var recentEvents = document.getElementById('recentEvents');
-      if (recentEvents && stats.recentEvents) {
-        recentEvents.innerHTML = '<table class="data-table">' + stats.recentEvents.map(function(e) {
-          return '<tr><td>' + e.id + '</td><td>' + e.event_type + '</td><td>' + (e.product_name||'-') + '</td><td><span class="badge badge-' + getRiskBadge(e.risk_level) + '">' + e.risk_level + '</span></td><td>' + e.status + '</td></tr>';
-        }).join('') + '</table>';
-      }
-    }, 200);
+
+  var kpis = await apiGet('/dashboard/kpis');
+  if (kpis) {
+    var kpiHtml = '';
+    function renderKpiCard(icon, title, cssClass, items) {
+      var rows = items.map(function(k) {
+        return '<tr><td>' + k.name + '</td><td style="font-weight:500;">' + k.value + '</td><td style="font-size:12px;color:var(--text-muted);">' + (k.target||'') + '</td></tr>';
+      }).join('');
+      return '<div class="tqm-kpi-card ' + cssClass + '"><div class="card-header"><h3>' + icon + ' ' + title + '</h3></div><div class="card-body no-padding"><table class="kpi-table">' + rows + '</table></div></div>';
+    }
+    kpiHtml += renderKpiCard('🔴', '红线指标', 'redline', kpis.redline || []);
+    kpiHtml += renderKpiCard('⚡', '经营指标', 'business', kpis.business || []);
+    kpiHtml += renderKpiCard('📈', '提升指标', 'improvement', kpis.improvement || []);
+  }
+
+  var alerts = await apiGet('/dashboard/alerts');
+  var alertRows = '';
+  if (alerts && alerts.alerts && alerts.alerts.length) {
+    alertRows = alerts.alerts.map(function(a) {
+      var b = a.level === 'red' ? 'danger' : a.level === 'yellow' ? 'warning' : 'success';
+      return '<tr><td><span class="badge badge-' + b + '">' + (a.level === 'red' ? '🔴' : a.level === 'yellow' ? '🟡' : '🟢') + '</span></td><td style="font-size:12px;">' + a.message + '</td></tr>';
+    }).join('');
+  } else {
+    alertRows = '<tr><td><div class="empty-state">✅ 所有指标正常，无需预警</div></td></tr>';
+  }
+
+  loadComplaintSummary();
+  loadQualityModules();
+
+  renderChart('chartMonthly', 'line', stats.monthlyTrends.map(function(t) { return t.month; }), stats.monthlyTrends.map(function(t) { return t.count; }), '事件数', '#D4875A');
+  renderPieChart('chartRisk', Object.keys(stats.riskDist), Object.values(stats.riskDist), ['#28A745','#F0C24C','#E57200','#C73C3C']);
+
+  var alertEl = document.getElementById('alertRows');
+  if (alertEl) alertEl.innerHTML = alertRows;
+  var recentEl = document.getElementById('recentEvents');
+  if (recentEl && stats.recentEvents) {
+    recentEl.innerHTML = '<table class="data-table">' + stats.recentEvents.map(function(e) {
+      return '<tr><td>' + e.id + '</td><td>' + e.event_type + '</td><td>' + (e.product_name||'-') + '</td><td><span class="badge badge-' + getRiskBadge(e.risk_level) + '">' + e.risk_level + '</span></td><td>' + e.status + '</td></tr>';
+    }).join('') + '</table>';
   }
 }
 
 // ===== 保龄球图渲染 =====
-var currentModule = 'mfg'; // default active module
+var currentModule = 'mfg';
 
 async function loadQualityModules() {
   var data = await apiGet('/dashboard/quality-modules');
@@ -2197,84 +2122,125 @@ async function loadPlmDashboard() {
   var container = document.getElementById('plmContent');
   if (!container) return;
   
-  var [stagesData, dashData] = await Promise.all([apiGet('/plm/stages'), apiGet('/plm/dashboard')]);
+  var [stagesData, dashData, cockpitData] = await Promise.all([
+    apiGet('/plm/stages'), apiGet('/plm/dashboard'), apiGet('/dashboard/cockpit')
+  ]);
   if (!stagesData || !dashData) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载中...</div></div>'; return; }
   
-  var stages = stagesData.stages || [];
-  var s = dashData.summary;
+  window._plmStages = stagesData;
+  window._plmDash = dashData;
+  window._plmCockpit = cockpitData;
+  
+  switchPlmTab('lifecycle');
+}
+
+// ===== PLM 标签切换 =====
+function switchPlmTab(tab) {
+  var btns = document.querySelectorAll('#page-plm .page-header .btn-group .btn');
+  btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
+  var active = document.getElementById('pt' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (active) { active.classList.remove('btn-outline'); active.classList.add('btn-primary'); }
+  
+  var container = document.getElementById('plmContent');
+  var stages = window._plmStages;
+  var dash = window._plmDash;
+  var c = window._plmCockpit;
   var html = '';
   
-  // === KPI Cards ===
-  html += '<div class="module-summary" style="margin-bottom:20px;">' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalProducts + '</div><div class="ms-label">📦 产品总数</div><div class="ms-target">活跃' + s.activeProducts + ' / 研发' + s.inDevelopment + '</div></div>' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalQCPs + '</div><div class="ms-label">🎯 QCP总数</div><div class="ms-target">7阶段全覆盖</div></div>' +
-    '<div class="module-summary-card ' + (s.openCAPAs > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + s.openCAPAs + '</div><div class="ms-label">🔧 待处理CAPA</div><div class="ms-target">共' + s.totalCAPAs + '条</div></div>' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalEvents + '</div><div class="ms-label">⚠️ 质量事件</div><div class="ms-target">全生命周期</div></div>' +
-    '</div>';
-  
-  // === Lifecycle Stage Flow ===
-  html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — 7阶段数据链</h3><span style="font-size:11px;">基于PLQDP · 总QCP: ' + stagesData.totalQCP + '</span></div>' +
-    '<div class="card-body">' +
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">';
-  
-  stages.forEach(function(st, i) {
-    html += '<div style="flex:1;min-width:130px;background:linear-gradient(135deg,' + st.color + '10,' + st.color + '05);border:1px solid ' + st.color + '30;border-radius:10px;padding:14px;position:relative;border-top:3px solid ' + st.color + ';">' +
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:20px;">' + st.icon + '</span><b style="font-size:13px;color:' + st.color + ';">' + st.name + '</b></div>' +
-      '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">' + st.desc + '</div>' +
-      '<div style="font-size:10px;color:' + st.color + ';font-weight:600;">👤 ' + st.owner + '</div>' +
-      '<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">' +
-        '<span style="background:' + st.color + '15;border-radius:10px;padding:2px 8px;font-size:10px;color:' + st.color + ';">🎯 QCP×' + st.qcpCount + '</span>' +
-        '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📥 ' + st.inputs.length + '输入</span>' +
-        '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📤 ' + st.outputs.length + '输出</span>' +
+  if (tab === 'lifecycle') {
+    var stagesArr = window._plmStages.stages || [];
+    var s = window._plmDash.summary;
+    
+    html += '<div class="module-summary" style="margin-bottom:20px;">' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalProducts + '</div><div class="ms-label">📦 产品总数</div><div class="ms-target">活跃' + s.activeProducts + ' / 研发' + s.inDevelopment + '</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalQCPs + '</div><div class="ms-label">🎯 QCP总数</div><div class="ms-target">7阶段全覆盖</div></div>' +
+      '<div class="module-summary-card ' + (s.openCAPAs > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + s.openCAPAs + '</div><div class="ms-label">🔧 待处理CAPA</div><div class="ms-target">共' + s.totalCAPAs + '条</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalEvents + '</div><div class="ms-label">⚠️ 质量事件</div><div class="ms-target">全生命周期</div></div>' +
       '</div>';
     
-    // Controls list
-    html += '<div style="margin-top:8px;font-size:10px;">' +
-      st.controls.slice(0, 3).map(function(c) { return '<div style="color:var(--text-muted);">• ' + c + '</div>'; }).join('') +
-      (st.controls.length > 3 ? '<div style="color:var(--text-muted);">…+' + (st.controls.length - 3) + '项</div>' : '') +
-      '</div>';
+    html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — 7阶段数据链</h3><span style="font-size:11px;">基于PLQDP · 总QCP: ' + window._plmStages.totalQCP + '</span></div>' +
+      '<div class="card-body"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">';
     
+    stagesArr.forEach(function(st, i) {
+      html += '<div style="flex:1;min-width:130px;background:linear-gradient(135deg,' + st.color + '10,' + st.color + '05);border:1px solid ' + st.color + '30;border-radius:10px;padding:14px;border-top:3px solid ' + st.color + ';">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:20px;">' + st.icon + '</span><b style="font-size:13px;color:' + st.color + ';">' + st.name + '</b></div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">' + st.desc + '</div>' +
+        '<div style="font-size:10px;color:' + st.color + ';font-weight:600;">👤 ' + st.owner + '</div>' +
+        '<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">' +
+          '<span style="background:' + st.color + '15;border-radius:10px;padding:2px 8px;font-size:10px;color:' + st.color + ';">🎯 QCP×' + st.qcpCount + '</span>' +
+          '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📥' + st.inputs.length + '输入</span>' +
+          '<span style="background:#F3F4F6;border-radius:10px;padding:2px 8px;font-size:10px;">📤' + st.outputs.length + '输出</span>' +
+        '</div><div style="margin-top:8px;font-size:10px;">' +
+        st.controls.slice(0,3).map(function(ctrl){return '<div style="color:var(--text-muted);">• '+ctrl+'</div>';}).join('') +
+        (st.controls.length>3?'<div style="color:var(--text-muted);">…+'+(st.controls.length-3)+'项</div>':'') +
+        '</div></div>';
+      if (i < stagesArr.length - 1) html += '<div style="display:flex;align-items:center;color:#9CA3AF;font-size:18px;flex-shrink:0;">→</div>';
+    });
+    
+    html += '</div></div></div>';
+    
+    var pp = window._plmDash.productPassports || [];
+    html += '<div class="card"><div class="card-header"><h3>📋 产品质量护照</h3><span style="font-size:11px;">Top ' + pp.length + ' 产品</span></div>' +
+      '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" style="min-width:800px;"><thead><tr>' +
+      '<th>产品名称</th><th>技术平台</th><th>生命周期</th><th>注册号</th><th>QCP数</th><th>事件数</th><th>BQI</th></tr></thead><tbody>';
+    pp.forEach(function(p) {
+      var lcColor = p.lifecycle === '上市' || p.lifecycle === '量产' ? '#059669' : p.lifecycle === '研发' || p.lifecycle === '注册' ? '#6366F1' : '#9CA3AF';
+      html += '<tr style="cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')"><td><b>' + p.name + '</b></td><td><span style="font-size:11px;">' + p.platform + '</span></td>' +
+        '<td><span style="color:' + lcColor + ';font-weight:600;font-size:11px;">' + p.lifecycle + '</span></td><td style="font-size:11px;">' + p.regNo + '</td>' +
+        '<td>' + p.qcpCount + '</td><td>' + p.eventCount + '</td>' +
+        '<td>' + (p.hasBQI ? '<span style="font-weight:700;color:#0F766E;">' + p.bqi + '</span>' : '<span style="color:#9CA3AF;">—</span>') + '</td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+    html += '<div style="text-align:center;margin-top:16px;"><button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')" style="padding:10px 24px;">🎯 打开质量控制点库 →</button></div>';
+    
+  } else if (tab === 'qkpi' && c) {
+    var kpis = c.qkpi;
+    var keys = ['product','production','qc','supply','customer','system'];
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">';
+    keys.forEach(function(key) {
+      var k = kpis[key];
+      html += '<div class="card" style="border-top:3px solid #6366F1;"><div class="card-header"><h3>' + k.icon + ' ' + k.label + '</h3></div><div class="card-body">';
+      k.metrics.forEach(function(m) {
+        var tc = m.trend === 'up' ? '#059669' : m.trend === 'down' ? '#DC2626' : '#6B7280';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;">' +
+          '<span style="font-size:13px;">' + m.name + '</span>' +
+          '<span><b style="font-size:16px;">' + m.value + '</b><span style="font-size:11px;color:var(--text-muted);">' + m.unit + '</span> <span style="color:' + tc + ';">' + (m.trend==='up'?'↑':m.trend==='down'?'↓':'→') + '</span></span></div>';
+      });
+      html += '</div></div>';
+    });
     html += '</div>';
-    
-    // Arrow between stages
-    if (i < stages.length - 1) {
-      html += '<div style="display:flex;align-items:center;color:#9CA3AF;font-size:18px;flex-shrink:0;">→</div>';
-    }
-  });
-  
-  html += '</div></div></div>';
-  
-  // === Product Passport Table ===
-  var pp = dashData.productPassports || [];
-  html += '<div class="card"><div class="card-header"><h3>📋 产品质量护照 (Product Quality Passport)</h3><span style="font-size:11px;">Top ' + pp.length + ' 产品 · 点击产品名称跳转产品详情</span></div>' +
-    '<div class="card-body no-padding" style="overflow-x:auto;">' +
-    '<table class="data-table" style="min-width:800px;"><thead><tr>' +
-    '<th>产品名称</th><th>技术平台</th><th>生命周期</th><th>注册号</th><th>QCP数</th><th>事件数</th><th>BQI</th>' +
-    '</tr></thead><tbody>';
-  
-  pp.forEach(function(p) {
-    var lcColor = p.lifecycle === '上市' || p.lifecycle === '量产' ? '#059669' : p.lifecycle === '研发' || p.lifecycle === '注册' ? '#6366F1' : '#9CA3AF';
-    html += '<tr style="cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')">' +
-      '<td><b>' + p.name + '</b></td>' +
-      '<td><span style="font-size:11px;">' + p.platform + '</span></td>' +
-      '<td><span style="color:' + lcColor + ';font-weight:600;font-size:11px;">' + p.lifecycle + '</span></td>' +
-      '<td style="font-size:11px;">' + p.regNo + '</td>' +
-      '<td>' + p.qcpCount + '</td>' +
-      '<td>' + p.eventCount + '</td>' +
-      '<td>' + (p.hasBQI ? '<span style="font-weight:700;color:#0F766E;">' + p.bqi + '</span>' : '<span style="color:#9CA3AF;">—</span>') + '</td>' +
-      '</tr>';
-  });
-  
-  html += '</tbody></table></div></div>';
-  
-  // === Link to QCP Library ===
-  html += '<div style="text-align:center;margin-top:16px;">' +
-    '<button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')" style="padding:10px 24px;">🎯 打开质量控制点库 → 查看全部 QCP</button>' +
-    '</div>';
+  } else if (tab === 'risk' && c) {
+    var pr = c.productRisk || [];
+    html += '<div class="card"><div class="card-header"><h3>🎯 产品风险矩阵</h3><span style="font-size:11px;">风险评分: Critical×3 + High×3 + Medium×1</span></div>' +
+      '<div class="card-body" style="overflow-x:auto;"><table class="data-table"><thead><tr><th>产品</th><th>平台</th><th>风险评分</th><th>业务影响</th><th>风险等级</th><th>事件数</th></tr></thead><tbody>';
+    pr.forEach(function(p) {
+      var badge = p.level === 'high' ? 'badge-danger' : p.level === 'medium' ? 'badge-warning' : 'badge-success';
+      html += '<tr><td><b>' + p.name + '</b></td><td>' + p.platform + '</td>' +
+        '<td><b style="color:' + (p.riskScore>=10?'#DC2626':p.riskScore>=5?'#D97706':'#059669') + ';">' + p.riskScore + '</b></td>' +
+        '<td>' + p.bizImpact + '</td><td><span class="badge ' + badge + '">' + (p.level==='high'?'🔴 高':p.level==='medium'?'🟡 中':'🟢 低') + '</span></td>' +
+        '<td>' + p.eventCount + '</td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+  } else if (tab === 'alerts' && c) {
+    var alerts = c.alerts || [];
+    html += '<div class="card"><div class="card-header"><h3>🚨 AI 风险预警中心</h3><span style="font-size:11px;">基于实时数据自动检测</span></div><div class="card-body">' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">' +
+      '<div style="background:#FEE2E2;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔴</div><div style="font-weight:700;color:#DC2626;">重大风险</div><div style="font-size:11px;">需立即行动</div></div>' +
+      '<div style="background:#FEF3C7;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🟡</div><div style="font-weight:700;color:#D97706;">关注风险</div><div style="font-size:11px;">趋势监控</div></div>' +
+      '<div style="background:#DBEAFE;border-radius:8px;padding:16px;text-align:center;"><div style="font-size:28px;">🔵</div><div style="font-weight:700;color:#2563EB;">优化机会</div><div style="font-size:11px;">持续改进</div></div></div>';
+    alerts.forEach(function(a) {
+      var bg = a.level==='red'?'#FEE2E2':a.level==='yellow'?'#FEF3C7':'#DBEAFE';
+      var color = a.level==='red'?'#DC2626':a.level==='yellow'?'#D97706':'#2563EB';
+      html += '<div style="background:' + bg + ';border-left:4px solid ' + color + ';border-radius:6px;padding:12px;margin-bottom:8px;">' +
+        (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🔵') + ' <b style="color:' + color + ';">' + a.msg + '</b> <span style="color:var(--text-muted);">×' + a.count + '</span></div>';
+    });
+    html += '<div style="margin-top:16px;text-align:center;"><button class="btn btn-accent btn-sm" onclick="navigate(\'events\');setTimeout(function(){showEventsSubPage(\'aiRiskPredict\');},300);">🤖 完整 AI 风险预测 →</button></div></div></div>';
+  }
   
   container.innerHTML = html;
 }
-// ============================================================
+
+// ============================================================// ============================================================
 async function loadQCP() {
   var result = await apiGet('/qcp?limit=200');
   if (!result) return;
