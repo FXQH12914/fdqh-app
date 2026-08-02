@@ -374,9 +374,9 @@
 </div>
 
 <!-- PASSWORD MODAL -->
-<div id="passwordModal" class="modal">
-  <div class="modal-content" style="max-width:420px;">
-    <div class="modal-header"><h3>🔑 修改密码</h3><button class="btn-close" onclick="closeModal('passwordModal')">×</button></div>
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><h3>🔑 修改密码</h3><button class="modal-close" onclick="closeModal('passwordModal')">×</button></div>
     <div class="modal-body">
       <form onsubmit="changePassword();return false;">
         <div class="form-group"><label>旧密码</label><input type="password" id="oldPassword" placeholder="请输入当前密码" required></div>
@@ -389,7 +389,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.10.1"></script>
+<script src="/js/app.js?v=2.10.2"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
