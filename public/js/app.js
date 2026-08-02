@@ -100,6 +100,7 @@ function navigate(page) {
     case 'audit': loadAuditLogs(); break;
     case 'ai': loadAIAssistant(); break;
     case 'complaints': loadComplaintsDashboard(); break;
+    case 'workshop': loadWorkshopDashboard(); break;
   }
 }
 
@@ -328,7 +329,118 @@ async function loadComplaintSummary() {
   }
 }
 
-// ===== 数据导入/导出 =====
+// ===== 生产质量一体化 Workshop 看板 =====
+async function loadWorkshopDashboard() {
+  var data = await apiGet('/dashboard/workshop');
+  if (!data) return;
+  var html = '';
+
+  // === Row 1: KPI cards ===
+  html += '<div class="module-summary">' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + (data.total||262) + '</div><div class="ms-label">📊 问题总数</div></div>' +
+    '<div class="module-summary-card ms-fail"><div class="ms-value">143</div><div class="ms-label">🔴 持续存在</div></div>' +
+    '<div class="module-summary-card ms-warn"><div class="ms-value">73</div><div class="ms-label">🟡 单次</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">55</div><div class="ms-label">⚙️ 流程执行失败</div><div class="ms-target">@供应链质量</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">47</div><div class="ms-label">📝 流程无效</div><div class="ms-target">@研发质量</div></div>' +
+    '</div>';
+
+  // === Row 2: 过程分组 + 质量原因 帕累托 ===
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>📊 过程分组帕累托</h3></div><div class="card-body"><div class="chart-container"><canvas id="wsProcess"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🎯 质量原因帕累托</h3></div><div class="card-body"><div class="chart-container"><canvas id="wsCause"></canvas></div></div></div>' +
+    '</div>';
+
+  // === Row 3: 根因交叉分析 + 产品线 ===
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>🔍 根本原因 × 质量原因</h3></div><div class="card-body"><div class="chart-container"><canvas id="wsRoot"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>📦 产品线分布 + 频次</h3></div><div class="card-body"><div class="chart-container"><canvas id="wsProduct"></canvas></div></div></div>' +
+    '</div>';
+
+  // === Row 4: 解决方案四象限 ===
+  html += '<div class="card" style="margin-bottom:24px;"><div class="card-header"><h3>🎯 解决方案四象限矩阵 (执行难易 × 影响大小)</h3><span style="font-size:11px;">来源: Workshop-汇报版本输出 Sheet 2</span></div>' +
+    '<div class="card-body">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+    '<div style="background:#D1FAE5;border-radius:8px;padding:12px;"><b style="color:#065F46;">🟢 快赢区 Quick Wins (易+高影响)</b>' +
+    data.solutions.filter(function(s){return s.quad==='quick-win';}).map(function(s){return '<div style="font-size:11px;padding:4px 0;border-bottom:1px solid #A7F3D0;"><b>' + s.solution + '</b><br>[' + s.module + '] ' + s.cause + ' | ' + s.owner + ' | ' + s.deadline + '</div>';}).join('') + '</div>' +
+    '<div style="background:#DBEAFE;border-radius:8px;padding:12px;"><b style="color:#1E40AF;">🔵 战略区 Strategic (难+高影响)</b>' +
+    data.solutions.filter(function(s){return s.quad==='strategic';}).slice(0,6).map(function(s){return '<div style="font-size:11px;padding:4px 0;border-bottom:1px solid #BFDBFE;"><b>' + s.solution + '</b><br>[' + s.module + '] ' + s.cause + ' | ' + s.owner + ' | ' + s.deadline + '</div>';}).join('') + '</div>' +
+    '<div style="background:#FEF3C7;border-radius:8px;padding:12px;"><b style="color:#92400E;">🟡 填充区 Fill (易+中影响)</b>' +
+    data.solutions.filter(function(s){return s.quad==='fill';}).map(function(s){return '<div style="font-size:11px;padding:4px 0;border-bottom:1px solid #FDE68A;"><b>' + s.solution + '</b><br>[' + s.module + '] ' + s.cause + ' | ' + s.owner + '</div>';}).join('') + '</div>' +
+    '<div style="background:#F3F4F6;border-radius:8px;padding:12px;"><b style="color:#4B5563;">⚪ 待评估</b>' +
+    data.solutions.filter(function(s){return !s.quad||s.quad==='';}).map(function(s){return '<div style="font-size:11px;padding:4px 0;"><b>' + s.solution + '</b><br>[' + s.module + '] ' + s.cause + '</div>';}).join('') + '</div>' +
+    '</div></div></div>';
+
+  document.getElementById('workshopContent').innerHTML = html;
+
+  // === Render charts ===
+  setTimeout(function() {
+    // 1. Process Pareto
+    var pp = data.processPareto;
+    if (document.getElementById('wsProcess')) {
+      var ctx1 = document.getElementById('wsProcess').getContext('2d');
+      if (charts['wsProcess']) charts['wsProcess'].destroy();
+      charts['wsProcess'] = new Chart(ctx1, {
+        type: 'bar', data: {
+          labels: pp.map(function(x){return x.name + ' (' + x.count + ')';}),
+          datasets: [
+            { label: '问题数', data: pp.map(function(x){return x.count;}), backgroundColor: '#3B82F6', borderRadius: 4 },
+            { label: '占比%', type: 'line', data: pp.map(function(x){return x.pct;}), borderColor: '#EF4444', backgroundColor:'transparent', borderWidth:2, pointRadius:3, yAxisID:'y1' }
+          ]
+        },
+        options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true},y1:{position:'right',min:0,max:100,grid:{drawOnChartArea:false}}}, plugins:{legend:{position:'top'}} }
+      });
+    }
+    // 2. Cause Pareto
+    var cp = data.causePareto;
+    if (document.getElementById('wsCause')) {
+      var ctx2 = document.getElementById('wsCause').getContext('2d');
+      if (charts['wsCause']) charts['wsCause'].destroy();
+      charts['wsCause'] = new Chart(ctx2, {
+        type: 'bar', data: {
+          labels: cp.map(function(x){return x.name + ' (' + x.count + ')';}),
+          datasets: [
+            { label: '问题数', data: cp.map(function(x){return x.count;}), backgroundColor: ['#3B82F6','#F59E0B','#10B981','#8B5CF6','#6B7280'], borderRadius: 4 },
+            { label: '占比%', type: 'line', data: cp.map(function(x){return x.pct;}), borderColor: '#EF4444', backgroundColor:'transparent', borderWidth:2, pointRadius:3, yAxisID:'y1' }
+          ]
+        },
+        options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true},y1:{position:'right',min:0,max:100,grid:{drawOnChartArea:false}}}, plugins:{legend:{position:'top'}} }
+      });
+    }
+    // 3. Root cause cross
+    var rc = data.rootCauseCross;
+    if (document.getElementById('wsRoot')) {
+      var ctx3 = document.getElementById('wsRoot').getContext('2d');
+      if (charts['wsRoot']) charts['wsRoot'].destroy();
+      charts['wsRoot'] = new Chart(ctx3, {
+        type: 'bar', data: {
+          labels: rc.map(function(x){return x.cause;}),
+          datasets: [
+            { label: '无流程', data: rc.map(function(x){return x.noProcess;}), backgroundColor: '#EF4444', borderRadius: 2 },
+            { label: '流程无效', data: rc.map(function(x){return x.invalidProcess;}), backgroundColor: '#F59E0B', borderRadius: 2 },
+            { label: '流程执行失败', data: rc.map(function(x){return x.execFail;}), backgroundColor: '#3B82F6', borderRadius: 2 }
+          ]
+        },
+        options: { responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}, plugins:{legend:{position:'top'}} }
+      });
+    }
+    // 4. Product+Frequency
+    if (document.getElementById('wsProduct')) {
+      var ctx4 = document.getElementById('wsProduct').getContext('2d');
+      if (charts['wsProduct']) charts['wsProduct'].destroy();
+      var pd = data.productDist;
+      var fd = data.freqDist;
+      charts['wsProduct'] = new Chart(ctx4, {
+        type: 'bar', data: {
+          labels: pd.map(function(x){return x.name;}),
+          datasets: [
+            { label: '问题数', data: pd.map(function(x){return x.count;}), backgroundColor: '#EC4899', borderRadius: 4 }
+          ]
+        },
+        options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}} }
+      });
+    }
+  }, 300);
+}
 async function exportDashboardData() {
   var res = await fetch(API + '/dashboard/export', { headers: { 'Authorization': 'Bearer ' + token } });
   if (res.status === 401) { logout(); return; }

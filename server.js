@@ -1929,6 +1929,91 @@ app.post('/api/dashboard/import', requireAuth, upload.single('file'), asyncHandl
   }
 }));
 
+// ============================================================
+// WORKSHOP DASHBOARD — 生产质量一体化Workshop看板
+// 数据来源: 生产质量一体化Workshop-汇报版本输出.xlsx (Sheet 2+3)
+// ============================================================
+app.get('/api/dashboard/workshop', requireAuth, asyncHandler(async (req, res) => {
+  // ===== Sheet 3: 汇报分析 =====
+  // 过程分组帕累托
+  var processPareto = [
+    { name: '来料过程', count: 150, pct: 53 },
+    { name: '中间品制备检验', count: 68, pct: 24 },
+    { name: '成品检验放行', count: 65, pct: 23 }
+  ];
+
+  // 质量原因帕累托
+  var causePareto = [
+    { name: '研发质量', count: 131, pct: 50 },
+    { name: '供应链质量', count: 84, pct: 32 },
+    { name: '生产质量', count: 33, pct: 13 },
+    { name: '体系质量', count: 12, pct: 5 },
+    { name: '其他', count: 2, pct: 1 }
+  ];
+
+  // 产品线分布
+  var productDist = [
+    { name: '微生物', count: 60 },
+    { name: '发光试剂', count: 40 },
+    { name: '生化试剂', count: 25 },
+    { name: '仪器', count: 20 },
+    { name: '分子试剂', count: 7 }
+  ];
+
+  // 发生频次分布
+  var freqDist = [
+    { name: '持续存在', count: 143 },
+    { name: '单次', count: 73 },
+    { name: '偶发', count: 27 },
+    { name: '月度多次', count: 16 }
+  ];
+
+  // 根本原因 × 质量原因 交叉表
+  var rootCauseCross = [
+    { cause: '研发质量', noProcess: 29, invalidProcess: 47, execFail: 55, total: 131 },
+    { cause: '供应链质量', noProcess: 2, invalidProcess: 27, execFail: 55, total: 84 },
+    { cause: '生产质量', noProcess: 0, invalidProcess: 22, execFail: 11, total: 33 },
+    { cause: '体系质量', noProcess: 0, invalidProcess: 11, execFail: 1, total: 12 }
+  ];
+
+  // 影响分布
+  var impactDist = [
+    { name: '质量风险', count: 180 },
+    { name: '交期延误', count: 45 },
+    { name: '成本损失', count: 20 },
+    { name: '其他', count: 17 }
+  ];
+
+  // ===== Sheet 2: 解决方案四象限 =====
+  var solutions = [
+    { module: '供应链质量', cause: '供应商质量管控', solution: '供应商整合：集中采购，优化付款周期', difficulty: '难', impact: '高', owner: '徐滔', deadline: '2026.12.31', quad: 'strategic' },
+    { module: '供应链质量', cause: '物料变更频繁', solution: '物料选型优化：建立规划，供应链参与设计选型', difficulty: '难', impact: '高', owner: '徐滔', deadline: '待定', quad: 'strategic' },
+    { module: '供应链质量', cause: '物料风险', solution: '关键物料风险预警：安全库存', difficulty: '易', impact: '高', owner: '沈倩', deadline: '待定', quad: 'quick-win' },
+    { module: '供应链质量', cause: '供应商变更流程', solution: '供应商变更流程优化（进行中）', difficulty: '易', impact: '高', owner: '刘建芳', deadline: '2026.10.30', quad: 'quick-win' },
+    { module: '供应链质量', cause: '来料质量标准', solution: '关键物料质检标准更新', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.09.30', quad: 'strategic' },
+    { module: '供应链质量', cause: '药敏盘问题', solution: '药敏盘：寻找替代供应商', difficulty: '难', impact: '高', owner: '陈科', deadline: '待定', quad: 'strategic' },
+    { module: '供应链质量', cause: '来料检验资源', solution: '关键检验资源配置：能力及工具', difficulty: '易', impact: '高', owner: '姚仁杰', deadline: '待定', quad: 'quick-win' },
+    { module: '研发质量', cause: '图纸错误', solution: '图纸：修正错误，补齐缺失图纸(2D/3D)', difficulty: '难', impact: '高', owner: '陈科', deadline: '2026.10.01', quad: 'strategic' },
+    { module: '研发质量', cause: '处方工艺', solution: '关键工艺参数定义及验证', difficulty: '难', impact: '中', owner: '待定', deadline: '待定', quad: 'strategic' },
+    { module: '研发质量', cause: '质量标准', solution: '质量标准更新：内控标准更新', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.09.30', quad: 'strategic' },
+    { module: '研发质量', cause: '技术要求', solution: 'F-C2000: 注册变更确认符合性', difficulty: '易', impact: '高', owner: '刘建芳', deadline: '2026.07.31', quad: 'quick-win' },
+    { module: '研发质量', cause: '转产验证', solution: '转产：加强评估+规范设计转换节点', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.10.30', quad: 'strategic' },
+    { module: '研发质量', cause: '仪器试剂适配', solution: '工作校准品赋值标准化', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.12.31', quad: 'strategic' },
+    { module: '生产质量', cause: '人员不稳定', solution: '交叉培训，一人多岗，上岗培训（持续）', difficulty: '易', impact: '中', owner: '', deadline: '', quad: 'fill' },
+    { module: '生产质量', cause: '台间差/设备', solution: '标准机建立', difficulty: '难', impact: '高', owner: '待定', deadline: '待定', quad: 'strategic' },
+    { module: '生产质量', cause: '物料齐套', solution: '相似物料定量管理（如螺丝螺母）', difficulty: '易', impact: '高', owner: '孙卫兵', deadline: '2026.12.31', quad: 'quick-win' },
+    { module: '生产质量', cause: '标记/包被工艺', solution: '标记/包被工艺标准化', difficulty: '难', impact: '高', owner: '陈科', deadline: '待定', quad: 'strategic' },
+    { module: '生产质量', cause: '赋值标准', solution: '工艺标准化，厂内外标准对标', difficulty: '难', impact: '高', owner: '孙卫兵', deadline: '2026.12.31', quad: 'strategic' },
+    { module: '生产质量', cause: '过程监控', solution: 'SPC加强过程监控', difficulty: '难', impact: '中', owner: '待定', deadline: '待定', quad: 'strategic' }
+  ];
+
+  res.json({
+    processPareto, causePareto, productDist, freqDist, rootCauseCross, impactDist, solutions,
+    total: 262, sheet3Source: '汇报分析', sheet2Source: '解决方案汇总',
+    updated: '2026-07'
+  });
+}));
+
 
 // AI ASSISTANT
 // ============================================================
