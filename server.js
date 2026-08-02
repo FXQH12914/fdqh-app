@@ -175,6 +175,8 @@ app.post('/api/auth/seed-users', requireAuth, asyncHandler(async (req, res) => {
     { username: 'prod_manager', password: 'prod123', role: 'manager', name: '生产部经理', base: '苏州基地', dept: '生产部' },
     { username: 'rd_engineer', password: 'rd123456', role: 'user', name: '研发工程师', base: '上海基地', dept: '研发中心' },
     { username: 'quality_dir', password: 'dir123456', role: 'admin', name: '质量总监', base: '集团', dept: '质量部' },
+    { username: 'ceo', password: 'ceo123456', role: 'admin', name: 'CEO', base: '集团', dept: '总裁办' },
+    { username: 'group_exec', password: 'exec123456', role: 'admin', name: '集团高管', base: '集团', dept: '总裁办' },
   ];
   var users = await db.findAll('users');
   var created = [], skipped = [];
