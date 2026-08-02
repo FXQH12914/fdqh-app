@@ -289,11 +289,30 @@ app.get('/api/capa/summary', requireAuth, asyncHandler(async (req, res) => {
     var dept = c.audit_dept || c.assignee || '未分类';
     byDept[dept] = (byDept[dept]||0) + 1;
   });
+  // Group by audit event (from capa_no prefix pattern)
+  var auditGroups = {};
+  capas.forEach(function(c) {
+    var no = c.capa_no || '';
+    var prefix = no.replace(/-\d{2,4}$/, ''); // strip last numeric segment
+    if (prefix === no) prefix = no.substring(0, no.length - 2);
+    if (!auditGroups[prefix]) auditGroups[prefix] = { source: c.audit_source || '', nos: [], depts: {}, total: 0, closed: 0 };
+    auditGroups[prefix].nos.push(no);
+    auditGroups[prefix].depts[c.audit_dept||''] = (auditGroups[prefix].depts[c.audit_dept||'']||0) + 1;
+    auditGroups[prefix].total++;
+    if (c.status === 'Closed') auditGroups[prefix].closed++;
+  });
+  var auditList = Object.keys(auditGroups).map(function(k) {
+    var g = auditGroups[k];
+    var deptStr = Object.keys(g.depts).sort(function(a,b){return g.depts[b]-g.depts[a];}).slice(0, 3).join('、');
+    return { prefix: k, source: g.source, count: g.total, closed: g.closed, capaNos: g.nos.sort().join(', '), depts: deptStr };
+  }).sort(function(a,b){return b.count - a.count;});
+
   res.json({
     total: capas.length,
     open: capas.filter(function(c) { return c.status !== 'Closed'; }).length,
     closed: capas.filter(function(c) { return c.status === 'Closed'; }).length,
     byStatus: byStatus, bySource: bySource, byDept: byDept,
+    auditGroups: auditList,
   });
 }));
 

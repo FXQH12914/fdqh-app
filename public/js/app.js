@@ -874,6 +874,19 @@ async function loadCAPA(filter) {
       '<div class="module-summary-card ms-warn"><div class="ms-value">' + Math.round(summary.total ? summary.closed/summary.total*100 : 0) + '%</div><div class="ms-label">📈 关闭率</div></div>' +
       '<div class="module-summary-card ms-info"><div class="ms-value">' + ((summary.bySource||{})['外部审核'] || 0) + '</div><div class="ms-label">🏛 外部审核</div><div class="ms-target">外部审核来源</div></div>' +
       '<div class="module-summary-card ms-info"><div class="ms-value">' + ((summary.bySource||{})['内部审核'] || 0) + '</div><div class="ms-label">🏠 内部审核</div><div class="ms-target">内部审核来源</div></div>';
+
+    // Audit groups table
+    var groups = summary.auditGroups || [];
+    var gtbody = document.querySelector('#capaAuditTable tbody');
+    if (gtbody && groups.length) {
+      gtbody.innerHTML = groups.map(function(g) {
+        var pct = Math.round(g.count ? g.closed/g.count*100 : 0);
+        return '<tr><td style="font-weight:500;">' + g.prefix + '</td><td><b>' + g.count + '</b></td>' +
+          '<td style="font-size:11px;text-align:left;">' + g.capaNos + '</td>' +
+          '<td style="font-size:11px;">' + g.depts + '</td>' +
+          '<td><span style="font-weight:600;color:' + (pct>=80?'#10B981':pct>=50?'#F59E0B':'#EF4444') + ';">' + pct + '%</span></td></tr>';
+      }).join('');
+    }
   }
 
   var result = await apiGet('/capa?limit=100');
