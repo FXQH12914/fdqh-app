@@ -1576,6 +1576,7 @@ app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) 
     instrumentPareto: instrumentPareto,
     reagentLineDesign: reagentLineDesign,
     reagentTop10: reagentTop10,
+    repeats: complaints.filter(function(c) { return c.complaint_repeat === true; }).sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);}).map(function(c) { return { id: c.id, product_name: c.product_name, batch: c.batch_no, description: (c.description||'').substring(0,80), cause: c.complaint_cause, status: c.status, date: c.created_at, source: (c.complaint_source||'').replace('2026上半年投诉汇总-','') }; }),
     list: { data: paged, total: filtered.length, page: page, limit: limit },
   });
 }));

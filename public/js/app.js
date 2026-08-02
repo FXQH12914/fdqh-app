@@ -425,9 +425,13 @@ async function loadComplaintsDashboard() {
     '<div class="card"><div class="card-header"><h3>🏷️ 投诉来源分布</h3></div><div class="card-body"><div class="chart-container"><canvas id="compSourceChart"></canvas></div></div></div>' +
     '</div>';
 
-  // === Charts Row 2: 原因分类 + Top产品 ===
+  // === Charts Row 2: 重复投诉列表 + Top产品 ===
   html += '<div class="charts-row">' +
-    '<div class="card"><div class="card-header"><h3>🔍 原因分类</h3></div><div class="card-body"><div class="chart-container"><canvas id="compCauseChart"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🔁 重复投诉事件列表</h3><span style="font-size:11px;">' + (data.repeats||[]).length + ' 件重复投诉</span></div>' +
+    '<div class="card-body no-padding"><table class="mod-table"><thead><tr><th>来源</th><th>产品</th><th>原因</th><th>描述</th></tr></thead><tbody>' +
+    (data.repeats||[]).map(function(r) {
+      return '<tr><td style="font-size:11px;">' + (r.source||'') + '</td><td style="font-weight:500;font-size:12px;">' + (r.product_name||'') + '</td><td><span class="badge ' + (r.cause&&r.cause.includes('设计')?'badge-danger':r.cause&&r.cause.includes('物料')?'badge-warning':'badge-info') + '">' + (r.cause||'-') + '</span></td><td style="text-align:left;font-size:11px;">' + (r.description||'').substring(0,50) + '</td></tr>';
+    }).join('') + '</tbody></table></div></div>' +
     '<div class="card"><div class="card-header"><h3>🏆 Top 投诉产品</h3></div><div class="card-body no-padding"><table class="mod-table"><thead><tr><th>产品</th><th>投诉数</th><th>占比</th></tr></thead><tbody>' +
     data.topProducts.map(function(p) {
       var pct = Math.round(p.count / k.total * 100);
@@ -490,12 +494,7 @@ async function loadComplaintsDashboard() {
     var srcValues = Object.keys(srcData).map(function(s) { return srcData[s]; });
     renderPieChart('compSourceChart', srcLabels, srcValues, ['#3B82F6','#10B981','#F59E0B','#8B5CF6','#EC4899']);
 
-    var causeData = data.byCause;
-    var causeLabels = Object.keys(causeData);
-    var causeValues = Object.keys(causeData).map(function(c) { return causeData[c]; });
-    renderChart('compCauseChart', 'bar', causeLabels, causeValues, '件数', '#F59E0B');
-
-    // === 4 new charts ===
+    // === New charts (replacing removed compCauseChart) ===
     // 1. 试剂问题分类Top10 环状图
     var rcData = data.reagentCauseTop10 || [];
     if (rcData.length && document.getElementById('compReagentCause')) {
