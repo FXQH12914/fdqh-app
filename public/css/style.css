@@ -215,22 +215,55 @@ tr.clickable { cursor: pointer; }
 .domain-bar-fill.mfg { background: linear-gradient(90deg, #3B82F6, #06B6D4); }
 .domain-bar-fill.pms { background: linear-gradient(90deg, #10B981, #34D399); }
 
-/* ---- BOWLING CHART ---- */
-.bowling-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.bowling-table th { background: #F8FAFC; padding: 10px 8px; text-align: center; font-weight: 600; font-size: 12px; color: var(--text-secondary); border-bottom: 2px solid var(--border); white-space: nowrap; }
-.bowling-table th:first-child { text-align: left; padding-left: 16px; min-width: 180px; }
-.bowling-table td { padding: 8px; text-align: center; border-bottom: 1px solid #F3F4F6; }
-.bowling-table td:first-child { text-align: left; padding-left: 16px; font-weight: 500; }
-.bowling-table .metric-name { font-size: 13px; font-weight: 600; }
-.bowling-table .metric-target { font-size: 11px; color: var(--text-muted); }
-.bowling-table .cell-pass { color: #059669; font-weight: 600; }
-.bowling-table .cell-fail { color: #DC2626; font-weight: 600; }
-.bowling-table .cell-na { color: #D1D5DB; }
-.bowling-table .sub-row td { font-size: 12px; color: var(--text-secondary); background: #FAFAFA; }
-.bowling-table .sub-row td:first-child { padding-left: 32px; }
-.bowling-table .ytd-col { font-weight: 700; font-size: 14px; }
-.bowling-table .target-col { font-weight: 700; color: var(--accent); }
-.bowling-table .alert-dot { display: inline-block; width: 6px; height: 6px; background: #EF4444; border-radius: 50%; margin-left: 4px; animation: pulse 1.5s infinite; }
+/* ---- ACCORDION (生产质量看板) ---- */
+.pq-accordion { }
+.pq-section { border-bottom: 1px solid var(--border); }
+.pq-section:last-child { border-bottom: none; }
+.pq-section-header {
+  display: flex; align-items: center; padding: 14px 20px; cursor: pointer; user-select: none;
+  transition: background .15s; gap: 12px;
+}
+.pq-section-header:hover { background: #F9FAFB; }
+.pq-section-header .pq-icon { font-size: 18px; }
+.pq-section-header .pq-title { font-weight: 600; font-size: 14px; flex: 1; }
+.pq-section-header .pq-badge {
+  font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600;
+}
+.pq-badge.data { background: #D1FAE5; color: #065F46; }
+.pq-badge.nodata { background: #FEF3C7; color: #92400E; }
+.pq-section-header .pq-toggle { font-size: 12px; color: var(--text-muted); transition: transform .3s; }
+.pq-section-header.open .pq-toggle { transform: rotate(180deg); }
+.pq-section-body { display: none; padding: 0 20px 16px; }
+.pq-section-body.open { display: block; }
+
+/* Accordion internal table */
+.pq-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.pq-table th { background: #F8FAFC; padding: 8px 6px; text-align: center; font-weight: 600; font-size: 11px; color: var(--text-secondary); border-bottom: 2px solid var(--border); }
+.pq-table th:first-child { text-align: left; padding-left: 12px; min-width: 140px; }
+.pq-table td { padding: 7px 6px; text-align: center; border-bottom: 1px solid #F3F4F6; }
+.pq-table td:first-child { text-align: left; padding-left: 12px; font-weight: 500; }
+.pq-table .pq-sub td { font-size: 11px; color: var(--text-secondary); background: #FAFAFA; }
+.pq-table .pq-sub td:first-child { padding-left: 28px; }
+.pq-table .cell-pass { color: #059669; font-weight: 700; }
+.pq-table .cell-fail { color: #DC2626; font-weight: 700; }
+.pq-table .cell-warn { color: #D97706; font-weight: 700; }
+.pq-table .cell-na { color: #D1D5DB; }
+.pq-table .alert-row td { background: #FEF2F2; }
+
+/* Instrument cross table */
+.pq-cross-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.pq-cross-table th { background: #F1F5F9; padding: 8px; text-align: center; font-weight: 600; font-size: 11px; border: 1px solid #E2E8F0; }
+.pq-cross-table td { padding: 8px; text-align: center; border: 1px solid #E2E8F0; font-weight: 500; }
+.pq-cross-table .row-label { text-align: left; background: #F8FAFC; font-weight: 600; }
+.pq-cross-table .pass { color: #059669; }
+.pq-cross-table .fail { color: #DC2626; }
+
+/* System metrics card grid */
+.pq-system-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 8px; }
+.pq-system-card { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px 14px; }
+.pq-system-card .sys-name { font-size: 13px; font-weight: 600; color: #92400E; margin-bottom: 4px; }
+.pq-system-card .sys-meta { font-size: 11px; color: #A16207; }
+.pq-system-card .sys-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
 
 
 /* ---- CHARTS ---- */

@@ -866,6 +866,154 @@ app.get('/api/dashboard/bowling-chart', requireAuth, asyncHandler(async (req, re
   res.json({ strategic, daily, complaintStats, updated: '2026-05' });
 }));
 
+// ============================================================
+// PRODUCTION QUALITY — 生产质量看板 (完整结构化数据)
+// 数据来源: 质量管理保龄球图-202605.xlsx
+// ============================================================
+app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (req, res) => {
+  // ===== SECTION 1: 战略解码指标 (有月度实绩数据) =====
+  var strategicKPIs = {
+    title: '战略解码 · 仪器试剂核心质量指标',
+    icon: '🎯',
+    hasData: true,
+    expanded: true,
+    metrics: [
+      { id: 'DOA', name: '仪器到货缺陷率 Overall DOA', target: '≤8%', ytd: '8.7%', status: 'fail', unit: '%',
+        months: { '1月': { plan: 8, actual: 12.5 }, '2月': { plan: 8, actual: 0 }, '3月': { plan: 8, actual: 0 }, '4月': { plan: 8, actual: 7.7 }, '5月': { plan: 8, actual: 13.3 } },
+        children: [
+          { id: 'DOA-N', name: '新品 DOA', target: '≤8%', ytd: '9.1%', status: 'fail', months: { '1月': 14.3, '2月': 0, '3月': 0, '4月': 0, '5月': 16.7 } },
+          { id: 'DOA-M', name: '量产品 DOA', target: '≤8%', ytd: '7.7%', status: 'pass', months: { '1月': 0, '2月': 0, '3月': 0, '4月': 12.5, '5月': 0 } }
+        ]
+      },
+      { id: 'FFR', name: '仪器维修率 Overall FFR', target: '≤8%', ytd: '8.1%', status: 'warning', unit: '%',
+        months: { '1月': { plan: 8, actual: 13.8 }, '2月': { plan: 8, actual: 7.6 }, '3月': { plan: 8, actual: 6.4 }, '4月': { plan: 8, actual: 6.8 }, '5月': { plan: 8, actual: 6.0 } },
+        children: [
+          { id: 'FFR-N', name: '新品 FFR', target: '≤8%', ytd: '7.8%', status: 'pass', months: { '1月': 12.0, '2月': 7.8, '3月': 6.0, '4月': 7.4, '5月': 5.8 } },
+          { id: 'FFR-M', name: '量产品 FFR', target: '≤8%', ytd: '8.5%', status: 'fail', months: { '1月': 16.0, '2月': 7.4, '3月': 6.8, '4月': 6.1, '5月': 6.3 } }
+        ]
+      },
+      { id: 'DEFECT', name: '试剂市场缺陷率', target: '≤2.5%', ytd: '2.2%', status: 'pass', unit: '%',
+        months: { '1月': { plan: 2.5, actual: 3.1 }, '2月': { plan: 2.5, actual: 1.5 }, '3月': { plan: 2.5, actual: 2.0 }, '4月': { plan: 2.5, actual: 2.1 }, '5月': { plan: 2.5, actual: 2.1 } },
+        children: [
+          { id: 'DEF-CLIA', name: '发光条线', target: '≤2.5%', ytd: '6.0%', status: 'fail', alert: true, months: { '1月': 4.7, '2月': 5.0, '3月': 4.7, '4月': 19.0, '5月': 2.5 } },
+          { id: 'DEF-BIO', name: '生化条线', target: '≤2.5%', ytd: '0.9%', status: 'pass', months: { '1月': 1.8, '2月': 0, '3月': 1.0, '4月': 0, '5月': 2.2 } },
+          { id: 'DEF-MOL', name: '分子条线', target: '≤2.5%', ytd: '3.7%', status: 'fail', alert: true, months: { '1月': 12.5, '2月': 12.5, '3月': 0, '4月': 0, '5月': 0 } },
+          { id: 'DEF-MICRO', name: '微生物条线', target: '≤2.5%', ytd: '--', status: 'na', months: { '1月': 12.5, '2月': '--', '3月': '--', '4月': '--', '5月': '--' } },
+          { id: 'DEF-POCT', name: 'POCT条线', target: '≤2.5%', ytd: '0%', status: 'pass', months: { '1月': 0, '2月': '--', '3月': '--', '4月': '--', '5月': '--' } }
+        ]
+      }
+    ]
+  };
+
+  // ===== SECTION 2: 日常检验指标 =====
+  var dailyMetrics = {
+    title: '日常检验 · 全过程质量控制指标',
+    icon: '🔬',
+    hasData: true,
+    expanded: true,
+    metrics: [
+      { id: 'D1', name: '包材检验合格率', target: '≥98%', ytd: '99.5%', status: 'pass', months: { '1月': 100, '2月': 98.5, '3月': 98.4, '4月': 100, '5月': 100 },
+        detail: { total: 546, fail: 3, bases: '上海/泰州/长沙' } },
+      { id: 'D2', name: '原料检验合格率（试剂）', target: '≥99%', ytd: '99.5%', status: 'pass', months: { '1月': 99.4, '2月': 100, '3月': 98.5, '4月': 99.8, '5月': 100 },
+        detail: { total: 1586, fail: 8, bases: '上海/泰州/长沙' } },
+      { id: 'D3', name: '原料检验合格率（仪器）', target: '≥97%', ytd: '99.0%', status: 'pass', months: { '1月': 97.5, '2月': 97.5, '3月': 99.0, '4月': 99.5, '5月': 100 },
+        detail: { total: 1574, fail: 16 } },
+      { id: 'D4', name: '半成品检验合格率（试剂）', target: '≥98%', ytd: '97.4%', status: 'warning', months: { '1月': 97.1, '2月': 99.2, '3月': 97.4, '4月': 94.6, '5月': 99.3 },
+        detail: { total: 774, fail: 20, bases: '泰州/长沙' } },
+      { id: 'D5', name: '成品检验合格率（试剂）', target: '≥99%', ytd: '99.9%', status: 'pass', months: { '1月': 100, '2月': 100, '3月': 99.5, '4月': 100, '5月': 100 },
+        detail: { total: 876, fail: 1, bases: '泰州/长沙' } },
+      { id: 'D6', name: '成品检验合格率（仪器）', target: '≥85%', ytd: '100%', status: 'pass', months: { '1月': 100, '2月': 100, '3月': 100, '4月': 100, '5月': 100 },
+        detail: { total: 70, fail: 0 } },
+      { id: 'D7', name: '批记录合格率', target: '≥95%', ytd: '96.7%', status: 'pass', months: { '1月': 98.3, '2月': 97.8, '3月': 93.8, '4月': 94.5, '5月': 100 },
+        detail: { total: 874, fail: 29, bases: '泰州/长沙' } },
+      { id: 'D8', name: '稳定性检测完成率（试剂）', target: '100%', ytd: '79.2%', status: 'fail', note: '⚠️ 严重滞后, 仅完成342/432批',
+        months: { '1月': '--', '2月': '--', '3月': '--', '4月': '--', '5月': '--' },
+        detail: { planned: 432, completed: 342, bases: '泰州/长沙' } },
+    ]
+  };
+
+  // ===== SECTION 3: 仪器分机型指标 =====
+  var instrumentMetrics = {
+    title: '仪器分机型 · DOA / FFR 专项追踪',
+    icon: '🔧',
+    hasData: true,
+    expanded: false,
+    models: ['F-C800P', '药敏', 'F-i3000', 'F-i1000'],
+    metrics: [
+      { label: 'DOA (到货缺陷率)', target: '≤8%', key: 'DOA',
+        data: {
+          'F-C800P': { type: '新产品', ytd: '9.1%', status: 'fail', months: { '1月': 0, '2月': 0, '3月': 0, '4月': 0, '5月': 20.0 } },
+          '药敏': { type: '新产品', ytd: '9.1%', status: 'fail', months: { '1月': 33.3, '2月': 0, '3月': 0, '4月': 0, '5月': 0 } },
+          'F-i3000': { type: '量产产品', ytd: '0%', status: 'pass', months: { '1月': 0, '2月': 0, '3月': 0, '4月': 0, '5月': 0 } },
+          'F-i1000': { type: '量产产品', ytd: '50.0%', status: 'fail', months: { '1月': 0, '2月': 0, '3月': 0, '4月': 50.0, '5月': 0 } }
+        }
+      },
+      { label: 'FFR (月度维修率)', target: '≤8%', key: 'FFR',
+        data: {
+          'F-C800P': { type: '新产品', ytd: '10.5%', status: 'fail', months: { '1月': 15.7, '2月': 11.7, '3月': 8.5, '4月': 9.2, '5月': 7.3 } },
+          '药敏': { type: '新产品', ytd: '4.3%', status: 'pass', months: { '1月': 7.3, '2月': 2.8, '3月': 2.8, '4月': 4.9, '5月': 3.8 } },
+          'F-i3000': { type: '量产产品', ytd: '9.4%', status: 'fail', months: { '1月': 17.2, '2月': 8.4, '3月': 7.3, '4月': 6.7, '5月': 7.4 } },
+          'F-i1000': { type: '量产产品', ytd: '5.4%', status: 'pass', months: { '1月': 11.7, '2月': 3.9, '3月': 5.2, '4月': 3.8, '5月': 2.5 } }
+        }
+      }
+    ],
+    // 装机台数汇总 (1-5月)
+    installSummary: {
+      'F-C800P': { total: 248, new26: 22, description: '生化分析仪' },
+      '药敏': { total: 185, new26: 11, description: '药敏分析仪' },
+      'F-i3000': { total: 271, new26: 11, description: '发光免疫（主力）' },
+      'F-i1000': { total: 79, new26: 2, description: '发光免疫（小型）' }
+    }
+  };
+
+  // ===== SECTION 4: 体系建设指标 (仅有定义, 无月度数据) =====
+  var systemMetrics = {
+    title: '体系建设 · 规划中指标（待启动数据采集）',
+    icon: '📝',
+    hasData: false,
+    expanded: false,
+    metrics: [
+      { name: '成品：缩短平均检验时间20%', target: '缩短20%', unit: '天', category: '效率提升', note: '基线待确认' },
+      { name: '原料：降低平均检验工时25%', target: '降低25%', unit: '工时', category: '效率提升', note: '基线待确认' },
+      { name: 'GMP平均缺陷数', target: '待定', unit: '个/次', category: '合规', note: '需建立缺陷分类标准' },
+      { name: '风险管理覆盖率', target: '100%', unit: '%', category: '体系', note: '按ISO 14971要求' },
+      { name: 'PMS覆盖率', target: '100%', unit: '%', category: '上市后', note: '上市后 surveillance 计划' },
+      { name: '研发项目平均缺陷数', target: '待定', unit: '个/项目', category: '研发', note: '需建立设计评审标准' },
+      { name: '体系文件优化', target: '待定', unit: '份', category: '体系', note: '文件精简/合并计划' },
+    ]
+  };
+
+  // ===== SECTION 5: 客诉分析 =====
+  var complaintSection = {
+    title: '客诉分析 · 2026年1-5月 (共79件)',
+    icon: '📋',
+    hasData: true,
+    expanded: false,
+    byMonth: { '1月': 21, '2月': 8, '3月': 16, '4月': 13, '5月': 21 },
+    byLine: [
+      { name: '发光', count: 30, color: '#3B82F6', risk: '缺陷率6.0%超标' },
+      { name: '微生物', count: 26, color: '#10B981', risk: 'I-SPOT/真菌药敏为主' },
+      { name: '生化', count: 13, color: '#F59E0B', risk: 'CKMB假阳/Lp(a)批间差' },
+      { name: '荧光PCR', count: 9, color: '#8B5CF6', risk: 'HBV内参/迭代偏差' },
+      { name: 'POCT', count: 1, color: '#EC4899', risk: '低' },
+    ],
+    topIssues: [
+      { product: '结核I-SPOT', line: '微生物', count: 6, detail: '抗原漏液/无标签/阳性对照无斑点' },
+      { product: '真菌药敏试剂盒', line: '微生物', count: 5, detail: '花板/跳孔/识别为革兰阴性卡' },
+      { product: 'HBV核酸检测', line: '荧光PCR', count: 5, detail: '内参未起/强阳质控偏差/迭代后阳性率偏高' },
+      { product: 'CA系列(CA242/CA15-3/CA19-9)', line: '发光', count: 4, detail: '京津冀鲁盲样不合格/批号变更偏差' },
+      { product: 'PGI/PGII/ProGRP', line: '发光', count: 4, detail: '室间质评偏差/磁珠凝块/校准品靶值' },
+      { product: '底物液', line: '发光', count: 2, detail: '原料批间差导致定标偏差(重复客诉)' },
+    ]
+  };
+
+  res.json({
+    sections: [strategicKPIs, dailyMetrics, instrumentMetrics, systemMetrics, complaintSection],
+    updated: '2026-05',
+    dataSource: '质量管理保龄球图-202605.xlsx'
+  });
+}));
+
 
 // ============================================================
 // AI ASSISTANT
