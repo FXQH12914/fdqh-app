@@ -863,6 +863,19 @@ async function viewEvent(id) {
 // ============================================================
 async function loadCAPA(filter) {
   if (filter !== undefined) currentCAPAFilter = currentCAPAFilter === filter ? '' : filter;
+
+  // Load summary
+  var summary = await apiGet('/capa/summary');
+  if (summary) {
+    document.getElementById('capaSummary').innerHTML =
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + summary.total + '</div><div class="ms-label">📊 CAPA总数</div></div>' +
+      '<div class="module-summary-card ms-fail"><div class="ms-value">' + summary.open + '</div><div class="ms-label">🔴 未关闭</div></div>' +
+      '<div class="module-summary-card ms-pass"><div class="ms-value">' + summary.closed + '</div><div class="ms-label">✅ 已关闭</div></div>' +
+      '<div class="module-summary-card ms-warn"><div class="ms-value">' + Math.round(summary.total ? summary.closed/summary.total*100 : 0) + '%</div><div class="ms-label">📈 关闭率</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + ((summary.bySource||{})['外部审核'] || 0) + '</div><div class="ms-label">🏛 外部审核</div><div class="ms-target">外部审核来源</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + ((summary.bySource||{})['内部审核'] || 0) + '</div><div class="ms-label">🏠 内部审核</div><div class="ms-target">内部审核来源</div></div>';
+  }
+
   var result = await apiGet('/capa?limit=100');
   if (!result) return;
   var capas = result.data || result;
@@ -875,16 +888,16 @@ async function loadCAPA(filter) {
   var tbody = document.querySelector('#capaTable tbody');
   tbody.innerHTML = rows.length ? rows.map(function(c) {
     var isOverdue = c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed';
-    return '<tr><td>' + c.id + '</td><td>' + c.title + '</td><td>' + (c.defect_mode||'-') + '</td>' +
-      '<td>' + (c.root_cause_category||'-') + '</td>' +
+    var srcBadge = c.audit_source === '内部审核' ? 'badge-info' : 'badge-warning';
+    return '<tr><td style="font-weight:500;font-size:12px;">' + (c.capa_no||c.id) + '</td>' +
+      '<td title="' + (c.description||c.title||'') + '">' + (c.title||'').substring(0,50) + '</td>' +
+      '<td><span class="badge ' + srcBadge + '" style="font-size:10px;">' + (c.audit_source||'-') + '</span></td>' +
+      '<td>' + (c.audit_dept||'-') + '</td>' +
       '<td><span class="badge badge-' + getStatusBadge(c.status) + '">' + c.status + '</span></td>' +
-      '<td>' + (c.assignee||'-') + '</td>' +
-      '<td>' + (c.due_date||'-') + (isOverdue ? ' ⚠️' : '') + '</td>' +
-      '<td>' + (c.effectiveness||'-') + '</td>' +
-      '<td>' + (c.verified_by||'-') + '</td>' +
+      '<td>' + (c.assignee||'-') + '</td><td>' + (c.due_date||'-') + (isOverdue ? ' ⚠️' : '') + '</td>' +
       '<td><button class="btn btn-outline btn-sm" onclick="editCAPA(\'' + c.id + '\')">编辑</button> ' +
       '<button class="btn btn-danger btn-sm" onclick="deleteCAPA(\'' + c.id + '\')">删除</button></td></tr>';
-  }).join('') : '<tr><td colspan="10"><div class="empty-state">暂无 CAPA 记录</div></td></tr>';
+  }).join('') : '<tr><td colspan="8"><div class="empty-state">暂无 CAPA 记录</div></td></tr>';
 }
 
 function filterCAPA(status) { currentCAPAFilter = currentCAPAFilter === status ? '' : status; loadCAPA(); }
