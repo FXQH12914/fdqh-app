@@ -372,8 +372,23 @@ async function viewEvent(id) {
     '<div class="detail-item"><div class="dl">发生时间</div><div class="dv">' + (e.occurred_at ? formatDate(e.occurred_at) : '-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">上报人</div><div class="dv">' + (e.reported_by||'-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">创建时间</div><div class="dv">' + formatDate(e.created_at) + '</div></div></div>' +
+    // Add CLIA product info if available
+    (e.product_id ? '<div style="margin-top:12px;padding:12px;background:var(--accent-light);border-radius:var(--radius);font-size:13px;" id="eventProductInfo">加载产品信息...</div>' : '') +
     '<div style="margin-top:16px"><div class="dl" style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">事件描述</div>' +
     '<div style="background:var(--bg);padding:12px;border-radius:var(--radius);font-size:14px">' + (e.description||'无') + '</div></div>';
+  // Load product CQA/CMA/CPP asynchronously
+  if (e.product_id) {
+    apiGet('/products').then(function(prods) {
+      var p = (prods||[]).find(function(x) { return x.id === e.product_id; });
+      var info = document.getElementById('eventProductInfo');
+      if (info && p && (p.cqa_list || p.cma_list || p.cpp_list)) {
+        info.innerHTML = '<strong>🧬 CLIA 产品质量属性</strong><br>' +
+          (p.cqa_list ? '📊 <b>CQA:</b> ' + p.cqa_list + '<br>' : '') +
+          (p.cma_list ? '🧪 <b>CMA:</b> ' + p.cma_list + '<br>' : '') +
+          (p.cpp_list ? '⚙️ <b>CPP:</b> ' + p.cpp_list : '');
+      } else if (info) { info.style.display = 'none'; }
+    });
+  }
   if ((data.auditLogs||[]).length > 0) {
     html += '<div style="margin-top:20px"><h4 style="margin-bottom:12px">审计追踪</h4><div class="timeline">' + data.auditLogs.map(function(l) {
       return '<div class="timeline-item"><div class="ts">' + formatDate(l.timestamp) + ' | ' + (l.user||'system') + '</div><div class="td">' + l.action + ' - ' + l.detail + '</div></div>';
@@ -627,8 +642,20 @@ async function loadQCP() {
   var qcps = result.data || result;
   var tbody = document.querySelector('#qcpTable tbody');
   tbody.innerHTML = (qcps||[]).length ? qcps.map(function(q) {
-    return '<tr><td>' + q.id + '</td><td>' + q.control_name + '</td><td>' + (q.stage||'-') + '</td><td><span class="badge badge-' + getRiskBadge(q.risk_level) + '">' + (q.risk_level||'-') + '</span></td><td>' + (q.control_purpose||'-') + '</td><td>' + (q.key_params||'-') + '</td><td>' + (q.standard||'-') + '</td><td>' + (q.alert_rule||'-') + '</td><td>' + (q.detection_method||'-') + '</td><td>' + (q.frequency||'-') + '</td></tr>';
-  }).join('') : '<tr><td colspan="10"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
+    var cqaCpp = [q.cqa, q.cma, q.cpp].filter(Boolean).join(' / ') || '-';
+    return '<tr><td>' + (q.qcp_code||q.id) + '</td>' +
+      '<td>' + (q.module||q.domain||'-') + '</td>' +
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (q.name||q.control_name||'') + '">' + (q.name||q.control_name||'-') + '</td>' +
+      '<td>' + (q.stage||'-') + '</td>' +
+      '<td><span class="badge badge-' + getRiskBadge(q.risk_level) + '">' + (q.risk_level||'-') + '</span></td>' +
+      '<td>' + (q.control_method||q.detection_method||'-') + '</td>' +
+      '<td>' + (q.key_param||q.key_params||'-') + '</td>' +
+      '<td style="font-size:11px;">' + cqaCpp + '</td>' +
+      '<td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + (q.spec_standard||q.standard||'') + '">' + (q.spec_standard||q.standard||'-') + '</td>' +
+      '<td style="font-size:11px;color:var(--danger);">' + (q.alert_rule||'-') + '</td>' +
+      '<td>' + (q.frequency||'-') + '</td>' +
+      '<td>' + (q.owner||'-') + '</td></tr>';
+  }).join('') : '<tr><td colspan="12"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
 }
 
 // ============================================================
