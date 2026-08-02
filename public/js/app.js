@@ -370,6 +370,89 @@ async function loadWorkshopDashboard() {
     data.solutions.filter(function(s){return !s.quad||s.quad==='';}).map(function(s){return '<div style="font-size:11px;padding:4px 0;"><b>' + s.solution + '</b><br>[' + s.module + '] ' + s.cause + '</div>';}).join('') + '</div>' +
     '</div></div></div>';
 
+  // === Row 5: 行动项跟进 (快赢区) ===
+  var ai = data.actionItems || [];
+  html += '<div class="card" style="margin-bottom:24px;"><div class="card-header"><h3>⚡ 行动项跟进 — 快赢区 (Quick Wins)</h3><span style="font-size:11px;">' + ai.length + ' 项</span></div>' +
+    '<div class="card-body" style="overflow-x:auto;">' +
+    '<table class="data-table" style="min-width:900px;">' +
+    '<thead><tr>' +
+    '<th>行动项</th><th>归属模块</th><th>责任人</th><th>时间节点</th><th>完成进度</th><th>状态</th><th>备注</th>' +
+    '</tr></thead><tbody>';
+  ai.forEach(function(item) {
+    var lightIcon = { 'green': '🟢', 'yellow': '🟡', 'red': '🔴' };
+    var lightBg = { 'green': '#D1FAE5', 'yellow': '#FEF3C7', 'red': '#FEE2E2' };
+    var statusColor = { '已完成': 'var(--pass)', '进行中': 'var(--warn)', '未启动': 'var(--fail)' };
+    html += '<tr>' +
+      '<td><b>' + (item.solution || '') + '</b></td>' +
+      '<td><span style="font-size:11px;color:var(--text-muted);">' + (item.module || '') + '</span></td>' +
+      '<td><b>' + (item.owner || '-') + '</b></td>' +
+      '<td>' + (item.deadline || '-') + '</td>' +
+      '<td>' +
+        '<div style="display:flex;align-items:center;gap:6px;">' +
+          '<div style="flex:1;background:#E5E7EB;border-radius:10px;height:8px;overflow:hidden;">' +
+            '<div style="width:' + (item.progress || 0) + '%;height:100%;background:' + (item.progress >= 80 ? '#10B981' : item.progress >= 40 ? '#F59E0B' : '#EF4444') + ';border-radius:10px;"></div>' +
+          '</div>' +
+          '<span style="font-size:11px;font-weight:600;">' + (item.progress || 0) + '%</span>' +
+        '</div>' +
+      '</td>' +
+      '<td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:' + (lightBg[item.light] || '#F3F4F6') + ';">' + (lightIcon[item.light] || '') + ' ' + (item.status || '-') + '</span></td>' +
+      '<td style="font-size:11px;color:var(--text-muted);max-width:160px;">' + (item.note || '') + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  // === Row 6: 专项进展跟进 (战略区) ===
+  var sp = data.strategicProjects || [];
+  html += '<div class="card" style="margin-bottom:24px;"><div class="card-header"><h3>🎯 专项进展跟进 — 战略区 (Strategic)</h3><span style="font-size:11px;">' + sp.length + ' 项</span></div>' +
+    '<div class="card-body" style="overflow-x:auto;">';
+
+  sp.forEach(function(proj) {
+    var lightIcon = { 'green': '🟢', 'yellow': '🟡', 'red': '🔴' };
+    var lightBg = { 'green': '#D1FAE5', 'yellow': '#FEF3C7', 'red': '#FEE2E2' };
+    html += '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;' + (proj.hasProject === '是' ? '' : 'opacity:0.65;') + '">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<b style="font-size:15px;">' + (proj.solution || '') + '</b>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+          '<span style="font-size:11px;color:var(--text-muted);">' + (proj.module || '') + '</span>' +
+          '<span style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;' + (proj.hasProject === '是' ? 'background:#D1FAE5;color:#065F46;' : 'background:#FEE2E2;color:#991B1B;') + '">' + (proj.hasProject === '是' ? '✅ 已立项' : '❌ 未立项') + '</span>' +
+          '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:' + (lightBg[proj.light] || '#F3F4F6') + ';">' + (lightIcon[proj.light] || '') + ' ' + (proj.status || '-') + '</span>' +
+        '</div>' +
+      '</div>';
+
+    // Info row: owner, deadline, progress
+    html += '<div style="display:flex;flex-wrap:wrap;gap:16px;font-size:13px;margin-bottom:8px;">' +
+      '<span>👤 <b>责任人:</b> ' + (proj.owner || '-') + '</span>' +
+      '<span>📅 <b>截止:</b> ' + (proj.deadline || '-') + '</span>' +
+      '<span style="display:flex;align-items:center;gap:4px;">📊 <b>进度:</b> ' +
+        '<div style="width:100px;background:#E5E7EB;border-radius:8px;height:6px;overflow:hidden;">' +
+          '<div style="width:' + (proj.progress || 0) + '%;height:100%;background:' + (proj.progress >= 80 ? '#10B981' : proj.progress >= 40 ? '#F59E0B' : '#EF4444') + ';border-radius:8px;"></div>' +
+        '</div> ' + (proj.progress || 0) + '%</span>' +
+      '</div>';
+
+    // Milestones (Gantt-like)
+    var ms = proj.milestones || [];
+    if (ms.length > 0) {
+      html += '<div style="margin-top:8px;"><b style="font-size:12px;">📌 里程碑 / 甘特图:</b>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">';
+      ms.forEach(function(m) {
+        html += '<div style="flex:0 0 auto;padding:6px 12px;border-radius:6px;font-size:11px;text-align:center;' +
+          (m.done ? 'background:#D1FAE5;border:1px solid #6EE7B7;' : 'background:#F3F4F6;border:1px solid #E5E7EB;') + '">' +
+          (m.done ? '✅ ' : '⏳ ') + m.name + '<br><span style="color:var(--text-muted);">' + m.date + '</span>' +
+          '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    // Difficulties & Support
+    html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:16px;font-size:12px;">' +
+      '<span>⚠️ <b>困难及对策:</b> ' + (proj.difficulty || '-') + '</span>' +
+      '<span>🆘 <b>所需资源/支持:</b> ' + (proj.support || '-') + '</span>' +
+      '</div>';
+
+    html += '</div>'; // end project card
+  });
+  html += '</div></div>';
+
   document.getElementById('workshopContent').innerHTML = html;
 
   // === Render charts ===
