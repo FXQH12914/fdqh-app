@@ -165,6 +165,9 @@ async function loadDashboard() {
   }
   document.getElementById('recentEvents').innerHTML = '<table>' + alertRows + '</table>';
 
+  // ========== 投诉KPI摘要（驾驶舱内嵌） ==========
+  loadComplaintSummary();
+
   // ========== 四维质量看板 ==========
   loadQualityModules();
 
@@ -292,6 +295,37 @@ async function loadQualityModules() {
 function switchModule(id) {
   currentModule = id;
   loadQualityModules();
+}
+
+// ===== 驾驶舱投诉KPI摘要 =====
+async function loadComplaintSummary() {
+  var data = await apiGet('/dashboard/complaints');
+  if (!data) return;
+
+  var k = data.kpi;
+  var html = '<div class="card" style="margin-bottom:20px;"><div class="card-body" style="padding:14px 20px;">' +
+    '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">' +
+    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:20px;">📢</span><a href="javascript:navigate(\'complaints\')" style="font-weight:600;color:var(--accent);text-decoration:none;font-size:14px;">客户投诉</a></div>' +
+    '<div style="flex:1;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;">' +
+    '<span>📊 累计: <b style="color:#EF4444;">' + k.total + '</b> 件</span>' +
+    '<span>🔴 未关闭: <b>' + k.open + '</b></span>' +
+    '<span>⚠️ 高风险: <b style="color:#DC2626;">' + k.highRisk + '</b></span>' +
+    '<span>✅ 关闭率: <b>' + k.closeRate + '%</b></span>' +
+    '<span>🔁 重复: <b>' + k.repeat + '</b></span>' +
+    '</div>' +
+    '<a href="javascript:navigate(\'complaints\')" class="btn btn-accent btn-sm">查看详情 →</a>' +
+    '</div></div></div>';
+
+  // Insert after statsGrid or before quality modules
+  var target = document.getElementById('tqmKpiSection');
+  if (target) {
+    var el = document.getElementById('complaintSummary');
+    if (el) el.remove();
+    var div = document.createElement('div');
+    div.id = 'complaintSummary';
+    div.innerHTML = html;
+    target.after(div);
+  }
 }
 
 // ===== 数据导入/导出 =====
@@ -640,6 +674,7 @@ async function loadEventCategories() {
     }).join('') +
     '</div>' +
     (cat.topProducts.length ? '<div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">Top 关联产品: ' + cat.topProducts.slice(0, 4).map(function(p) { return p.name + '(' + p.count + ')'; }).join(' · ') + '</div>' : '') +
+    (cat.id === 'complaint' ? '<div style="margin-top:14px;text-align:center;"><button class="btn btn-accent btn-sm" onclick="navigate(\'complaints\')" style="width:100%;padding:10px;">📊 打开完整投诉看板 → 试剂Top10 · 帕累托 · 设计缺陷占比 · 产品排行</button></div>' : '') +
     '</div></div>';
 
   document.getElementById('eventCatContent').innerHTML = html;
