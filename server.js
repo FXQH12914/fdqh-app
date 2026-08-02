@@ -1348,6 +1348,7 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
 // ============================================================
 // ---- Export: 导出驾驶舱数据为 Excel ----
 app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
+  try {
   var events = await db.findAll('quality_events');
   var capas = await db.findAll('capa_records');
   var changes = await db.findAll('change_records');
@@ -1358,16 +1359,22 @@ app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
 
   // Helper: normalize to rows
   function toRows(arr, mapFn) { return arr.map(mapFn); }
+  function str(v) { return v === null || v === undefined ? '' : String(v); }
+  function list(v) {
+    if (Array.isArray(v)) return v.join('; ');
+    if (typeof v === 'object' && v !== null) return JSON.stringify(v);
+    return str(v);
+  }
 
   var wb = XLSX.utils.book_new();
 
   // Sheet 1: 质量事件
   var eventRows = toRows(events, function(e) {
     return {
-      '事件ID': e.id, '类型': e.event_type, '风险等级': e.risk_level,
-      '产品': e.product_name || '', '批号': e.batch_no || '',
-      '描述': (e.description || '').substring(0, 200),
-      '状态': e.status, '创建时间': e.created_at, '更新时间': e.updated_at || ''
+      '事件ID': str(e.id), '类型': str(e.event_type), '风险等级': str(e.risk_level),
+      '产品': str(e.product_name), '批号': str(e.batch_no),
+      '描述': str(e.description).substring(0, 200),
+      '状态': str(e.status), '创建时间': str(e.created_at), '更新时间': str(e.updated_at)
     };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eventRows), '质量事件');
@@ -1375,9 +1382,9 @@ app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
   // Sheet 2: CAPA
   var capaRows = toRows(capas, function(c) {
     return {
-      'CAPA ID': c.id, '标题': c.title, '关联事件': c.event_id || '',
-      '根因': c.root_cause || '', '行动计划': (c.action_plan || '').substring(0, 200),
-      '负责人': c.assignee || '', '截止日期': c.due_date || '',
+      'CAPA ID': str(c.id), '标题': str(c.title), '关联事件': str(c.event_id),
+      '根因': str(c.root_cause), '行动计划': str(c.action_plan).substring(0, 200),
+      '负责人': str(c.assignee), '截止日期': str(c.due_date),
       '状态': c.status, '有效性': c.effectiveness || '',
       '创建时间': c.created_at
     };
@@ -1393,9 +1400,9 @@ app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
   // Sheet 4: 产品档案
   var productRows = toRows(products, function(p) {
     return {
-      '产品ID': p.id, '产品名称': p.product_name, '产品代码': p.product_code || '',
-      '批号': p.batch_no || '', 'BQI': p.bqi || '', '状态': p.lifecycle_status || p.status || '',
-      'CQA': (p.cqa_list || []).join('; '), 'CPP': (p.cpp_list || []).join('; ')
+      '产品ID': str(p.id), '产品名称': str(p.product_name), '产品代码': str(p.product_code),
+      '批号': str(p.batch_no), 'BQI': str(p.bqi), '状态': str(p.lifecycle_status || p.status),
+      'CQA': list(p.cqa_list), 'CMA': list(p.cma_list), 'CPP': list(p.cpp_list)
     };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productRows), '产品档案');
@@ -1403,22 +1410,22 @@ app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
   // Sheet 5: 供应商
   var supplierRows = toRows(suppliers, function(s) {
     return {
-      '供应商ID': s.id, '名称': s.supplier_name || s.name, '代码': s.supplier_code || '',
-      '风险等级': s.risk_level || '', '质量评分': s.quality_score || '',
-      '认证': s.certification || '', '状态': s.status || ''
+      '供应商ID': str(s.id), '名称': str(s.supplier_name || s.name), '代码': str(s.supplier_code),
+      '风险等级': str(s.risk_level), '质量评分': str(s.quality_score),
+      '认证': str(s.certification), '状态': str(s.status)
     };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(supplierRows), '供应商');
 
   // Sheet 6: 控制点库
   var qcpRows = toRows(qcps, function(q) {
-    return { 'QCP编号': q.qcp_code || q.id, '模块': q.module || '', '控制点': q.control_point || q.name || '', 'CQA': q.cqa || '', 'CMA': q.cma || '', 'CPP': q.cpp || '', '方法': q.control_method || '', '负责人': q.owner || '' };
+    return { 'QCP编号': str(q.qcp_code || q.id), '模块': str(q.module), '控制点': str(q.control_point || q.name), 'CQA': str(q.cqa), 'CMA': str(q.cma), 'CPP': str(q.cpp), '方法': str(q.control_method), '负责人': str(q.owner) };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(qcpRows), '控制点库');
 
   // Sheet 7: 风险库
   var riskRows = toRows(risks, function(r) {
-    return { '风险ID': r.id, '名称': r.risk_name || r.name, '等级': r.risk_level || '', 'RPN': r.rpn || '', '措施': r.mitigation || r.action || '' };
+    return { '风险ID': str(r.id), '名称': str(r.risk_name || r.name), '等级': str(r.risk_level), 'RPN': str(r.rpn), '措施': str(r.mitigation || r.action) };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(riskRows), '风险库');
 
@@ -1427,6 +1434,10 @@ app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="FDQH_export_' + dateStr + '.xlsx"');
   res.send(buf);
+  } catch (e) {
+    console.error('Export error:', e.message, e.stack);
+    res.status(500).json({ error: '导出失败: ' + e.message });
+  }
 }));
 
 // ---- Import: 上传 Excel/JSON 导入数据 ----
