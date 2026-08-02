@@ -1,5 +1,5 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server v2.13.0
+// FDQH - FosunDx Quality Hub Server v2.14.0
 // MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
@@ -683,6 +683,124 @@ app.delete('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
+
+// ============================================================
+// BATCH PASSPORT — 产品批次质量护照 (DO06)
+// 来源：复星诊断IVD产品全生命周期质量数据对象模型
+// ============================================================
+// 批次护照示例数据
+var batchPassports = [
+  { batchId: 'C2606034', productName: 'CA19-9 化学发光检测试剂盒', platform: 'CLIA', productId: 'P001',
+    productionDate: '2026-06-15', site: '上海基地', quantity: 500, status: '放行',
+    bqi: 94.5, bqiLevel: 'green',
+    materials: [
+      { name: '包被抗体 (CA19-9)', lot: 'M20260501', supplier: '博奥生物', result: '合格', criticality: 'A' },
+      { name: '标记抗体 (CA19-9)', lot: 'M20260512', supplier: '博奥生物', result: '合格', criticality: 'A' },
+      { name: '化学发光底物液', lot: 'S20260520', supplier: '上海生研所', result: '合格', criticality: 'A' },
+      { name: '磁微粒', lot: 'MP20260601', supplier: '华大智造', result: '合格', criticality: 'B' },
+      { name: '反应杯', lot: 'C20260610', supplier: '华大智造', result: '合格', criticality: 'C' }
+    ],
+    process: [
+      { step: '磁珠偶联', param: 'pH', value: '7.21', target: '7.2±0.2', result: '✅' },
+      { step: '磁珠偶联', param: '温度', value: '25.4℃', target: '25±2℃', result: '✅' },
+      { step: '磁珠偶联', param: '时间', value: '4.1h', target: '4±0.5h', result: '✅' },
+      { step: '标记反应', param: '摩尔比', value: '1:8.2', target: '1:6-10', result: '✅' },
+      { step: '分装', param: '装量', value: '5.02mL', target: '5.0±0.1mL', result: '✅' }
+    ],
+    qcResults: [
+      { item: '精密度 CV', value: '3.2%', standard: '≤5%', result: 'pass' },
+      { item: '准确度', value: '98.5%', standard: '95%-105%', result: 'pass' },
+      { item: '线性范围', value: '0.5-1000 U/mL', standard: '声明范围', result: 'pass' },
+      { item: '空白限', value: '0.3 U/mL', standard: '≤0.5 U/mL', result: 'pass' },
+      { item: '稳定性 (37℃×7天)', value: '偏差 4.2%', standard: '≤10%', result: 'pass' }
+    ],
+    events: [{ id: 'QE001', type: 'Deviation', desc: '标记反应温度短暂波动', status: 'Closed', risk: 'Low' }],
+    capas: []
+  },
+  { batchId: 'C2606058', productName: 'CA19-9 化学发光检测试剂盒', platform: 'CLIA', productId: 'P001',
+    productionDate: '2026-07-02', site: '上海基地', quantity: 480, status: '放行',
+    bqi: 91.2, bqiLevel: 'green',
+    materials: [
+      { name: '包被抗体 (CA19-9)', lot: 'M20260501', supplier: '博奥生物', result: '合格', criticality: 'A' },
+      { name: '标记抗体 (CA19-9)', lot: 'M20260620', supplier: '博奥生物', result: '合格', criticality: 'A' },
+      { name: '化学发光底物液', lot: 'S20260615', supplier: '上海生研所', result: '合格', criticality: 'A' },
+      { name: '磁微粒', lot: 'MP20260601', supplier: '华大智造', result: '合格', criticality: 'B' }
+    ],
+    process: [
+      { step: '磁珠偶联', param: 'pH', value: '7.15', target: '7.2±0.2', result: '✅' },
+      { step: '磁珠偶联', param: '温度', value: '26.1℃', target: '25±2℃', result: '⚠️ 临界' },
+      { step: '标记反应', param: '摩尔比', value: '1:7.5', target: '1:6-10', result: '✅' }
+    ],
+    qcResults: [
+      { item: '精密度 CV', value: '4.1%', standard: '≤5%', result: 'pass' },
+      { item: '准确度', value: '97.2%', standard: '95%-105%', result: 'pass' },
+      { item: '线性范围', value: '0.5-1000 U/mL', standard: '声明范围', result: 'pass' }
+    ],
+    events: [], capas: []
+  },
+  { batchId: 'C2607012', productName: 'AFP 化学发光检测试剂盒', platform: 'CLIA', productId: 'P002',
+    productionDate: '2026-07-10', site: '苏州基地', quantity: 600, status: '调查中',
+    bqi: 72.8, bqiLevel: 'yellow',
+    materials: [
+      { name: '包被抗体 (AFP)', lot: 'M20260701', supplier: '博奥生物', result: '合格', criticality: 'A' },
+      { name: '标记抗体 (AFP)', lot: 'M20260705', supplier: '博奥生物', result: '⚠️ 批次差异', criticality: 'A' },
+      { name: '化学发光底物液', lot: 'S20260615', supplier: '上海生研所', result: '合格', criticality: 'A' }
+    ],
+    process: [
+      { step: '标记反应', param: '摩尔比', value: '1:9.8', target: '1:6-10', result: '⚠️ 上限' },
+      { step: '分装', param: '装量', value: '4.95mL', target: '5.0±0.1mL', result: '❌ 不合格' }
+    ],
+    qcResults: [
+      { item: '精密度 CV', value: '5.8%', standard: '≤5%', result: 'fail' },
+      { item: '准确度', value: '93.1%', standard: '95%-105%', result: 'fail' }
+    ],
+    events: [{ id: 'QE010', type: 'OOS', desc: '精密度超标', status: 'In Investigation', risk: 'High' }],
+    capas: [{ id: 'CAPA008', title: 'AFP标记抗体批次验证', status: 'Open' }]
+  },
+  { batchId: 'C2606088', productName: 'TSH 化学发光检测试剂盒', platform: 'CLIA', productId: 'P003',
+    productionDate: '2026-07-20', site: '上海基地', quantity: 350, status: '放行',
+    bqi: 96.1, bqiLevel: 'green',
+    materials: [
+      { name: '包被抗体 (TSH)', lot: 'M20260715', supplier: '博奥生物', result: '合格', criticality: 'A' },
+      { name: '标记抗体 (TSH)', lot: 'M20260715', supplier: '博奥生物', result: '合格', criticality: 'A' }
+    ],
+    process: [
+      { step: '磁珠偶联', param: 'pH', value: '7.22', target: '7.2±0.2', result: '✅' },
+      { step: '标记反应', param: '摩尔比', value: '1:8.0', target: '1:6-10', result: '✅' }
+    ],
+    qcResults: [
+      { item: '精密度 CV', value: '2.8%', standard: '≤5%', result: 'pass' },
+      { item: '准确度', value: '99.2%', standard: '95%-105%', result: 'pass' }
+    ],
+    events: [], capas: []
+  }
+];
+
+app.get('/api/batch-passport', requireAuth, asyncHandler(async (req, res) => {
+  var search = (req.query.search || '').toLowerCase();
+  var results = batchPassports;
+  if (search) {
+    results = batchPassports.filter(function(b) {
+      return b.batchId.toLowerCase().indexOf(search) >= 0 || b.productName.toLowerCase().indexOf(search) >= 0;
+    });
+  }
+  var summary = {
+    total: batchPassports.length, greenCount: batchPassports.filter(function(b) { return b.bqiLevel === 'green'; }).length,
+    yellowCount: batchPassports.filter(function(b) { return b.bqiLevel === 'yellow'; }).length,
+    redCount: batchPassports.filter(function(b) { return b.bqiLevel === 'red'; }).length,
+    avgBQI: Math.round(batchPassports.reduce(function(s, b) { return s + b.bqi; }, 0) / batchPassports.length)
+  };
+  res.json({ batches: results, summary: summary });
+}));
+
+app.get('/api/batch-passport/:batchId', requireAuth, asyncHandler(async (req, res) => {
+  var batch = batchPassports.find(function(b) { return b.batchId === req.params.batchId; });
+  if (!batch) return res.status(404).json({ error: '批次未找到' });
+  // Enrich with real events from DB if matching
+  var dbEvents = await db.findAll('quality_events');
+  var matchingEvents = dbEvents.filter(function(e) { return e.batch_no === batch.batchId || (e.product_name && batch.productName && e.product_name.indexOf(batch.productName.substring(0,4)) >= 0); }).slice(0, 5);
+  res.json({ batch: batch, relatedDBEvents: matchingEvents.slice(0, 3) });
+}));
 
 // ============================================================
 // PLM — 产品全生命周期管理 (PLQDP)
