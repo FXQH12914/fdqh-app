@@ -336,7 +336,7 @@ app.get('/api/products', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 app.put('/api/products/:id', requireAuth, asyncHandler(async (req, res) => {
-  var allowed = ['product_name', 'platform', 'risk_class', 'lifecycle_status', 'regulatory_status'];
+  var allowed = ['product_name', 'product_code', 'product_category', 'detection_tech', 'platform', 'risk_class', 'reg_category', 'lifecycle_status', 'regulatory_status', 'reg_no', 'indications', 'spec_model', 'storage_condition', 'shelf_life', 'cqa_list', 'cma_list', 'cpp_list', 'components', 'throughput'];
   var data = whitelistFields(req.body, allowed);
   var updated = await db.update('products', req.params.id, data, req.user.username);
   if (!updated) return res.status(404).json({ error: 'Not found' });
