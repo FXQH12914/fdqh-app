@@ -946,7 +946,7 @@ async function loadAuditFindingsInline(auditColor) {
       '<td>' + item.seq + '</td>' +
       '<td><span style="font-size:10px;color:var(--text-muted);">' + item.category + '</span></td>' +
       '<td style="max-width:220px;font-size:11px;">' + (item.risk_desc.length > 60 ? item.risk_desc.substring(0, 60) + '...' : item.risk_desc) + '</td>' +
-      '<td><span style="font-weight:600;color:' + rc + ';font-size:11px;">' + item.clause_ref + '</span></td>' +
+      '<td><span style="font-size:9px;color:#6B7280;">' + (item.gmp_chapter || '') + '</span><br><span style="font-weight:600;color:' + rc + ';font-size:11px;">' + item.clause_ref + '</span></td>' +
       '<td><span style="font-size:10px;color:#6366F1;">' + (item.iso_clause || '—') + '</span></td>' +
       '<td><span style="display:inline-block;padding:1px 6px;border-radius:8px;font-weight:700;font-size:11px;background:' + bg + ';color:' + rc + ';">' + item.risk_class + '</span></td>' +
       '<td><span style="font-size:10px;">' + etLabel + '</span></td>' +
@@ -1087,7 +1087,7 @@ async function loadAuditFindings() {
       '<td>' + item.seq + '</td>' +
       '<td><span style="font-size:11px;color:var(--text-muted);">' + item.category + '</span></td>' +
       '<td style="max-width:280px;font-size:12px;">' + item.risk_desc + '</td>' +
-      '<td><span style="font-weight:600;color:' + riskClassColor + ';">' + item.clause_ref + '</span><br><span style="font-size:10px;color:var(--text-muted);">' + (item.clause_content || '') + '</span></td>' +
+      '<td><span style="font-size:10px;color:#6B7280;">' + (item.gmp_chapter || '') + '</span><br><span style="font-weight:600;color:' + riskClassColor + ';">' + item.clause_ref + '</span><br><span style="font-size:10px;color:var(--text-muted);">' + (item.clause_content || '') + '</span></td>' +
       '<td><span style="font-size:10px;font-weight:500;color:#6366F1;">' + (item.iso_clause || '—') + '</span></td>' +
       '<td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:700;font-size:13px;background:' + riskClassBg + ';color:' + riskClassColor + ';">' + item.risk_class + '</span></td>' +
       '<td><span style="font-size:12px;font-weight:600;color:' + riskClassColor + ';">' + item.item_type + '</span></td>' +
