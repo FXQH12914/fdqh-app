@@ -57,6 +57,23 @@ a { color: var(--accent); text-decoration: none; }
 }
 .sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,.08); color: white; border-left-color: var(--accent); }
 .sidebar nav a .icon { width: 20px; text-align: center; font-size: 16px; }
+
+/* 子菜单 */
+.nav-parent { position: relative; }
+.nav-parent > a { display: flex; align-items: center; gap: 10px; padding: 12px 24px; color: rgba(255,255,255,.7);
+  font-size: 14px; transition: all .2s; border-left: 3px solid transparent; cursor: pointer; text-decoration: none; }
+.nav-parent > a:hover, .nav-parent > a.active { background: rgba(255,255,255,.08); color: white; border-left-color: var(--accent); }
+.nav-parent > a .nav-arrow { margin-left: auto; font-size: 10px; transition: transform .2s; }
+.nav-parent.expanded > a .nav-arrow { transform: rotate(180deg); }
+.nav-sub { display: none; }
+.nav-parent.expanded .nav-sub { display: block; }
+.nav-sub a {
+  display: flex; align-items: center; gap: 10px; padding: 10px 24px 10px 52px; color: rgba(255,255,255,.55);
+  font-size: 13px; transition: all .2s; border-left: 3px solid transparent; cursor: pointer; text-decoration: none;
+}
+.nav-sub a:hover, .nav-sub a.active { background: rgba(255,255,255,.05); color: rgba(255,255,255,.85); border-left-color: var(--accent); }
+.nav-sub a .icon { width: 18px; text-align: center; font-size: 14px; }
+
 .sidebar .user-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 24px;
   border-top: 1px solid rgba(255,255,255,.1); font-size: 12px; color: rgba(255,255,255,.5); }
 .sidebar .user-info strong { display: block; color: white; font-size: 14px; }
