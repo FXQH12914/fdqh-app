@@ -950,20 +950,55 @@ async function deleteCAPA(id) {
 // ============================================================
 // CHANGES
 // ============================================================
+var changeFilter = 'all';
+
 async function loadChanges() {
-  var result = await apiGet('/changes?limit=100');
+  // Load summary
+  var summary = await apiGet('/changes/summary');
+  if (summary) {
+    document.getElementById('changeSummary').innerHTML =
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + summary.total + '</div><div class="ms-label">📊 变更总数</div></div>' +
+      '<div class="module-summary-card ms-pass"><div class="ms-value">' + summary.completed + '</div><div class="ms-label">✅ 已完成</div></div>' +
+      '<div class="module-summary-card ms-warn"><div class="ms-value">' + (summary.byLevel.I||0) + '</div><div class="ms-label">Ⅰ类 · 轻度</div></div>' +
+      '<div class="module-summary-card ms-info"><div class="ms-value">' + (summary.byLevel.II||0) + '</div><div class="ms-label">Ⅱ类 · 中度</div></div>' +
+      '<div class="module-summary-card ms-fail"><div class="ms-value">' + (summary.byLevel.III||0) + '</div><div class="ms-label">Ⅲ类 · 重度</div></div>';
+  }
+
+  var result = await apiGet('/changes?limit=300');
   if (!result) return;
   var changes = result.data || result;
+
+  if (changeFilter !== 'all') {
+    if (changeFilter === '完成' || changeFilter === '未完成') {
+      changes = changes.filter(function(c) { return c.status === changeFilter; });
+    } else {
+      changes = changes.filter(function(c) { return (c.change_level||'').indexOf(changeFilter) === 0; });
+    }
+  }
+
   var tbody = document.querySelector('#changesTable tbody');
   tbody.innerHTML = changes.length ? changes.map(function(c) {
-    return '<tr><td>' + c.id + '</td><td>' + c.change_type + '</td><td>' + (c.product_id||'-') + '</td>' +
-      '<td><span class="badge badge-' + getRiskBadge(c.risk) + '">' + c.risk + '</span></td>' +
-      '<td>' + (c.impact||'').slice(0,40) + '</td><td>' + (c.validation_status||'-') + '</td>' +
-      '<td><span class="badge badge-' + getStatusBadge(c.status) + '">' + c.status + '</span></td>' +
-      '<td>' + (c.initiator||'-') + '</td>' +
+    var levelBadge = (c.change_level||'').includes('I') && !(c.change_level||'').includes('II') ? 'badge-success' :
+      (c.change_level||'').includes('II') && !(c.change_level||'').includes('III') ? 'badge-warning' : 'badge-danger';
+    var statusBadge = c.status === '完成' ? 'badge-success' : c.status === '未完成' ? 'badge-danger' : 'badge-info';
+    return '<tr><td style="font-weight:500;">' + (c.change_no||c.id) + '</td>' +
+      '<td>' + (c.base||'-') + '</td><td>' + (c.product_type_desc||c.product_id||'-') + '</td>' +
+      '<td><span class="badge ' + levelBadge + '">' + (c.change_level||c.risk||'-') + '</span></td>' +
+      '<td>' + (c.change_type||'-') + '</td>' +
+      '<td><span class="badge ' + statusBadge + '">' + (c.status||'-') + '</span></td>' +
+      '<td><span class="badge badge-' + getRiskBadge(c.risk) + '">' + (c.risk||'') + '</span></td>' +
       '<td><button class="btn btn-outline btn-sm" onclick="approveChange(\'' + c.id + '\')">审批</button> ' +
       '<button class="btn btn-danger btn-sm" onclick="deleteChange(\'' + c.id + '\')">删除</button></td></tr>';
-  }).join('') : '<tr><td colspan="9"><div class="empty-state">暂无变更记录</div></td></tr>';
+  }).join('') : '<tr><td colspan="8"><div class="empty-state">暂无变更记录</div></td></tr>';
+}
+
+function filterChanges(filter) {
+  changeFilter = changeFilter === filter ? 'all' : filter;
+  var allBtns = document.querySelectorAll('#page-changes .card-header .btn-group:first-child .btn');
+  allBtns.forEach(function(btn) { btn.classList.remove('btn-primary'); btn.classList.add('btn-outline'); });
+  var activeBtn = Array.from(allBtns).find(function(b) { return (b.textContent||'').trim().indexOf(filter) === 0; });
+  if (activeBtn) { activeBtn.classList.remove('btn-outline'); activeBtn.classList.add('btn-primary'); }
+  loadChanges();
 }
 
 async function openChangeModal() {

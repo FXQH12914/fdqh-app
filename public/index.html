@@ -156,13 +156,22 @@
 
     <!-- ============ CHANGES PAGE ============ -->
     <div id="page-changes" class="page">
-      <div class="page-header"><h2>🔄 变更控制</h2><p>工艺变更 / 设备变更 / 物料变更审批流程</p></div>
+      <div class="page-header"><h2>🔄 变更控制</h2><p>设计变更·工程变更 I/II/III 分级管理 · 参照NMPA 2025版GMP</p></div>
+      <!-- 变更KPI摘要 -->
+      <div class="module-summary" id="changeSummary"></div>
       <div class="card">
         <div class="card-header">
-          <span>变更记录</span>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-primary" onclick="filterChanges('all')">全部</button>
+            <button class="btn btn-outline btn-sm" onclick="filterChanges('I')">Ⅰ类</button>
+            <button class="btn btn-outline btn-sm" onclick="filterChanges('II')">Ⅱ类</button>
+            <button class="btn btn-outline btn-sm" onclick="filterChanges('III')">Ⅲ类</button>
+            <button class="btn btn-outline btn-sm" onclick="filterChanges('完成')">已完成</button>
+            <button class="btn btn-outline btn-sm" onclick="filterChanges('未完成')">未完成</button>
+          </div>
           <button class="btn btn-accent btn-sm" onclick="openChangeModal()">+ 新建变更</button>
         </div>
-        <div class="card-body no-padding"><table id="changesTable"><thead><tr><th>ID</th><th>类型</th><th>产品</th><th>风险</th><th>影响</th><th>验证状态</th><th>审批状态</th><th>发起人</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+        <div class="card-body no-padding"><table id="changesTable"><thead><tr><th>变更编号</th><th>基地</th><th>产品</th><th>变更等级</th><th>类型</th><th>状态</th><th>风险</th><th>操作</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
 
