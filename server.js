@@ -422,7 +422,7 @@ app.post('/api/changes', requireAuth, asyncHandler(async (req, res) => {
   if (!VALID_CHANGE_TYPES.includes(req.body.change_type)) return res.status(400).json({ error: '无效的变更类型: ' + req.body.change_type });
   if (!VALID_RISK_LEVELS.includes(req.body.risk)) return res.status(400).json({ error: '无效的风险等级' });
 
-  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'change_level', 'change_no', 'product_type_desc', 'base', 'description', 'status', 'imported']);
+  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'change_level', 'change_no', 'product_type_desc', 'base', 'description', 'status', 'imported', 'change_object', 'change_desc', 'change_track']);
   data.status = data.status || 'Pending Approval';
   data.initiator = req.user.username;
 
