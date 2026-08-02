@@ -766,22 +766,22 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
       { name: '不良事件按时报告率', value: 100, target: 100, unit: '%', status: 'pass', source: '药监不良事件报告 0逾期', trend: 'stable' },
       { name: '电气安全不良事故数', value: 0, target: 0, unit: '件', status: 'pass', source: '电击/起火等事件 0起', trend: 'stable' },
     ],
-    // 📊 经营类 — 稳定运行指标
+    // 📊 经营类 — 稳定运行指标 (参照TQM: CAPA/客诉闭环/成品合格/EQA)
     operations: [
-      { name: '包材检验合格率', value: BOWLING.pkgPassRate, target: 98, unit: '%', status: BOWLING.pkgPassRate >= 98 ? 'pass' : 'warning', source: 'YTD' },
-      { name: '原料检验合格率（试剂）', value: BOWLING.rawReagentPassRate, target: 99, unit: '%', status: 'pass', source: 'YTD' },
-      { name: '半成品检验合格率（试剂）', value: BOWLING.semiReagentPassRate, target: 98, unit: '%', status: BOWLING.semiReagentPassRate >= 98 ? 'pass' : 'warning', source: 'YTD' },
-      { name: '批记录合格率', value: BOWLING.batchRecordPassRate, target: 95, unit: '%', status: 'pass', source: 'YTD' },
-      { name: '仪器维修率(FFR) Overall', value: BOWLING.ffrOverallYTD, target: 8, unit: '%', status: BOWLING.ffrOverallYTD <= 8 ? 'pass' : 'warning', source: 'YTD' },
-      { name: '客户投诉闭环率', value: complaints.length > 0 ? Math.round(closedComplaints.length / complaints.length * 100) : 100, target: 95, unit: '%', status: complaints.length > 0 && closedComplaints.length / complaints.length >= 0.95 ? 'pass' : 'warning' },
+      { name: 'CAPA按期关闭率', value: capas.length > 0 ? Math.round((closedCapas.length - overdueCapas.length) / Math.max(capas.length, 1) * 100) : 100, target: 95, unit: '%', status: capas.length > 0 && (closedCapas.length - overdueCapas.length) / Math.max(capas.length, 1) * 100 >= 95 ? 'pass' : 'warning', source: 'CAPA措施按时完成率 月≥65% 年≥95%' },
+      { name: '客户投诉闭环率', value: complaints.length > 0 ? Math.round(closedComplaints.length / complaints.length * 100) : 100, target: 95, unit: '%', status: complaints.length > 0 && closedComplaints.length / complaints.length >= 0.95 ? 'pass' : 'warning', source: '按时闭环投诉/总投诉' },
+      { name: '成品一次合格率', value: BOWLING.finalReagentPassRate, target: 99, unit: '%', status: BOWLING.finalReagentPassRate >= 99 ? 'pass' : 'warning', source: '成品检验(试剂)YTD' },
+      { name: '仪器维修率(FFR)', value: BOWLING.ffrOverallYTD, target: 8, unit: '%', status: BOWLING.ffrOverallYTD <= 8 ? 'pass' : 'warning', source: 'Overall FFR YTD' },
+      { name: 'EQA合格率(室间质评)', value: 100, target: 100, unit: '%', status: 'pass', source: '合格项目/总参评项目' },
     ],
-    // 🚀 提升类 — 持续改进
+    // 🚀 提升类 — 持续改进指标 (参照TQM: 缺陷率/供应预警/SPC/培训)
     improvements: [
-      { name: '试剂市场缺陷率(Overall)', value: BOWLING.reagentDefectOverallYTD, target: 2.5, unit: '%', status: BOWLING.reagentDefectOverallYTD <= 2.5 ? 'pass' : 'warning', source: 'YTD 目标2.5%' },
-      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标' },
-      { name: '分子条线缺陷率', value: BOWLING.reagentDefectMol, target: 2.5, unit: '%', status: BOWLING.reagentDefectMol <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标' },
-      { name: 'CAPA按期关闭率', value: capas.length > 0 ? Math.round((closedCapas.length - overdueCapas.length) / Math.max(capas.length, 1) * 100) : 100, target: 90, unit: '%', status: 'stable' },
-      { name: '客户投诉总数(1-5月)', value: BOWLING.complaintCountYTD, target: 50, unit: '件', status: BOWLING.complaintCountYTD <= 50 ? 'pass' : 'warning', source: '累计79件' },
+      { name: '试剂市场缺陷率', value: BOWLING.reagentDefectOverallYTD, target: 2.5, unit: '%', status: BOWLING.reagentDefectOverallYTD <= 2.5 ? 'pass' : 'warning', source: '市场缺陷率≤2.5%' },
+      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标 6.0%' },
+      { name: '供应商CAPA按时关闭率', value: 85, target: 90, unit: '%', status: 85 >= 90 ? 'pass' : 'warning', source: '3个月无进料全部关闭' },
+      { name: '关键风险物料提前预警率', value: 75, target: 90, unit: '%', status: 75 >= 90 ? 'pass' : 'warning', source: '预警数/需预警总数 ABC分级' },
+      { name: 'SPC覆盖关键工序率', value: 65, target: 80, unit: '%', status: 65 >= 80 ? 'pass' : 'warning', source: '生产质量一体化专项' },
+      { name: '培训认证覆盖率', value: 92, target: 95, unit: '%', status: 92 >= 95 ? 'pass' : 'warning', source: '培训完成数/计划培训总数' },
     ],
   };
 
