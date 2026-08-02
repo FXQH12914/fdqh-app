@@ -1063,7 +1063,7 @@ app.get('/api/dashboard/cockpit', requireAuth, asyncHandler(async (req, res) => 
     ]},
     supply: { label: '供应链', icon: '🚚', metrics: [
       { name: '来料合格率', value: 97+Math.floor(Math.random()*3), unit: '%', trend: 'stable' },
-      { name: '高风险供应商', value: suppliers.filter(function(s){return (s.risk||'Low')==='High';}).length, unit: '家', trend: 'stable' }
+      { name: '高风险供应商', value: suppliers.filter(function(s){return (s.risk_level||'Low')==='High';}).length, unit: '家', trend: 'stable' }
     ]},
     customer: { label: '客户质量', icon: '👥', metrics: [
       { name: '投诉响应', value: Math.floor(1+Math.random()*3), unit: '天', trend: 'down' },
