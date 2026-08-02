@@ -67,7 +67,7 @@ function asyncHandler(fn) {
 // ============================================================
 var VALID_EVENT_TYPES = ['Deviation', 'OOS', 'OOT', 'Complaint', 'CAPA', 'Audit-Finding', 'SCAR', 'NCR'];
 var VALID_RISK_LEVELS = ['Low', 'Medium', 'High', 'Critical'];
-var VALID_CHANGE_TYPES = ['工艺变更', '设备变更', '物料变更', '文件变更', '产品变更'];
+var VALID_CHANGE_TYPES = ['工艺变更', '设备变更', '物料变更', '文件变更', '产品变更', '设计变更', '工程变更', '试剂变更', '仪器变更', '文件记录变更', '包材/标签变更'];
 var VALID_CAPA_STATUSES = ['Open', 'In Progress', 'Closed'];
 var VALID_EVENT_STATUSES = ['Open', 'In Investigation', 'Root Cause Analysis', 'CAPA Created', 'Closed', 'Closed - No Action'];
 var VALID_PRODUCT_LIFECYCLE = ['开发中', '试生产', '上市', '变更中', '退市'];
@@ -342,6 +342,31 @@ app.delete('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
 // ============================================================
 // CHANGE CONTROL
 // ============================================================
+// 变更控制摘要统计
+app.get('/api/changes/summary', requireAuth, asyncHandler(async (req, res) => {
+  var changes = await db.findAll('change_records');
+  var byLevel = { 'I': 0, 'II': 0, 'III': 0 }, byStatus = {}, byType = {}, byBase = {};
+  changes.forEach(function(c) {
+    var lv = c.change_level || c.risk || '';
+    if (lv.includes('I') && !lv.includes('II')) byLevel.I = (byLevel.I||0) + 1;
+    else if (lv.includes('II') && !lv.includes('III')) byLevel.II = (byLevel.II||0) + 1;
+    else if (lv.includes('III')) byLevel.III = (byLevel.III||0) + 1;
+    var st = c.status || '未知';
+    byStatus[st] = (byStatus[st]||0) + 1;
+    var bt = c.base || '未知';
+    byBase[bt] = (byBase[bt]||0) + 1;
+    var ct = c.change_type || c.change_level || '未分类';
+    byType[ct] = (byType[ct]||0) + 1;
+  });
+  res.json({
+    total: changes.length,
+    byLevel: byLevel,
+    byStatus: byStatus,
+    byBase: byBase,
+    completed: changes.filter(function(c) { return c.status === '完成' || c.status === '已完成' || c.status === 'Closed'; }).length,
+  });
+}));
+
 app.get('/api/changes', requireAuth, asyncHandler(async (req, res) => {
   var changes = await db.findAll('change_records');
   if (req.query.status) changes = changes.filter(function(c) { return c.status === req.query.status; });
@@ -363,11 +388,11 @@ app.get('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
 
 app.post('/api/changes', requireAuth, asyncHandler(async (req, res) => {
   requireFields(req.body, ['change_type', 'risk', 'impact']);
-  if (!VALID_CHANGE_TYPES.includes(req.body.change_type)) return res.status(400).json({ error: '无效的变更类型' });
+  if (!VALID_CHANGE_TYPES.includes(req.body.change_type)) return res.status(400).json({ error: '无效的变更类型: ' + req.body.change_type });
   if (!VALID_RISK_LEVELS.includes(req.body.risk)) return res.status(400).json({ error: '无效的风险等级' });
 
-  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status']);
-  data.status = 'Pending Approval';
+  var data = whitelistFields(req.body, ['change_type', 'product_id', 'risk', 'impact', 'validation_status', 'change_level', 'change_no', 'product_type_desc', 'base', 'description', 'status', 'imported']);
+  data.status = data.status || 'Pending Approval';
   data.initiator = req.user.username;
 
   var change = await db.insert('change_records', data, req.user.username);
