@@ -38,7 +38,8 @@
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
       <!-- 质量事件 — 可展开子菜单 -->
       <div class="nav-parent" id="navEventsParent">
-        <a data-page="events" onclick="toggleNavSub('events')"><span class="icon">⚠️</span> 质量事件<span class="nav-arrow" id="navEventsArrow">▼</span></a>
+        <a data-page="events" onclick="navigate('events')"><span class="icon">⚠️</span> 质量事件</a>
+        <span class="nav-arrow" id="navEventsArrow" onclick="toggleNavSub('events')" style="position:absolute;right:12px;top:14px;cursor:pointer;color:rgba(255,255,255,.5);font-size:10px;z-index:2;">▼</span>
         <div class="nav-sub" id="navEventsSub">
           <a data-page="complaints" onclick="navigate('complaints')"><span class="icon">📢</span> 投诉看板</a>
           <a data-page="capa" onclick="navigate('capa')"><span class="icon">🔧</span> CAPA 管理</a>
@@ -406,7 +407,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.12.2"></script>
+<script src="/js/app.js?v=2.12.3"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
