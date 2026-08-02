@@ -718,47 +718,154 @@ app.get('/api/dashboard/daily-report', requireAuth, asyncHandler(async (req, res
 
 // ============================================================
 // TQM KPIs — 按PPT三类指标: 红线/经营/提升
+// 数据来源: 质量管理保龄球图-202605
 // ============================================================
 app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
   var events = await db.findAll('quality_events');
   var capas = await db.findAll('capa_records');
-  var suppliers = await db.findAll('suppliers');
-  var products = await db.findAll('products');
 
   var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
   var closedComplaints = complaints.filter(function(e) { return e.status === 'Closed'; });
   var closedCapas = capas.filter(function(c) { return c.status === 'Closed'; });
   var overdueCapas = capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; });
 
+  // ===== 红牌 KPI from 保龄球图 (2026-05 YTD) =====
+  var BOWLING = {
+    // 战略解码 - 仪器/试剂质量
+    doaOverallYTD: 8.7,       // 仪器到货缺陷率 Overall YTD 8.7%, target 8%
+    doaNewYTD: 9.1,           // 新产品质量 DOA YTD 9.1%
+    doaMassYTD: 7.7,          // 量产品 DOA YTD 7.7%
+    ffrOverallYTD: 8.1,       // 装机月度仪器维修率 Overall YTD 8.1%, target 8%
+    ffrNewYTD: 7.8,           // 新品维修率 YTD 7.8%
+    ffrMassYTD: 8.5,          // 量产维修率 YTD 8.5%
+    reagentDefectOverallYTD: 2.2,  // 试剂市场缺陷率 Overall YTD 2.2%, target 2.5%
+    reagentDefectCLIA: 6.0,   // 发光条线缺陷率 YTD 6.0% ⚠️
+    reagentDefectBio: 0.9,    // 生化条线 YTD 0.9%
+    reagentDefectMol: 3.7,    // 分子条线 YTD 3.7% ⚠️
+
+    // 日常检验 KPI (YTD)
+    pkgPassRate: 99.5,        // 包材检验合格率 99.5%, target 98%
+    rawReagentPassRate: 99.5, // 原料检验合格率（试剂）99.5%, target 99%
+    rawInstrumentPassRate: 99.0, // 原料检验合格率（仪器）99.0%, target 97%
+    semiReagentPassRate: 97.4, // 半成品检验合格率 97.4%, target 98% ⚠️
+    finalReagentPassRate: 99.9, // 成品检验合格率（试剂）99.9%, target 99%
+    finalInstrumentPassRate: 100, // 成品检验合格率（仪器）100%, target 85%
+    batchRecordPassRate: 96.7, // 批记录合格率 96.7%, target 95%
+    stabilityCompleteRate: 79.2, // 稳定性检测完成率 79.2% 🔴 target 100%
+    stabilityPassRate: 100,    // 稳定性检测合格率 100%
+    complaintCountYTD: 79,     // 1-5月客诉总计 79件
+    complaintsByLine: { '发光': 30, '生化': 13, '微生物': 26, '荧光PCR': 9, 'POCT': 1 },
+  };
+
   var kpis = {
-    // 🔴 红线类（一票否决）
+    // 🔴 红线类 — 一票否决指标
     redlines: [
-      { name: '无重大缺陷率', value: 100, target: 100, unit: '%', status: events.filter(function(e) { return e.risk_level === 'Critical' && e.status !== 'Closed'; }).length === 0 ? 'pass' : 'fail' },
-      { name: '出货产品合格率', value: 99.5, target: 100, unit: '%', status: 'pass', trend: 'stable' },
-      { name: '不良事件按时报告率', value: 100, target: 100, unit: '%', status: 'pass', trend: 'up' },
-      { name: '客户投诉闭环率', value: complaints.length > 0 ? Math.round(closedComplaints.length / complaints.length * 100) : 100, target: 95, unit: '%', status: complaints.length > 0 && closedComplaints.length / complaints.length >= 0.95 ? 'pass' : 'fail' },
+      { name: '出货产品合格率', value: BOWLING.finalReagentPassRate, target: 99, unit: '%', status: BOWLING.finalReagentPassRate >= 99 ? 'pass' : 'fail', source: '成品检验（试剂）YTD' },
+      { name: '不良事件发生率', value: 0, target: 0, unit: '件', status: 'pass', source: '严重不良事件数' },
+      { name: '稳定性检测完成率', value: BOWLING.stabilityCompleteRate, target: 100, unit: '%', status: BOWLING.stabilityCompleteRate >= 100 ? 'pass' : 'fail', source: '试剂稳定性YTD' },
+      { name: '仪器到货缺陷率(DOA)', value: BOWLING.doaOverallYTD, target: 8, unit: '%', status: BOWLING.doaOverallYTD <= 8 ? 'pass' : 'fail', source: 'Overall DOA YTD' },
     ],
-    // 📊 经营类（稳定运行）
+    // 📊 经营类 — 稳定运行指标
     operations: [
-      { name: 'CAPA按期关闭率', value: capas.length > 0 ? Math.round((closedCapas.length - overdueCapas.length) / Math.max(capas.length, 1) * 100) : 100, target: 90, unit: '%', status: 'stable' },
-      { name: '供应商 CAPA 关闭率', value: 85, target: 90, unit: '%', status: 'stable', trend: 'up' },
-      { name: '过程检验一次合格率', value: 96, target: 95, unit: '%', status: 'pass', trend: 'stable' },
-      { name: 'EQA 合格率', value: 100, target: 100, unit: '%', status: 'pass' },
-      { name: '项目质量指标达成率', value: 92, target: 90, unit: '%', status: 'pass', trend: 'up' },
-      { name: '客户投诉率', value: 0.8, target: 1.0, unit: 'ppm', status: 'pass', trend: 'down' },
+      { name: '包材检验合格率', value: BOWLING.pkgPassRate, target: 98, unit: '%', status: BOWLING.pkgPassRate >= 98 ? 'pass' : 'warning', source: 'YTD' },
+      { name: '原料检验合格率（试剂）', value: BOWLING.rawReagentPassRate, target: 99, unit: '%', status: 'pass', source: 'YTD' },
+      { name: '半成品检验合格率（试剂）', value: BOWLING.semiReagentPassRate, target: 98, unit: '%', status: BOWLING.semiReagentPassRate >= 98 ? 'pass' : 'warning', source: 'YTD' },
+      { name: '批记录合格率', value: BOWLING.batchRecordPassRate, target: 95, unit: '%', status: 'pass', source: 'YTD' },
+      { name: '仪器维修率(FFR) Overall', value: BOWLING.ffrOverallYTD, target: 8, unit: '%', status: BOWLING.ffrOverallYTD <= 8 ? 'pass' : 'warning', source: 'YTD' },
+      { name: '客户投诉闭环率', value: complaints.length > 0 ? Math.round(closedComplaints.length / complaints.length * 100) : 100, target: 95, unit: '%', status: complaints.length > 0 && closedComplaints.length / complaints.length >= 0.95 ? 'pass' : 'warning' },
     ],
-    // 🚀 提升类（持续改进）
+    // 🚀 提升类 — 持续改进
     improvements: [
-      { name: '设计相关CAPA闭环率', value: 88, target: 90, unit: '%', status: 'stable', trend: 'up' },
-      { name: '关键风险物料提前预警率', value: 75, target: 80, unit: '%', status: 'warning', trend: 'up' },
-      { name: '重复投诉率', value: 0.3, target: 0.5, unit: 'ppm', status: 'pass', trend: 'down' },
-      { name: 'SPC覆盖关键工序率', value: 65, target: 80, unit: '%', status: 'warning', trend: 'up' },
-      { name: '培训认证覆盖率', value: 92, target: 95, unit: '%', status: 'stable', trend: 'up' },
+      { name: '试剂市场缺陷率(Overall)', value: BOWLING.reagentDefectOverallYTD, target: 2.5, unit: '%', status: BOWLING.reagentDefectOverallYTD <= 2.5 ? 'pass' : 'warning', source: 'YTD 目标2.5%' },
+      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标' },
+      { name: '分子条线缺陷率', value: BOWLING.reagentDefectMol, target: 2.5, unit: '%', status: BOWLING.reagentDefectMol <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标' },
+      { name: 'CAPA按期关闭率', value: capas.length > 0 ? Math.round((closedCapas.length - overdueCapas.length) / Math.max(capas.length, 1) * 100) : 100, target: 90, unit: '%', status: 'stable' },
+      { name: '客户投诉总数(1-5月)', value: BOWLING.complaintCountYTD, target: 50, unit: '件', status: BOWLING.complaintCountYTD <= 50 ? 'pass' : 'warning', source: '累计79件' },
     ],
   };
 
   res.json(kpis);
 }));
+
+// ============================================================
+// BOWLING CHART DATA — 保龄球图完整数据
+// 数据来源: 质量管理保龄球图-202605.xlsx
+// ============================================================
+app.get('/api/dashboard/bowling-chart', requireAuth, asyncHandler(async (req, res) => {
+  // 战略解码指标 — 仪器试剂质量 (DOA/FFR/市场缺陷率)
+  var strategic = [
+    { id: '8', name: '仪器到货缺陷率 Overall DOA', target: 8, unit: '%', ytd: 8.7, trend: 'up',
+      months: [
+        { month: '1月', plan: 8, actual: 12.5, status: 'fail' },
+        { month: '2月', plan: 8, actual: 0, status: 'pass' },
+        { month: '3月', plan: 8, actual: 0, status: 'pass' },
+        { month: '4月', plan: 8, actual: 7.7, status: 'pass' },
+        { month: '5月', plan: 8, actual: 13.3, status: 'fail' },
+      ],
+      drilldown: [
+        { sub: '8.1 新品 DOA', target: 8, ytd: 9.1, months: [14.3, 0, 0, 0, 16.7] },
+        { sub: '8.2 量产品 DOA', target: 8, ytd: 7.7, months: [0, 0, 0, 12.5, 0] },
+      ]
+    },
+    { id: '9', name: '仪器维修率 Overall FFR', target: 8, unit: '%', ytd: 8.1, trend: 'down',
+      months: [
+        { month: '1月', plan: 8, actual: 13.8, status: 'fail' },
+        { month: '2月', plan: 8, actual: 7.6, status: 'pass' },
+        { month: '3月', plan: 8, actual: 6.4, status: 'pass' },
+        { month: '4月', plan: 8, actual: 6.8, status: 'pass' },
+        { month: '5月', plan: 8, actual: 6.0, status: 'pass' },
+      ],
+      drilldown: [
+        { sub: '9.1 新品 FFR', target: 8, ytd: 7.8, months: [12.0, 7.8, 6.0, 7.4, 5.8] },
+        { sub: '9.2 量产品 FFR', target: 8, ytd: 8.5, months: [16.0, 7.4, 6.8, 6.1, 6.3] },
+      ]
+    },
+    { id: '10', name: '试剂市场缺陷率', target: 2.5, unit: '%', ytd: 2.2, trend: 'stable',
+      months: [
+        { month: '1月', plan: 2.5, actual: 3.1, status: 'fail' },
+        { month: '2月', plan: 2.5, actual: 1.5, status: 'pass' },
+        { month: '3月', plan: 2.5, actual: 2.0, status: 'pass' },
+        { month: '4月', plan: 2.5, actual: 2.1, status: 'pass' },
+        { month: '5月', plan: 2.5, actual: 2.1, status: 'pass' },
+      ],
+      drilldown: [
+        { sub: '10.1 发光条线', target: 2.5, ytd: 6.0, months: [4.7, 5.0, 4.7, 19.0, 2.5], alert: true },
+        { sub: '10.2 生化条线', target: 2.5, ytd: 0.9, months: [1.8, 0, 1.0, 0, 2.2] },
+        { sub: '10.3 分子条线', target: 2.5, ytd: 3.7, months: [12.5, 12.5, 0, 0, 0], alert: true },
+        { sub: '10.4 微生物条线', target: 2.5, ytd: null, months: [12.5, null, null, null, null] },
+        { sub: '10.5 POCT条线', target: 2.5, ytd: 0, months: [0, null, null, null, null] },
+      ]
+    },
+  ];
+
+  // 日常检验 KPI
+  var daily = [
+    { id: 'D1', name: '包材检验合格率', target: 98, unit: '%', ytd: 99.5, months: [100, 98.5, 98.4, 100, 100], status: 'pass' },
+    { id: 'D2', name: '原料检验合格率（试剂）', target: 99, unit: '%', ytd: 99.5, months: [99.4, 100, 98.5, 99.8, 100], status: 'pass' },
+    { id: 'D3', name: '半成品检验合格率（试剂）', target: 98, unit: '%', ytd: 97.4, months: [97.1, 99.2, 97.4, 94.6, 99.3], status: 'warning' },
+    { id: 'D4', name: '成品检验合格率（试剂）', target: 99, unit: '%', ytd: 99.9, months: [100, 100, 99.5, 100, 100], status: 'pass' },
+    { id: 'D5', name: '批记录合格率', target: 95, unit: '%', ytd: 96.7, months: [98.3, 97.8, 93.8, 94.5, 100], status: 'pass' },
+    { id: 'D6', name: '稳定性检测完成率', target: 100, unit: '%', ytd: 79.2, months: [null, null, null, null, null], status: 'fail', note: 'YTD仅79.2%, 需重点关注' },
+  ];
+
+  // 客诉汇总
+  var complaintStats = {
+    total: 79, period: '2026年1-5月',
+    byMonth: { '1月': 21, '2月': 8, '3月': 16, '4月': 13, '5月': 21 },
+    byLine: { '发光': 30, '微生物': 26, '生化': 13, '荧光PCR': 9, 'POCT': 1 },
+    byCause: { '非质量问题': 16, '设计问题': 12, '物料问题': 9, '其他问题': 9, '生产问题': 4, '工艺问题': 1 },
+    topIssues: [
+      { product: '结核I-SPOT', product_line: '微生物', count: 6, issue: '抗原漏液/无标签/阳性对照' },
+      { product: '真菌药敏试剂盒', product_line: '微生物', count: 5, issue: '花板/跳孔/识别错误' },
+      { product: 'HBV核酸检测', product_line: '荧光PCR', count: 5, issue: '内参未起/结果偏高' },
+      { product: 'CA系列（CA242/CA15-3/CA19-9）', product_line: '发光', count: 4, issue: '盲样偏差/批号变更' },
+      { product: 'PGI/PGII', product_line: '发光', count: 4, issue: '室间质评偏差/磁珠凝块' },
+    ]
+  };
+
+  res.json({ strategic, daily, complaintStats, updated: '2026-05' });
+}));
+
 
 // ============================================================
 // AI ASSISTANT

@@ -177,6 +177,9 @@ async function loadDashboard() {
   }
   document.getElementById('recentEvents').innerHTML = '<table>' + alertRows + '</table>';
 
+  // ========== 保龄球图 ==========
+  loadBowlingChart();
+
   // Charts
   renderChart('chartMonthly', 'line', stats.monthlyTrends.map(function(t) { return t.month; }), stats.monthlyTrends.map(function(t) { return t.count; }), '事件数', '#D4875A');
   var rd = stats.riskDistribution;
@@ -186,6 +189,76 @@ async function loadDashboard() {
   if (document.getElementById('page-dashboard').classList.contains('active')) {
     if (dashboardTimer) clearInterval(dashboardTimer);
     dashboardTimer = setInterval(loadDashboard, 60000);
+  }
+}
+
+// ===== 保龄球图渲染 =====
+async function loadBowlingChart() {
+  var data = await apiGet('/dashboard/bowling-chart');
+  if (!data) return;
+
+  // Render strategic bowling chart table
+  var months = ['1月','2月','3月','4月','5月'];
+  var html = '<table class="bowling-table"><thead><tr><th>指标</th><th>目标</th>' +
+    months.map(function(m) { return '<th>' + m + '</th>'; }).join('') +
+    '<th>YTD</th><th>状态</th></tr></thead><tbody>';
+
+  data.strategic.forEach(function(metric) {
+    var ytdStatus = metric.ytd <= metric.target ? 'cell-pass' : 'cell-fail';
+    html += '<tr><td><div class="metric-name">' + metric.id + '. ' + metric.name + '</div><div class="metric-target">目标: ' + metric.target + '%</div></td>' +
+      '<td class="target-col">≤' + metric.target + '%</td>';
+    metric.months.forEach(function(m) {
+      var cls = m.actual === null ? 'cell-na' : (m.actual <= metric.target ? 'cell-pass' : 'cell-fail');
+      var val = m.actual !== null ? (m.actual >= 1 ? Math.round(m.actual * 10) / 10 : (m.actual * 100).toFixed(1)) + '%' : '-';
+      html += '<td class="' + cls + '">' + val + '</td>';
+    });
+    html += '<td class="ytd-col ' + ytdStatus + '">' + metric.ytd + '%</td>' +
+      '<td>' + (metric.ytd <= metric.target ? '🟢' : '🔴') + '</td></tr>';
+
+    // Sub-rows
+    if (metric.drilldown) {
+      metric.drilldown.forEach(function(sub) {
+        var subYtdCls = sub.ytd <= sub.target ? 'cell-pass' : 'cell-fail';
+        html += '<tr class="sub-row"><td>↳ ' + sub.sub + (sub.alert ? '<span class="alert-dot"></span>' : '') + '</td>' +
+          '<td class="target-col">≤' + sub.target + '%</td>';
+        sub.months.forEach(function(v) {
+          var cls = v === null ? 'cell-na' : (v <= sub.target ? 'cell-pass' : 'cell-fail');
+          var val = v !== null ? (v >= 1 ? Math.round(v * 10) / 10 : (v * 100).toFixed(1)) + '%' : '-';
+          html += '<td class="' + cls + '">' + val + '</td>';
+        });
+        html += '<td class="ytd-col ' + subYtdCls + '">' + sub.ytd + '%</td>' +
+          '<td>' + (sub.ytd <= sub.target ? '🟢' : '🔴') + '</td></tr>';
+      });
+    }
+  });
+
+  // Daily inspection metrics
+  html += '<tr><td colspan="' + (months.length + 4) + '" style="background:#F8FAFC;font-weight:700;text-align:left;padding:10px 16px;">📋 日常检验指标</td></tr>';
+  data.daily.forEach(function(d) {
+    var cls = d.status === 'pass' ? 'cell-pass' : d.status === 'warning' ? 'cell-fail' : 'cell-fail';
+    html += '<tr><td><div class="metric-name">' + d.name + '</div><div class="metric-target">目标: ' + d.target + '%</div></td>' +
+      '<td class="target-col">≥' + d.target + '%</td>';
+    d.months.forEach(function(v) {
+      var mCls = v === null ? 'cell-na' : (v >= d.target ? 'cell-pass' : 'cell-fail');
+      var val = v !== null ? (v >= 100 ? '100' : v.toFixed(1)) + '%' : '-';
+      html += '<td class="' + mCls + '">' + val + '</td>';
+    });
+    html += '<td class="ytd-col ' + cls + '">' + d.ytd + '%</td>' +
+      '<td>' + (d.status === 'pass' ? '🟢' : d.status === 'warning' ? '🟡' : '🔴') + (d.note ? ' ⚠' : '') + '</td></tr>';
+  });
+
+  html += '</tbody></table>';
+  var el = document.getElementById('bowlingChartTable');
+  if (el) el.innerHTML = html;
+
+  // Render complaint charts
+  if (data.complaintStats) {
+    var cs = data.complaintStats;
+    renderChart('chartComplaints', 'bar',
+      Object.keys(cs.byMonth), Object.values(cs.byMonth), '客诉数', '#EF4444');
+    renderPieChart('chartComplaintLine',
+      Object.keys(cs.byLine), Object.values(cs.byLine),
+      ['#3B82F6','#10B981','#F59E0B','#8B5CF6','#EC4899']);
   }
 }
 
