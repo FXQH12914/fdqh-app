@@ -869,9 +869,16 @@ async function loadEventCategories() {
     '</div>' +
     (cat.topProducts.length ? '<div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">Top 关联产品: ' + cat.topProducts.slice(0, 4).map(function(p) { return p.name + '(' + p.count + ')'; }).join(' · ') + '</div>' : '') +
     (cat.id === 'complaint' ? '<div style="margin-top:14px;text-align:center;"><button class="btn btn-accent btn-sm" onclick="navigate(\'complaints\')" style="width:100%;padding:10px;">📊 打开完整投诉看板 → 试剂Top10 · 帕累托 · 设计缺陷占比 · 产品排行</button></div>' : '') +
+    // === 内外审发现：嵌入体系产品风险检查分析 ===
+    (cat.id === 'audit' ? '<div id="afInlineSection" style="margin-top:20px;border-top:2px solid ' + cat.color + ';padding-top:16px;"></div>' : '') +
     '</div></div>';
 
   document.getElementById('eventCatContent').innerHTML = html;
+
+  // === 内外审发现：异步加载体系产品风险检查帕累托 + 摘要表 ===
+  if (cat.id === 'audit') {
+    loadAuditFindingsInline(cat.color);
+  }
 
   // Render charts
   setTimeout(function() {
@@ -883,6 +890,91 @@ async function loadEventCategories() {
     var statusValues = Object.keys(cat.byStatus).map(function(s) { return cat.byStatus[s]; });
     renderPieChart('ecStatus', statusLabels, statusValues, ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6']);
   }, 200);
+}
+
+// === 内外审发现：内嵌体系产品风险检查分析 ===
+async function loadAuditFindingsInline(auditColor) {
+  var container = document.getElementById('afInlineSection');
+  if (!container) return;
+  
+  var data = await apiGet('/audit-findings');
+  if (!data) { container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">⏳ 加载分析数据中...</div>'; return; }
+  
+  var s = data.summary;
+  var cp = data.clausePareto || [];
+  var items = data.items || [];
+  
+  var html = '';
+  
+  // === Mini KPI row ===
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">' +
+    '<div style="flex:1;min-width:100px;background:#FEE2E2;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#DC2626;">' + s.keyItems + '</div><div style="font-size:10px;color:#991B1B;">🔴 关键项目 ***</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#FEF3C7;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#D97706;">' + s.majorItems + '</div><div style="font-size:10px;color:#92400E;">🟡 主要项目 **</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#D1FAE5;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#059669;">' + s.generalItems + '</div><div style="font-size:10px;color:#065F46;">🟢 一般项目 *</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#EEF2FF;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#4F46E5;">' + s.total + '</div><div style="font-size:10px;color:#3730A3;">📋 总计风险项</div></div>' +
+    '</div>';
+  
+  // === Conclusion badge ===
+  var conclusionColor = s.conclusion.indexOf('暂停') >= 0 ? '#DC2626' : s.conclusion.indexOf('限期') >= 0 ? '#D97706' : '#059669';
+  html += '<div style="background:' + conclusionColor + '10;border:1px solid ' + conclusionColor + '30;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:12px;">' +
+    '<b style="color:' + conclusionColor + ';">⚖️ ' + s.conclusion + '</b>' +
+    '<span style="color:var(--text-muted);margin-left:8px;">依据检查指导原则判定表</span></div>';
+  
+  // === Pareto chart ===
+  html += '<div class="charts-row" style="margin-bottom:12px;">' +
+    '<div class="card" style="border:1px solid ' + auditColor + '30;"><div class="card-header"><h3 style="font-size:13px;">📊 条款不符合帕累托图 (新GMP × ISO 13485)</h3></div>' +
+    '<div class="card-body"><div class="chart-container" style="height:280px;"><canvas id="afInlinePareto"></canvas></div>' +
+    '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;font-size:9px;">' +
+    cp.slice(0, 8).map(function(c) {
+      return '<span style="background:#F3F4F6;border-radius:3px;padding:1px 5px;">' + c.clause + '(' + c.count + ')→' + (c.iso || '-') + '</span>';
+    }).join('') +
+    '</div></div></div></div>';
+  
+  // === Compact summary table ===
+  html += '<div style="overflow-x:auto;margin-top:12px;">' +
+    '<table class="data-table" style="min-width:900px;font-size:11px;">' +
+    '<thead><tr style="background:' + auditColor + '10;">' +
+    '<th>#</th><th>类别</th><th>风险描述</th><th>GMP条款</th><th>ISO 13485</th><th>分级</th><th>类型</th>' +
+    '</tr></thead><tbody>';
+  
+  items.forEach(function(item) {
+    var rc = item.risk_class === '***' ? '#DC2626' : item.risk_class === '**' ? '#D97706' : '#059669';
+    var bg = item.risk_class === '***' ? '#FEE2E2' : item.risk_class === '**' ? '#FEF3C7' : '#D1FAE5';
+    var etLabel = item.event_type === 'Audit-Finding' ? '📋 内外审' : '🔍 日常';
+    
+    html += '<tr class="af-row" data-risk-class="' + item.risk_class + '" data-category="' + item.category + '">' +
+      '<td>' + item.seq + '</td>' +
+      '<td><span style="font-size:10px;color:var(--text-muted);">' + item.category + '</span></td>' +
+      '<td style="max-width:220px;font-size:11px;">' + (item.risk_desc.length > 60 ? item.risk_desc.substring(0, 60) + '...' : item.risk_desc) + '</td>' +
+      '<td><span style="font-weight:600;color:' + rc + ';font-size:11px;">' + item.clause_ref + '</span></td>' +
+      '<td><span style="font-size:10px;color:#6366F1;">' + (item.iso_clause || '—') + '</span></td>' +
+      '<td><span style="display:inline-block;padding:1px 6px;border-radius:8px;font-weight:700;font-size:11px;background:' + bg + ';color:' + rc + ';">' + item.risk_class + '</span></td>' +
+      '<td><span style="font-size:10px;">' + etLabel + '</span></td>' +
+      '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  
+  container.innerHTML = html;
+  
+  // === Render Pareto chart ===
+  if (cp.length > 0) {
+    setTimeout(function() {
+      var ctx = document.getElementById('afInlinePareto');
+      if (!ctx) return;
+      if (charts['afInlinePareto']) charts['afInlinePareto'].destroy();
+      charts['afInlinePareto'] = new Chart(ctx.getContext('2d'), {
+        type: 'bar', data: {
+          labels: cp.map(function(x) { return x.clause; }),
+          datasets: [
+            { label: '出现次数', data: cp.map(function(x) { return x.count; }), backgroundColor: cp.map(function(x) { return x.count >= 3 ? '#DC2626' : x.count >= 2 ? '#F59E0B' : '#3B82F6'; }), borderRadius: 3, yAxisID: 'y' },
+            { label: '累积%', type: 'line', data: cp.map(function(x) { return x.cumPct; }), borderColor: '#10B981', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, tension: 0.3, yAxisID: 'y1' }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: '次', font: { size: 10 } } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '%', font: { size: 10 } } } }, plugins: { legend: { position: 'top', labels: { font: { size: 10 } } }, tooltip: { callbacks: { afterLabel: function(c) { var d = cp[c.dataIndex]; return 'ISO: ' + (d.iso || '-'); } } } } }
+      });
+    }, 400);
+  }
 }
 
 function switchEventCat(id) {
