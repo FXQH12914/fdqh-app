@@ -66,15 +66,10 @@
 
     <!-- ============ DASHBOARD PAGE ============ -->
     <div id="page-dashboard" class="page active">
-      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 六大Q-KPI · 产品风险矩阵 · AI预警 — 基于化学发光Quality Cockpit设计</p>
-      <div class="btn-group" style="margin-top:8px;">
-        <button class="btn btn-sm btn-primary" onclick="switchCockpitTab('overview')" id="ctOverview">🏠 总览</button>
-        <button class="btn btn-sm btn-outline" onclick="switchCockpitTab('qkpi')" id="ctQkpi">📊 Q-KPI</button>
-        <button class="btn btn-sm btn-outline" onclick="switchCockpitTab('risk')" id="ctRisk">🎯 风险矩阵</button>
-        <button class="btn btn-sm btn-outline" onclick="switchCockpitTab('alerts')" id="ctAlerts">🚨 AI预警</button>
-      </div>
-      </div>
-      <div id="cockpitContent"></div>
+      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 三类指标 · 五维质量看板 · 实时预警</p></div>
+
+      <!-- ===== 数据导入导出工具条 ===== -->
+      <div class="card data-toolbar" style="margin-bottom:20px;">
 
       <!-- ===== 数据导入导出工具条 ===== -->
       <div class="card data-toolbar" style="margin-bottom:20px;">
@@ -255,7 +250,14 @@
 
     <!-- ============ PLM PAGE 产品全生命周期 ============ -->
     <div id="page-plm" class="page">
-      <div class="page-header"><h2>🔗 产品全生命周期管理</h2><p>PLQDP · 7阶段 · 150+ QCP · 产品护照 · 基于ISO 13485 & Quality 4.0</p></div>
+      <div class="page-header"><h2>🔗 产品全生命周期管理</h2><p>PLQDP · 7阶段 · 173 QCP · 产品护照 · 质量驾驶舱</p>
+      <div class="btn-group" style="margin-top:8px;">
+        <button class="btn btn-sm btn-primary" onclick="switchPlmTab('lifecycle')" id="ptLifecycle">🔗 生命周期</button>
+        <button class="btn btn-sm btn-outline" onclick="switchPlmTab('qkpi')" id="ptQkpi">📊 Q-KPI</button>
+        <button class="btn btn-sm btn-outline" onclick="switchPlmTab('risk')" id="ptRisk">🎯 风险矩阵</button>
+        <button class="btn btn-sm btn-outline" onclick="switchPlmTab('alerts')" id="ptAlerts">🚨 AI预警</button>
+      </div>
+      </div>
       <div id="plmContent"></div>
     </div>
 
@@ -404,7 +406,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.12.0"></script>
+<script src="/js/app.js?v=2.12.1"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
