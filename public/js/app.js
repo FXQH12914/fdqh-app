@@ -1813,7 +1813,6 @@ async function loadRegChanges(page) {
     '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.approved + '</div><div class="ms-label">✅ 已获批</div><div class="ms-target">获批率 ' + approveRate + '%</div></div>' +
     '<div class="module-summary-card ms-warn"><div class="ms-value">' + s.inProgress + '</div><div class="ms-label">⏳ 进行中</div><div class="ms-target">' + (s.inProgress > 0 ? '待完成' + s.inProgress + '项' : '全部完成') + '</div></div>' +
     '<div class="module-summary-card ms-info"><div class="ms-value">' + approveRate + '%</div><div class="ms-label">📊 完成率</div><div class="ms-target">生化' + (s.byPlatform['生化']||0) + ' / 发光' + (s.byPlatform['发光']||0) + ' / 分子' + (s.byPlatform['分子']||0) + '</div></div>' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">2.75→1万</div><div class="ms-label">💰 二类变更费</div><div class="ms-target">2026年减免后1万/项</div></div>' +
     '</div>';
   
   // Issues callout — show all
