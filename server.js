@@ -1494,14 +1494,18 @@ app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) 
   var instrumentBugType = {};
   instrumentComplaints.forEach(function(c) {
     var desc = c.description || '';
-    var m = desc.match(/【[^】]*·([^】]+)】/);
-    var bug = m ? m[1] : ((desc.match(/【([^】]+)】/) ? desc.match(/【([^】]+)】/)[1] : '') || '其他');
-    if (bug.includes('·')) bug = bug.split('·')[1] || bug;
+    var m = desc.match(/【([^】]+)】/);
+    var inner = m ? m[1] : '';
+    var bug = '';
+    if (inner.includes('·')) {
+      var parts = inner.split('·');
+      bug = parts[parts.length - 1] || '';
+    } else {
+      bug = inner;
+    }
     bug = bug.replace(/^FFR[:：]?\s*/i, '').trim();
-    // 过滤条线名
-    var isLine = BUG_EXCLUDE.some(function(l) { return bug === l || bug.indexOf(l) === 0; });
-    if (isLine) bug = '其他';
-    if (!bug) bug = '其他';
+    var isLine = BUG_EXCLUDE.some(function(l) { return bug === l || (bug.length > 2 && bug.indexOf(l) === 0); });
+    if (!bug || isLine) bug = '其他';
     if (bug.length > 14) bug = bug.substring(0, 14);
     instrumentBugType[bug] = (instrumentBugType[bug] || 0) + 1;
   });
