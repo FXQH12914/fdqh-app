@@ -228,6 +228,7 @@ tr.clickable { cursor: pointer; }
 .module-tab.supply.active { background: linear-gradient(135deg, #F59E0B, #F97316); }
 .module-tab.mfg.active { background: linear-gradient(135deg, #3B82F6, #06B6D4); }
 .module-tab.qms.active { background: linear-gradient(135deg, #10B981, #34D399); }
+.module-tab.pms.active { background: linear-gradient(135deg, #EC4899, #F472B6); }
 
 /* Summary cards */
 .module-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
