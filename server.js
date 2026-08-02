@@ -177,7 +177,7 @@ app.post('/api/events', requireAuth, asyncHandler(async (req, res) => {
   if (!VALID_EVENT_TYPES.includes(req.body.event_type)) return res.status(400).json({ error: '无效的事件类型' });
   if (!VALID_RISK_LEVELS.includes(req.body.risk_level)) return res.status(400).json({ error: '无效的风险等级' });
 
-  var data = whitelistFields(req.body, ['event_type', 'risk_level', 'product_id', 'product_name', 'batch_no', 'description']);
+  var data = whitelistFields(req.body, ['event_type', 'risk_level', 'product_id', 'product_name', 'batch_no', 'description', 'complaint_source', 'complaint_month', 'complaint_date', 'complaint_process_id', 'complaint_cause', 'complaint_repeat', 'imported', 'created_at']);
   data.reported_by = req.user.username;
   data.status = 'Open';
 
