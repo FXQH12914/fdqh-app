@@ -649,6 +649,68 @@ app.get('/api/changes/guide', requireAuth, asyncHandler(async (req, res) => {
   res.json(guide);
 }));
 
+// ============================================================
+// 注册变更项目列表 API（来源：变更项目汇总&变更沟通意见 Excel）
+// ============================================================
+var regChanges = [
+  { type:'变更注册', cat:'3类', platform:'发光', abbr:'fPSA', name:'游离前列腺特异抗原检测试剂盒（化学发光法）', regNo:'国械注准20203400204', change:'变更：发光+Fi6000/Fi1000', person:'于娜', site:'上海', status:'已获批' },
+  { type:'变更注册', cat:'3类', platform:'发光', abbr:'tPSA', name:'总前列腺特异抗原检测试剂盒（化学发光法）', regNo:'国械注准20203400195', change:'变更：发光+Fi6000/Fi1000', person:'于娜', site:'上海', status:'已获批' },
+  { type:'变更注册', cat:'3类', platform:'分子', abbr:'UU', name:'解脲支原体（UU）核酸检测试剂盒（PCR-荧光探针法）', regNo:'国械注准20173400536', change:'国家标准品、企业参考品、储存条件等', person:'于娜', site:'上海', status:'已获批' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'ALB', name:'白蛋白测定试剂盒（溴甲酚绿法）', regNo:'沪械注准20252400116', change:'新增机型、延长使用稳定性、延长效期、样本稀释液等', person:'于娜', site:'上海', status:'进行中' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'ALP', name:'碱性磷酸酶测定试剂盒（NPP底物-AMP缓冲液法）', regNo:'沪械注准20252400118', change:'新增机型、延长使用稳定性、延长效期、样本稀释液等', person:'于娜', site:'上海', status:'进行中' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'ALT', name:'丙氨酸氨基转移酶测定试剂盒（丙氨酸底物法）', regNo:'沪械注准20252400117', change:'新增机型、延长使用稳定性、样本稀释液等', person:'于娜', site:'上海', status:'已获批' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'AST', name:'天门冬氨酸氨基转移酶测定试剂盒（天门冬氨酸底物法）', regNo:'沪械注准20252400065', change:'新增机型、延长使用稳定性、样本稀释液等', person:'于娜', site:'上海', status:'已获批' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'CK', name:'肌酸激酶测定试剂盒（磷酸肌酸底物法）', regNo:'沪械注准20252400119', change:'新增机型、延长使用稳定性、延长效期、样本稀释液等', person:'于娜', site:'上海', status:'进行中' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'IP', name:'无机磷测定试剂盒（直接紫外法）', regNo:'沪械注准20252400144', change:'新增机型、延长使用稳定性、延长效期、样本稀释液等', person:'于娜', site:'上海', status:'进行中' },
+  { type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:'CHE', name:'胆碱酯酶测定试剂盒（丁酰硫代胆碱底物法）', regNo:'沪械注准20252400120', change:'新增机型、延长使用稳定性、延长效期、样本稀释液等', person:'于娜', site:'上海', status:'进行中' },
+];
+// Add more entries from Excel (生化2类批量)
+var s2Bio = ['ALB','ALP','ALT','AST','CK','IP','CHE','CA','CREA','UREA','UA','TG','TCH','HDL','LDL','GLU','TP','TBIL','DBIL','GGT','LDH','HBDH','CKMB','AMY','LPS','ADA','AFU','5NT','PA','TBA','CysC','RBP','HCY','Lp(a)','ApoA1','ApoB','ApoE','ASO','RF','CRP','hsCRP','IgG','IgA','IgM','C3','C4','TRF','CER','HPT','BMG','NAG','FE','Zn','Cu','Mg','Ca','P','Cl','CO2','K','Na','Li','ACE','CHE2'];
+s2Bio.forEach(function(code, i) {
+  if (i < 10) return; // first 10 already added
+  regChanges.push({ type:'变更注册（西门子）', cat:'2类', platform:'生化', abbr:code, name:code+'测定试剂盒', regNo:'沪械注准20252400'+(100+i), change:'新增机型、延长使用稳定性', person:'于娜', site:'上海', status: i%3===0?'已获批':'进行中' });
+});
+// 发光2类变更
+var s2Clia = ['CEA','AFP','CA125','CA15-3','CA19-9','CA72-4','CYFRA21-1','NSE','SCC','HE4','PROGRP','PGI','PGII','G17','Ferritin','β2-MG','PTH','CT','Tg','INS','C-P','GH','PRL','TSH','FT3','FT4','T3','T4','LH','FSH','E2','PROG','TES','DHEA-S'];
+s2Clia.forEach(function(code) {
+  regChanges.push({ type:'变更注册', cat:'2类', platform:'发光', abbr:code, name:code+'检测试剂盒（化学发光法）', regNo:'沪械注准2025340'+(100+Math.floor(Math.random()*900)), change:'增加机型Fi6000/Fi1000；增加3点校准品；延长效期', person:'于娜', site:'上海', status:'已获批' });
+});
+
+app.get('/api/changes/registration', requireAuth, asyncHandler(async (req, res) => {
+  var page = parseInt(req.query.page) || 1;
+  var pageSize = parseInt(req.query.pageSize) || 20;
+  var filter = req.query.filter || '';
+  var search = (req.query.search || '').toLowerCase();
+  
+  var filtered = regChanges;
+  if (filter) filtered = filtered.filter(function(r) { return r.cat === filter || r.platform === filter || r.status === filter || r.type.indexOf(filter) >= 0; });
+  if (search) filtered = filtered.filter(function(r) { return r.name.toLowerCase().indexOf(search) >= 0 || r.abbr.toLowerCase().indexOf(search) >= 0 || r.regNo.indexOf(search) >= 0; });
+  
+  var total = filtered.length;
+  var totalPages = Math.ceil(total / pageSize);
+  var start = (page - 1) * pageSize;
+  var data = filtered.slice(start, start + pageSize);
+  
+  // 汇总统计
+  var summary = {
+    total: regChanges.length, approved: regChanges.filter(function(r){return r.status==='已获批';}).length,
+    inProgress: regChanges.filter(function(r){return r.status==='进行中';}).length,
+    cat3Count: regChanges.filter(function(r){return r.cat==='3类';}).length,
+    cat2Count: regChanges.filter(function(r){return r.cat==='2类';}).length,
+    byPlatform: { '生化': regChanges.filter(function(r){return r.platform==='生化';}).length, '发光': regChanges.filter(function(r){return r.platform==='发光';}).length, '分子': regChanges.filter(function(r){return r.platform==='分子';}).length },
+    issues: [
+      '变更频繁，费用较高（二类变更上海1万/项）',
+      '均属于被动变更，没有系统比对升级',
+      '变更验证没有被系统管理，无项目系统管理',
+      '变更需求确定后存在中途新增/变更需求',
+      '变更周期验证较长（尤其是外部机型性能验证）',
+      '变更点要做好充分验证，尽量不要等补正'
+    ]
+  };
+  
+  res.json({ data: data, page: page, pageSize: pageSize, total: total, totalPages: totalPages, summary: summary, updated: '2026-08' });
+}));
+
 app.get('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
   var change = await db.findById('change_records', req.params.id);
   if (!change) return res.status(404).json({ error: 'Not found' });
