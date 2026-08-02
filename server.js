@@ -454,44 +454,33 @@ app.get('/api/qcp', requireAuth, asyncHandler(async (req, res) => {
   res.json(qcps);
 }));
 
+// QCP Rule Check — MUST be before /api/qcp/:id to avoid route conflict
+app.get('/api/qcp/check', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var results = [];
+  var passed = 0, failed = 0, warning = 0;
+
+  var highOpen = events.filter(function(e) { return (e.risk_level === 'High' || e.risk_level === 'Critical') && e.status !== 'Closed'; });
+  results.push({ rule: 'RULE-RM-001', name: '高风险事件关闭检查', status: highOpen.length === 0 ? 'pass' : 'fail', message: highOpen.length + ' 个高风险事件未关闭' });
+  if (highOpen.length > 0) failed++; else passed++;
+
+  var overdue = capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; });
+  results.push({ rule: 'RULE-CAPA-001', name: 'CAPA逾期检查', status: overdue.length === 0 ? 'pass' : 'fail', message: overdue.length + ' 个CAPA逾期' });
+  if (overdue.length > 0) failed++; else passed++;
+
+  var cutoff = new Date(Date.now() - 90*86400000).toISOString();
+  var recentComplaints = events.filter(function(e) { return e.event_type === 'Complaint' && e.created_at > cutoff; });
+  results.push({ rule: 'RULE-PMS-001', name: '投诉趋势监控', status: recentComplaints.length < 2 ? 'pass' : 'warning', message: '近90天投诉' + recentComplaints.length + '起' });
+  if (recentComplaints.length >= 3) failed++; else if (recentComplaints.length >= 2) warning++; else passed++;
+
+  res.json({ results: results, summary: { passed: passed, failed: failed, warning: warning, total: passed + failed + warning } });
+}));
+
 app.get('/api/qcp/:id', requireAuth, asyncHandler(async (req, res) => {
   var qcp = await db.findById('qcp_library', req.params.id);
   if (!qcp) return res.status(404).json({ error: 'Not found' });
   res.json(qcp);
-}));
-
-// QCP Rule Check — 质量规则检查引擎
-app.get('/api/qcp/check', requireAuth, asyncHandler(async (req, res) => {
-  var qcps = await db.findAll('qcp_library');
-  var events = await db.findAll('quality_events');
-  var capas = await db.findAll('capa_records');
-
-  var results = [];
-  var passed = 0, failed = 0, warning = 0;
-
-  // Rule: 高风险事件必须关闭
-  qcps.filter(function(q) { return q.domain === '风险管理'; }).forEach(function(q) {
-    var highOpen = events.filter(function(e) { return (e.risk_level === 'High' || e.risk_level === 'Critical') && e.status !== 'Closed'; });
-    results.push({ rule: q.qcp_code, name: q.name, status: highOpen.length === 0 ? 'pass' : 'fail', message: highOpen.length + ' 个高风险事件未关闭', detail: highOpen.map(function(e) { return e.id + ': ' + (e.description||'').slice(0, 40); }).join('; ') });
-    if (highOpen.length > 0) failed++; else passed++;
-  });
-
-  // Rule: CAPA逾期检查
-  qcps.filter(function(q) { return q.qcp_code === 'QCP-CHG-002'; }).forEach(function(q) {
-    var overdue = capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; });
-    results.push({ rule: 'RULE-CAPA-001', name: 'CAPA逾期检查', status: overdue.length === 0 ? 'pass' : 'fail', message: overdue.length + ' 个CAPA逾期未关闭', detail: overdue.map(function(c) { return c.id + ': ' + c.title; }).join('; ') });
-    if (overdue.length > 0) failed++; else passed++;
-  });
-
-  // Rule: Complaint趋势
-  qcps.filter(function(q) { return q.qcp_code === 'QCP-PMS-002'; }).forEach(function(q) {
-    var cutoff = new Date(Date.now() - 90*86400000).toISOString();
-    var recent = events.filter(function(e) { return e.event_type === 'Complaint' && e.created_at > cutoff; });
-    results.push({ rule: q.qcp_code, name: q.name, status: recent.length < 2 ? 'pass' : 'warning', message: '近90天投诉' + recent.length + '起' });
-    if (recent.length >= 3) { failed++; } else if (recent.length >= 2) { warning++; } else { passed++; }
-  });
-
-  res.json({ results: results, summary: { passed: passed, failed: failed, warning: warning, total: passed + failed + warning } });
 }));
 
 // ============================================================
