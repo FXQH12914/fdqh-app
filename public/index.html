@@ -38,21 +38,21 @@
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
       <!-- 质量事件 — 可展开子菜单 -->
       <div class="nav-parent" id="navEventsParent">
-        <a data-page="events" onclick="navigate('events')"><span class="icon">⚠️</span> 质量事件</a>
+        <a href="#" data-page="events" onclick="navigate('events');return false;"><span class="icon">⚠️</span> 质量事件</a>
         <span class="nav-arrow" id="navEventsArrow" onclick="toggleNavSub('events')" style="position:absolute;right:12px;top:14px;cursor:pointer;color:rgba(255,255,255,.5);font-size:10px;z-index:2;">▼</span>
         <div class="nav-sub" id="navEventsSub">
-          <a data-page="complaints" onclick="navigate('complaints')"><span class="icon">📢</span> 投诉看板</a>
-          <a data-page="capa" onclick="navigate('capa')"><span class="icon">🔧</span> CAPA 管理</a>
-          <a data-page="workshop" onclick="navigate('workshop')"><span class="icon">🏭</span> 研发生产质量一体化</a>
+          <a href="#" data-page="complaints" onclick="navigate('complaints');return false;"><span class="icon">📢</span> 投诉看板</a>
+          <a href="#" data-page="capa" onclick="navigate('capa');return false;"><span class="icon">🔧</span> CAPA 管理</a>
+          <a href="#" data-page="workshop" onclick="navigate('workshop');return false;"><span class="icon">🏭</span> 研发生产质量一体化</a>
         </div>
       </div>
-      <a data-page="plm" onclick="navigate('plm')"><span class="icon">🔗</span> 全生命周期</a>
-      <a data-page="changes" onclick="navigate('changes')"><span class="icon">🔄</span> 变更控制</a>
-      <a data-page="qcp" onclick="navigate('qcp')"><span class="icon">🎯</span> 控制点库</a>
-      <a data-page="masters" onclick="navigate('masters')"><span class="icon">📋</span> 主数据管理</a>
-      <a data-page="risks" onclick="navigate('risks')"><span class="icon">⚠️</span> 风险FMEA</a>
-      <a data-page="ai" onclick="navigate('ai')"><span class="icon">🤖</span> AI 助手</a>
-      <a data-page="audit" onclick="navigate('audit')"><span class="icon">📝</span> 审计追踪</a>
+      <a href="#" data-page="plm" onclick="navigate('plm');return false;"><span class="icon">🔗</span> 全生命周期</a>
+      <a href="#" data-page="changes" onclick="navigate('changes');return false;"><span class="icon">🔄</span> 变更控制</a>
+      <a href="#" data-page="qcp" onclick="navigate('qcp');return false;"><span class="icon">🎯</span> 控制点库</a>
+      <a href="#" data-page="masters" onclick="navigate('masters');return false;"><span class="icon">📋</span> 主数据管理</a>
+      <a href="#" data-page="risks" onclick="navigate('risks');return false;"><span class="icon">⚠️</span> 风险FMEA</a>
+      <a href="#" data-page="ai" onclick="navigate('ai');return false;"><span class="icon">🤖</span> AI 助手</a>
+      <a href="#" data-page="audit" onclick="navigate('audit');return false;"><span class="icon">📝</span> 审计追踪</a>
     </nav>
     <div class="user-info">
       <strong id="userName"></strong>
@@ -409,7 +409,7 @@
 
 </div><!-- /appLayout -->
 
-<script src="/js/app.js?v=2.13.0"></script>
+<script src="/js/app.js?v=2.13.1"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
