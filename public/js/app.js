@@ -1038,7 +1038,7 @@ function showEventsSubPage(sub) {
   var catContent = document.getElementById('eventCatContent');
   var afContent = document.getElementById('auditFindingsContent');
   var aiContent = document.getElementById('aiRiskPredictContent');
-  var eventsTable = document.querySelector('#page-events .card');
+  var eventsTable = document.getElementById('eventsTableCard');
   var btns = document.querySelectorAll('#page-events .page-header .btn-group .btn');
   
   btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
