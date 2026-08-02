@@ -174,11 +174,66 @@ tr.clickable { cursor: pointer; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* ---- Responsive sidebar ---- */
+/* ---- Responsive Enhancements ---- */
+@media (max-width: 1024px) {
+  .charts-row { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
-  .sidebar { width: 200px; }
-  .main-content { margin-left: 200px; padding: 16px; }
+  .sidebar { width: 60px; overflow: hidden; }
+  .sidebar .logo h2 { font-size: 14px; }
+  .sidebar .logo span { display: none; }
+  .sidebar nav a { padding: 12px 10px; font-size: 0; justify-content: center; }
+  .sidebar nav a .icon { font-size: 20px; margin: 0; }
+  .sidebar .user-info { display: none; }
+  .main-content { margin-left: 60px; padding: 12px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 14px; }
+  .stat-card .value { font-size: 22px; }
   .form-row { grid-template-columns: 1fr; }
   .charts-row { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .modal { width: 95%; max-width: none; max-height: 90vh; }
+  .login-box { width: 90%; max-width: 360px; padding: 32px 24px; }
+  .card-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .btn-group { flex-wrap: wrap; }
+
+  /* Table horizontal scroll */
+  .card-body.no-padding { overflow-x: auto; }
+  table { min-width: 600px; }
+
+  .detail-grid { grid-template-columns: 1fr; }
+  .btn-group .btn { font-size: 12px; padding: 5px 10px; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .login-box h1 { font-size: 20px; }
+  .page-header h2 { font-size: 18px; }
+  .chart-container { height: 220px; }
+}
+
+/* ========== TQM DASHBOARD ========== */
+.tqm-strategic { background: linear-gradient(135deg, #1A2330, #2A3A50); color: white; }
+.tqm-header { display: flex; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px; font-weight: 600; }
+.tqm-qhi-row { display: flex; align-items: center; padding: 16px 20px; gap: 24px; }
+.tqm-qhi-big { text-align: center; min-width: 120px; }
+.tqm-pillars { display: flex; flex: 1; gap: 12px; }
+.tqm-pillar { flex: 1; text-align: center; padding: 12px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+.tqm-pillar.patient { border-top: 3px solid #3B82F6; }
+.tqm-pillar.compliance { border-top: 3px solid #10B981; }
+.tqm-pillar.efficiency { border-top: 3px solid #F59E0B; }
+.pillar-icon { font-size: 22px; margin-bottom: 4px; }
+.pillar-label { font-size: 12px; opacity: 0.7; margin-bottom: 4px; }
+.pillar-score { font-size: 28px; font-weight: 700; }
+.pillar-sub { font-size: 10px; opacity: 0.5; }
+.tqm-domains { display: flex; gap: 12px; padding: 12px 20px; }
+.domain-item { flex: 1; }
+.domain-name { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.domain-score { font-size: 20px; font-weight: 700; }
+.domain-bars { height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; }
+.domain-bars span { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s; }
+@media (max-width: 768px) {
+  .tqm-qhi-row { flex-direction: column; }
+  .tqm-pillars { flex-direction: column; }
+  .tqm-domains { flex-direction: column; }
 }
