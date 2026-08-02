@@ -293,6 +293,79 @@ function switchModule(id) {
   loadQualityModules();
 }
 
+// ===== 数据导入/导出 =====
+async function exportDashboardData() {
+  var res = await fetch(API + '/dashboard/export', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.status === 401) { logout(); return; }
+  if (!res.ok) { showToast('导出失败', 'error'); return; }
+  var blob = await res.blob();
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url; a.download = 'FDQH_export_' + dateStr + '.xlsx';
+  document.body.appendChild(a); a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+  showToast('✅ 数据已导出 (Excel 多工作表)', 'success');
+}
+
+async function downloadImportTemplate() {
+  var res = await fetch(API + '/dashboard/import/template', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.status === 401) { logout(); return; }
+  if (!res.ok) { showToast('模板下载失败', 'error'); return; }
+  var blob = await res.blob();
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'FDQH_import_template.xlsx';
+  document.body.appendChild(a); a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+  showToast('📄 导入模板已下载', 'success');
+}
+
+async function importDashboardData(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var formData = new FormData();
+  formData.append('file', file);
+  var resultEl = document.getElementById('importResult');
+  if (!resultEl) return;
+
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '⏳ 正在解析并导入 <b>' + file.name + '</b> ...';
+
+  try {
+    var res = await fetch(API + '/dashboard/import', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: formData
+    });
+    if (res.status === 401) { logout(); return; }
+    var data = await res.json();
+    if (!data.success) {
+      resultEl.innerHTML = '❌ 导入失败: ' + (data.error || '未知错误');
+      showToast('导入失败', 'error');
+      return;
+    }
+    var lines = [];
+    lines.push('✅ 导入完成 — 事件 ' + data.imported.events + ' 条 | CAPA ' + data.imported.capa + ' 条 | 产品 ' + data.imported.products + ' 条');
+    if (data.errors && data.errors.length) {
+      lines.push('<div style="color:#DC2626;margin-top:6px;">⚠️ ' + data.errors.length + ' 条错误：</div>');
+      data.errors.slice(0, 8).forEach(function(err) { lines.push('<div style="color:#DC2626;font-size:12px;">• ' + err + '</div>'); });
+    }
+    if (data.details && data.details.length) {
+      lines.push('<div style="color:var(--text-muted);margin-top:6px;font-size:12px;">' + data.details.slice(0, 10).join('<br>') + '</div>');
+    }
+    resultEl.innerHTML = lines.join('');
+    showToast('📤 导入成功: ' + data.imported.events + ' 事件 / ' + data.imported.capa + ' CAPA', 'success');
+    // Refresh relevant views
+    if (document.getElementById('page-events').classList.contains('active')) loadEvents();
+    if (document.getElementById('page-capa').classList.contains('active')) loadCAPA();
+  } catch (e) {
+    resultEl.innerHTML = '❌ 导入失败: ' + e.message;
+    showToast('导入失败', 'error');
+  }
+  input.value = '';
+}
+
 function renderChart(id, type, labels, data, label, color) {
   var ctx = document.getElementById(id).getContext('2d');
   if (charts[id]) charts[id].destroy();

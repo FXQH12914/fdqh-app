@@ -7,6 +7,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const crypto = require('crypto');
+const multer = require('multer');
+const XLSX = require('xlsx');
 const app = express();
 const PORT = process.env.PORT || 3100;
 
@@ -1339,6 +1341,196 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
     updated: '2026-07',
     dataSources: ['TQM指标确认.xlsx', '质量管理保龄球图-202605.xlsx', '工厂经营会议周报7.26.xls'],
   });
+}));
+
+// ============================================================
+// DATA IMPORT / EXPORT — 数据导入导出
+// ============================================================
+// ---- Export: 导出驾驶舱数据为 Excel ----
+app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var changes = await db.findAll('change_records');
+  var products = await db.findAll('products');
+  var suppliers = await db.findAll('suppliers');
+  var qcps = await db.findAll('qcp_library');
+  var risks = await db.findAll('risk_library');
+
+  // Helper: normalize to rows
+  function toRows(arr, mapFn) { return arr.map(mapFn); }
+
+  var wb = XLSX.utils.book_new();
+
+  // Sheet 1: 质量事件
+  var eventRows = toRows(events, function(e) {
+    return {
+      '事件ID': e.id, '类型': e.event_type, '风险等级': e.risk_level,
+      '产品': e.product_name || '', '批号': e.batch_no || '',
+      '描述': (e.description || '').substring(0, 200),
+      '状态': e.status, '创建时间': e.created_at, '更新时间': e.updated_at || ''
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eventRows), '质量事件');
+
+  // Sheet 2: CAPA
+  var capaRows = toRows(capas, function(c) {
+    return {
+      'CAPA ID': c.id, '标题': c.title, '关联事件': c.event_id || '',
+      '根因': c.root_cause || '', '行动计划': (c.action_plan || '').substring(0, 200),
+      '负责人': c.assignee || '', '截止日期': c.due_date || '',
+      '状态': c.status, '有效性': c.effectiveness || '',
+      '创建时间': c.created_at
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(capaRows), 'CAPA');
+
+  // Sheet 3: 变更记录
+  var changeRows = toRows(changes, function(c) {
+    return { '变更ID': c.id, '标题': c.title, '产品': c.product_name || '', '类型': c.change_type || '', '状态': c.status || '', '创建时间': c.created_at || '' };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(changeRows), '变更记录');
+
+  // Sheet 4: 产品档案
+  var productRows = toRows(products, function(p) {
+    return {
+      '产品ID': p.id, '产品名称': p.product_name, '产品代码': p.product_code || '',
+      '批号': p.batch_no || '', 'BQI': p.bqi || '', '状态': p.lifecycle_status || p.status || '',
+      'CQA': (p.cqa_list || []).join('; '), 'CPP': (p.cpp_list || []).join('; ')
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productRows), '产品档案');
+
+  // Sheet 5: 供应商
+  var supplierRows = toRows(suppliers, function(s) {
+    return {
+      '供应商ID': s.id, '名称': s.supplier_name || s.name, '代码': s.supplier_code || '',
+      '风险等级': s.risk_level || '', '质量评分': s.quality_score || '',
+      '认证': s.certification || '', '状态': s.status || ''
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(supplierRows), '供应商');
+
+  // Sheet 6: 控制点库
+  var qcpRows = toRows(qcps, function(q) {
+    return { 'QCP编号': q.qcp_code || q.id, '模块': q.module || '', '控制点': q.control_point || q.name || '', 'CQA': q.cqa || '', 'CMA': q.cma || '', 'CPP': q.cpp || '', '方法': q.control_method || '', '负责人': q.owner || '' };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(qcpRows), '控制点库');
+
+  // Sheet 7: 风险库
+  var riskRows = toRows(risks, function(r) {
+    return { '风险ID': r.id, '名称': r.risk_name || r.name, '等级': r.risk_level || '', 'RPN': r.rpn || '', '措施': r.mitigation || r.action || '' };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(riskRows), '风险库');
+
+  var buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  var dateStr = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="FDQH_export_' + dateStr + '.xlsx"');
+  res.send(buf);
+}));
+
+// ---- Import: 上传 Excel/JSON 导入数据 ----
+var upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// 导入模板下载
+app.get('/api/dashboard/import/template', requireAuth, asyncHandler(async (req, res) => {
+  var template = [
+    { '事件ID': 'QE001', '类型': 'Deviation', '风险等级': 'Medium', '产品名称': 'CA19-9检测试剂盒', '批号': 'B2606001', '描述': '填写事件描述', '状态': 'Open' },
+    { '事件ID': 'QE002', '类型': 'Complaint', '风险等级': 'High', '产品名称': '糖类抗原19-9', '批号': 'C2509037', '描述': '客户投诉示例', '状态': 'In Investigation' },
+  ];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(template), '质量事件模板');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    { '标题': 'CAPA示例', '关联事件ID': 'QE001', '根因': '填写根本原因', '行动计划': '填写纠正预防措施', '负责人': '张三', '截止日期': '2026-08-31', '状态': 'Open' }
+  ]), 'CAPA模板');
+  var buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="FDQH_import_template.xlsx"');
+  res.send(buf);
+}));
+
+// 导入数据 (Excel/JSON)
+app.post('/api/dashboard/import', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '未上传文件' });
+
+  var file = req.file;
+  var filename = (file.originalname || '').toLowerCase();
+  var result = { imported: { events: 0, capa: 0, products: 0 }, errors: [], details: [] };
+
+  try {
+    // Parse based on file type
+    var sheets = {};
+    if (filename.endsWith('.json')) {
+      var json = JSON.parse(file.buffer.toString('utf-8'));
+      if (Array.isArray(json)) sheets['质量事件'] = json;
+      else for (var key in json) if (Array.isArray(json[key])) sheets[key] = json[key];
+    } else {
+      var wb = XLSX.read(file.buffer, { type: 'buffer' });
+      wb.SheetNames.forEach(function(sn) {
+        sheets[sn] = XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval: '' });
+      });
+    }
+
+    // Import quality events
+    var eventData = sheets['质量事件'] || sheets['质量事件模板'] || [];
+    if (eventData.length) {
+      for (var i = 0; i < eventData.length; i++) {
+        var row = eventData[i];
+        if (!row['类型'] && !row['event_type']) continue;
+        try {
+          var eventType = row['类型'] || row.event_type;
+          if (!VALID_EVENT_TYPES.includes(eventType)) { result.errors.push('行' + (i+1) + ': 无效事件类型 ' + eventType); continue; }
+          var payload = {
+            event_type: eventType,
+            risk_level: row['风险等级'] || row.risk_level || 'Medium',
+            product_id: row['产品ID'] || row.product_id || '',
+            product_name: row['产品名称'] || row.product_name || '',
+            batch_no: row['批号'] || row.batch_no || '',
+            description: row['描述'] || row.description || '',
+            status: row['状态'] || row.status || 'Open',
+            created_at: row['创建时间'] || row.created_at || new Date().toISOString(),
+            imported: true
+          };
+          if (!VALID_RISK_LEVELS.includes(payload.risk_level)) { result.errors.push('行' + (i+1) + ': 无效风险等级 ' + payload.risk_level); continue; }
+          var saved = await db.insert('quality_events', payload, req.user.username);
+          result.imported.events++;
+          result.details.push('导入事件: ' + (saved.id || '') + ' ' + eventType);
+        } catch (e) {
+          result.errors.push('行' + (i+1) + ': ' + e.message);
+        }
+      }
+    }
+
+    // Import CAPA
+    var capaData = sheets['CAPA'] || sheets['CAPA模板'] || [];
+    if (capaData.length) {
+      for (var j = 0; j < capaData.length; j++) {
+        var crow = capaData[j];
+        if (!crow['标题'] && !crow.title) continue;
+        try {
+          var capaPayload = {
+            title: crow['标题'] || crow.title,
+            event_id: crow['关联事件ID'] || crow.event_id || '',
+            root_cause: crow['根因'] || crow.root_cause || '',
+            action_plan: crow['行动计划'] || crow.action_plan || '',
+            assignee: crow['负责人'] || crow.assignee || '',
+            due_date: crow['截止日期'] || crow.due_date || '',
+            status: crow['状态'] || crow.status || 'Open',
+            imported: true
+          };
+          await db.insert('capa_records', capaPayload, req.user.username);
+          result.imported.capa++;
+          result.details.push('导入CAPA: ' + capaPayload.title.substring(0, 40));
+        } catch (e) {
+          result.errors.push('CAPA行' + (j+1) + ': ' + e.message);
+        }
+      }
+    }
+
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: '解析文件失败: ' + e.message });
+  }
 }));
 
 

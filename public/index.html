@@ -32,7 +32,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <h2>🩺 FDQH</h2>
-      <span>FosunDx Quality Hub v2.2</span>
+      <span>FosunDx Quality Hub v2.3</span>
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
@@ -57,7 +57,27 @@
 
     <!-- ============ DASHBOARD PAGE ============ -->
     <div id="page-dashboard" class="page active">
-      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 三类指标 · 四域监控 · 实时预警</p></div>
+      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 三类指标 · 五维质量看板 · 实时预警</p></div>
+
+      <!-- ===== 数据导入导出工具条 ===== -->
+      <div class="card data-toolbar" style="margin-bottom:20px;">
+        <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 20px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">📁</span>
+            <strong>数据管理</strong>
+            <span style="color:var(--text-secondary);font-size:13px;">导出看板数据 / 批量导入质量事件与CAPA</span>
+          </div>
+          <div class="btn-group" style="flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="exportDashboardData()">📥 导出数据</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadImportTemplate()">📄 下载模板</button>
+            <label class="btn btn-accent btn-sm" style="cursor:pointer;margin:0;">
+              📤 导入数据
+              <input type="file" id="importFileInput" accept=".xlsx,.xls,.json" style="display:none;" onchange="importDashboardData(this)">
+            </label>
+          </div>
+        </div>
+        <div id="importResult" style="display:none;padding:10px 20px;border-top:1px solid var(--border);font-size:13px;"></div>
+      </div>
 
       <!-- ===== TQM STRATEGIC 战略层 ===== -->
       <div class="tqm-strategic">
