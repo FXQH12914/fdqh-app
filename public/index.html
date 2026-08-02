@@ -66,7 +66,15 @@
 
     <!-- ============ DASHBOARD PAGE ============ -->
     <div id="page-dashboard" class="page active">
-      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 三类指标 · 五维质量看板 · 实时预警</p></div>
+      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 六大Q-KPI · 产品风险矩阵 · AI预警 — 基于化学发光Quality Cockpit设计</p>
+      <div class="btn-group" style="margin-top:8px;">
+        <button class="btn btn-sm btn-primary" onclick="switchCockpitTab('overview')" id="ctOverview">🏠 总览</button>
+        <button class="btn btn-sm btn-outline" onclick="switchCockpitTab('qkpi')" id="ctQkpi">📊 Q-KPI</button>
+        <button class="btn btn-sm btn-outline" onclick="switchCockpitTab('risk')" id="ctRisk">🎯 风险矩阵</button>
+        <button class="btn btn-sm btn-outline" onclick="switchCockpitTab('alerts')" id="ctAlerts">🚨 AI预警</button>
+      </div>
+      </div>
+      <div id="cockpitContent"></div>
 
       <!-- ===== 数据导入导出工具条 ===== -->
       <div class="card data-toolbar" style="margin-bottom:20px;">
@@ -396,7 +404,7 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.11.0"></script>
+<script src="/js/app.js?v=2.12.0"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
