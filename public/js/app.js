@@ -401,6 +401,18 @@ async function loadComplaintsDashboard() {
     }).join('') + '</tbody></table></div></div>' +
     '</div>';
 
+  // === Charts Row 3: 试剂分析 (环状图 + 帕累托) ===
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>🧪 试剂问题分类 Top10</h3><span style="font-size:11px;">环状图 · 试剂投诉原因分布</span></div><div class="card-body"><div class="chart-container"><canvas id="compReagentCause"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🔧 仪器问题类型帕累托</h3><span style="font-size:11px;">bug清单 · 柱状+累积%</span></div><div class="card-body"><div class="chart-container"><canvas id="compPareto"></canvas></div></div></div>' +
+    '</div>';
+
+  // === Charts Row 4: 条线设计缺陷占比 + 试剂Top10 ===
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>📊 各条线设计缺陷占比</h3><span style="font-size:11px;">生化 · 化学发光 · 分子 · POCT · 药敏</span></div><div class="card-body"><div class="chart-container"><canvas id="compLineDesign"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🏅 反馈试剂 Top10</h3><span style="font-size:11px;">试剂产品投诉排行</span></div><div class="card-body"><div class="chart-container"><canvas id="compReagentTop"></canvas></div></div></div>' +
+    '</div>';
+
   // === Filters ===
   html += '<div class="card" style="margin-bottom:16px;"><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 16px;">' +
     '<select onchange="complaintFilter.source=this.value;complaintFilter.page=1;loadComplaintsDashboard();" style="padding:8px;border:1px solid var(--border);border-radius:6px;">' +
@@ -448,6 +460,87 @@ async function loadComplaintsDashboard() {
     var causeLabels = Object.keys(causeData);
     var causeValues = Object.keys(causeData).map(function(c) { return causeData[c]; });
     renderChart('compCauseChart', 'bar', causeLabels, causeValues, '件数', '#F59E0B');
+
+    // === 4 new charts ===
+    // 1. 试剂问题分类Top10 环状图
+    var rcData = data.reagentCauseTop10 || [];
+    if (rcData.length && document.getElementById('compReagentCause')) {
+      var rcColors = ['#EF4444','#F59E0B','#3B82F6','#10B981','#8B5CF6','#EC4899','#06B6D4','#F97316','#6366F1','#14B8A6'];
+      var ctx1 = document.getElementById('compReagentCause').getContext('2d');
+      if (charts['compReagentCause']) charts['compReagentCause'].destroy();
+      charts['compReagentCause'] = new Chart(ctx1, {
+        type: 'doughnut',
+        data: { labels: rcData.map(function(x) { return x.name + ' (' + x.count + ')'; }), datasets: [{ data: rcData.map(function(x) { return x.count; }), backgroundColor: rcColors.slice(0, rcData.length), borderWidth: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }, animation: { duration: 600 } }
+      });
+    }
+
+    // 2. 仪器问题类型帕累托 (bar + cumulative line)
+    var pareto = data.instrumentPareto || [];
+    if (pareto.length && document.getElementById('compPareto')) {
+      var ctx2 = document.getElementById('compPareto').getContext('2d');
+      if (charts['compPareto']) charts['compPareto'].destroy();
+      charts['compPareto'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: pareto.map(function(x) { return x.name; }),
+          datasets: [
+            { label: '问题数', data: pareto.map(function(x) { return x.count; }), backgroundColor: '#3B82F6', borderRadius: 3 },
+            { label: '累积%', type: 'line', data: pareto.map(function(x) { return x.cumPct; }), borderColor: '#EF4444', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, title: { display: true, text: '问题数' } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '累积%' } } },
+          plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } }, animation: { duration: 600 }
+        }
+      });
+    }
+
+    // 3. 各条线设计缺陷占比柱状图
+    var lineDesign = data.reagentLineDesign || [];
+    if (lineDesign.length && document.getElementById('compLineDesign')) {
+      var ctx3 = document.getElementById('compLineDesign').getContext('2d');
+      if (charts['compLineDesign']) charts['compLineDesign'].destroy();
+      charts['compLineDesign'] = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: lineDesign.map(function(x) { return x.name; }),
+          datasets: [{
+            label: '设计缺陷占比%',
+            data: lineDesign.map(function(x) { return x.pct; }),
+            backgroundColor: lineDesign.map(function(x) { return x.pct >= 50 ? '#EF4444' : x.pct >= 25 ? '#F59E0B' : '#10B981'; }),
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '设计缺陷占比%' } } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: function(c) { var d = lineDesign[c.dataIndex]; return '设计缺陷 ' + d.design + '/' + d.total + ' 件'; } } } },
+          animation: { duration: 600 }
+        }
+      });
+    }
+
+    // 4. 反馈试剂Top10
+    var rtData = data.reagentTop10 || [];
+    if (rtData.length && document.getElementById('compReagentTop')) {
+      var ctx4 = document.getElementById('compReagentTop').getContext('2d');
+      if (charts['compReagentTop']) charts['compReagentTop'].destroy();
+      charts['compReagentTop'] = new Chart(ctx4, {
+        type: 'bar',
+        data: {
+          labels: rtData.map(function(x) { return (x.name || '').substring(0, 14); }),
+          datasets: [{ label: '投诉数', data: rtData.map(function(x) { return x.count; }), backgroundColor: '#EC4899', borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          scales: { x: { beginAtZero: true } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { title: function(c) { return rtData[c[0].dataIndex].name; } } } },
+          animation: { duration: 600 }
+        }
+      });
+    }
   }, 200);
 }
 

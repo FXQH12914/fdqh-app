@@ -1465,6 +1465,78 @@ app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) 
   var topCategories = Object.keys(byCategory).map(function(k) { return { name: k, count: byCategory[k] }; })
     .sort(function(a, b) { return b.count - a.count; }).slice(0, 12);
 
+  // ======================================================
+  // === 新增4个分析图表数据集 ===
+  // ======================================================
+
+  // === 试剂投诉 (来源含"试剂") ===
+  var reagentComplaints = complaints.filter(function(c) { return (c.complaint_source || '').includes('试剂'); });
+
+  // 1. 试剂问题分类 Top10 (环状图)
+  var reagentCauseTop10 = {};
+  reagentComplaints.forEach(function(c) {
+    var cause = c.complaint_cause || '未分类';
+    if (cause.includes('设计问题（小批量') || cause.includes('设计')) cause = '设计问题';
+    else if (cause.includes('物料')) cause = '物料问题';
+    else if (cause.includes('工艺')) cause = '工艺问题';
+    else if (cause.includes('生产')) cause = '生产问题';
+    else if (cause.includes('非质量')) cause = '非质量问题';
+    else if (cause.includes('其他')) cause = '其他问题';
+    reagentCauseTop10[cause] = (reagentCauseTop10[cause] || 0) + 1;
+  });
+  var reagentCauseList = Object.keys(reagentCauseTop10).map(function(k) { return { name: k, count: reagentCauseTop10[k] }; })
+    .sort(function(a, b) { return b.count - a.count; }).slice(0, 10);
+
+  // 2. 仪器问题类型帕累托 (bug清单)
+  var instrumentComplaints = complaints.filter(function(c) { return !(c.complaint_source || '').includes('试剂'); });
+  var instrumentBugType = {};
+  instrumentComplaints.forEach(function(c) {
+    var desc = c.description || '';
+    var m = desc.match(/【[^】]*·([^】]+)】/);
+    var bug = m ? m[1] : ((desc.match(/【([^】]+)】/) ? desc.match(/【([^】]+)】/)[1] : '') || '其他');
+    if (bug.includes('·')) bug = bug.split('·')[1] || bug;
+    if (bug.length > 12) bug = bug.substring(0, 12);
+    instrumentBugType[bug] = (instrumentBugType[bug] || 0) + 1;
+  });
+  var instrumentPareto = Object.keys(instrumentBugType).map(function(k) { return { name: k, count: instrumentBugType[k] }; })
+    .sort(function(a, b) { return b.count - a.count; }).slice(0, 10);
+  // 计算累积百分比
+  var paretoTotal = instrumentPareto.reduce(function(s, x) { return s + x.count; }, 0);
+  var cum = 0;
+  instrumentPareto.forEach(function(x) { cum += x.count; x.cumPct = paretoTotal ? Math.round(cum / paretoTotal * 100) : 0; });
+
+  // 3. 各试剂条线设计缺陷占比 (生化/化学发光/分子/POCT/药敏)
+  var LINES = [
+    { key: '生化', name: '生化' },
+    { key: '发光', name: '化学发光' },
+    { key: '荧光PCR', name: '分子' },
+    { key: 'POCT', name: 'POCT' },
+    { key: '药敏', name: '药敏' },
+  ];
+  var reagentLineDesign = LINES.map(function(line) {
+    var items = reagentComplaints.filter(function(c) {
+      return (c.description || '').includes('【' + line.key + '】');
+    });
+    var design = items.filter(function(c) {
+      var cause = c.complaint_cause || (c.description || '');
+      return cause.includes('设计');
+    });
+    return {
+      name: line.name, key: line.key,
+      total: items.length, design: design.length,
+      pct: items.length ? Math.round(design.length / items.length * 100) : 0,
+    };
+  });
+
+  // 4. 反馈试剂 Top10
+  var reagentByProduct = {};
+  reagentComplaints.forEach(function(c) {
+    var p = c.product_name || '未知';
+    reagentByProduct[p] = (reagentByProduct[p] || 0) + 1;
+  });
+  var reagentTop10 = Object.keys(reagentByProduct).map(function(p) { return { name: p, count: reagentByProduct[p] }; })
+    .sort(function(a, b) { return b.count - a.count; }).slice(0, 10);
+
   // === 明细 (分页) ===
   var page = parseInt(req.query.page) || 1;
   var limit = parseInt(req.query.limit) || 20;
@@ -1489,6 +1561,10 @@ app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) 
     byCause: byCause,
     topProducts: topProducts,
     topCategories: topCategories,
+    reagentCauseTop10: reagentCauseList,
+    instrumentPareto: instrumentPareto,
+    reagentLineDesign: reagentLineDesign,
+    reagentTop10: reagentTop10,
     list: { data: paged, total: filtered.length, page: page, limit: limit },
   });
 }));
