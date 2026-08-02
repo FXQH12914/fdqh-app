@@ -51,6 +51,7 @@
       <strong id="userName"></strong>
       <span id="userDept"></span>
       <button onclick="logout()">退出登录</button>
+      <a onclick="openPasswordModal()" style="font-size:11px;color:var(--text-muted);cursor:pointer;margin-top:4px;display:inline-block;">🔑 修改密码</a>
     </div>
   </aside>
 
@@ -360,7 +361,23 @@
   </div>
 </div>
 
-<script src="/js/app.js?v=2.9.0"></script>
+<!-- PASSWORD MODAL -->
+<div id="passwordModal" class="modal">
+  <div class="modal-content" style="max-width:420px;">
+    <div class="modal-header"><h3>🔑 修改密码</h3><button class="btn-close" onclick="closeModal('passwordModal')">×</button></div>
+    <div class="modal-body">
+      <form onsubmit="changePassword();return false;">
+        <div class="form-group"><label>旧密码</label><input type="password" id="oldPassword" placeholder="请输入当前密码" required></div>
+        <div class="form-group"><label>新密码</label><input type="password" id="newPassword" placeholder="至少6位" minlength="6" required></div>
+        <div class="form-group"><label>确认新密码</label><input type="password" id="confirmPassword" placeholder="再次输入新密码" minlength="6" required></div>
+        <div id="pwdMsg" style="font-size:12px;margin-top:8px;"></div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('passwordModal')">取消</button><button class="btn btn-accent" onclick="changePassword()">确认修改</button></div>
+  </div>
+</div>
+
+<script src="/js/app.js?v=2.9.1"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
