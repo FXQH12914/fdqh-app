@@ -143,7 +143,7 @@ function navigate(page) {
     document.getElementById('navEventsArrow').textContent = '▼';
   }
   // Auto-expand PLM sub-menu
-  var plmSubs = ['qcp'];
+  var plmSubs = ['qcp', 'masters'];
   if (plmSubs.indexOf(page) >= 0) {
     document.getElementById('navPlmParent').classList.add('expanded');
     document.getElementById('navPlmArrow').textContent = '▼';
