@@ -128,29 +128,55 @@ async function loadDashboard() {
     '<div class="stat-card"><div class="label">变更申请</div><div class="value">' + stats.totalChanges + '</div><div class="sub">待审批 ' + stats.pendingChanges + '</div></div>' +
     '<div class="stat-card"><div class="label">已关闭事件</div><div class="value">' + stats.closedEvents + '</div><div class="sub">闭环率 ' + (stats.totalEvents ? Math.round(stats.closedEvents/stats.totalEvents*100) : 0) + '%</div></div>';
 
-  // QHI — Quality Health Index
+  // ========== TQM 三层驾驶舱 ==========
   var qhi = await apiGet('/dashboard/qhi');
-  if (qhi) {
+  if (qhi && qhi.tqm) {
     var lc = qhi.level === 'green' ? '#10B981' : qhi.level === 'yellow' ? '#F59E0B' : '#EF4444';
-    var qhiHtml = '<div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#1A2330,#2A3A50);color:white;"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;padding:18px 26px;">' +
-      '<div><div style="font-size:12px;opacity:0.6;">Quality Health Index</div><div style="font-size:44px;font-weight:700;color:' + lc + ';">' + qhi.qhi + '</div><div style="font-size:11px;opacity:0.5;">' + (qhi.trend==='up'?'↑':'→') + ' 客户' + qhi.breakdown.customer.score + ' 生产' + qhi.breakdown.production.score + ' 供应' + qhi.breakdown.supply.score + ' 体系' + qhi.breakdown.compliance.score + '</div></div>' +
-      '<div style="text-align:right;font-size:12px;opacity:0.5;">改善' + qhi.breakdown.improvement.score + '<br>效率' + qhi.breakdown.efficiency.score + '</div></div></div>';
-    var statsGrid = document.getElementById('statsGrid');
-    if (statsGrid && !document.getElementById('qhiCard')) { var d = document.createElement('div'); d.id = 'qhiCard'; d.innerHTML = qhiHtml; statsGrid.parentNode.insertBefore(d, statsGrid); }
-  }
+    var t = qhi.tqm;
 
-  // Traffic Light Alerts
-  var alertData = await apiGet('/dashboard/alerts');
-  if (alertData && alertData.alerts && alertData.alerts.length > 0) {
-    var rows = alertData.alerts.map(function(a) {
-      var b = a.level==='red'?'danger':a.level==='yellow'?'warning':'success';
-      return '<tr><td><span class="badge badge-' + b + '">' + (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🟢') + '</span></td><td style="font-size:13px;">' + a.message + '</td></tr>';
-    }).join('');
-    var alertHtml = '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🚦 质量预警</h3><span style="font-size:12px;">红' + (alertData.redCount||0) + ' 黄' + (alertData.yellowCount||0) + '</span></div><div class="card-body no-padding"><table>' + rows + '</table></div></div>';
-    var ex = document.getElementById('alertCard'); if (ex) ex.remove();
-    var ad = document.createElement('div'); ad.id = 'alertCard'; ad.innerHTML = alertHtml;
-    var q = document.getElementById('qhiCard'); var s = document.getElementById('statsGrid');
-    if (q) { q.after(ad); } else if (s) { s.parentNode.insertBefore(ad, s); }
+    // === 战略层: QHI + TQM三维 ===
+    var qhiHtml = '<div class="card tqm-strategic" style="margin-bottom:16px;">' +
+      '<div class="tqm-header"><span>TQM 战略驾驶舱</span><span style="font-size:11px;">Quality Health Index · 企业质量健康指数</span></div>' +
+      '<div class="tqm-qhi-row">' +
+      '<div class="tqm-qhi-big"><div style="font-size:11px;opacity:0.5;">QHI</div><div style="font-size:52px;font-weight:700;color:' + lc + ';">' + qhi.qhi + '</div><div style="font-size:11px;">' + (qhi.level === 'green' ? '🟢 健康' : qhi.level === 'yellow' ? '🟡 关注' : '🔴 预警') + '</div></div>' +
+      '<div class="tqm-pillars">' +
+      '<div class="tqm-pillar patient"><div class="pillar-icon">🏥</div><div class="pillar-label">患者结果</div><div class="pillar-score" style="color:#3B82F6;">' + t.patient.score + '</div><div class="pillar-sub">投诉' + t.patient.detail.complaints + '% 批合格' + t.patient.detail.batch + '%</div></div>' +
+      '<div class="tqm-pillar compliance"><div class="pillar-icon">📋</div><div class="pillar-label">合规质量</div><div class="pillar-score" style="color:#10B981;">' + t.compliance.score + '</div><div class="pillar-sub">CAPA关闭' + t.compliance.detail.capa + '% 审计' + t.compliance.detail.audit + '%</div></div>' +
+      '<div class="tqm-pillar efficiency"><div class="pillar-icon">⚡</div><div class="pillar-label">经营效率</div><div class="pillar-score" style="color:#F59E0B;">' + t.efficiency.score + '</div><div class="pillar-sub">偏差率' + t.efficiency.detail.deviation + '% 供应' + t.efficiency.detail.supply + '%</div></div>' +
+      '</div></div></div>';
+
+    // === 策略层: 四域指标 ===
+    var d = qhi.domains || {};
+    var domainRow = '<div class="card" style="margin-bottom:16px;">' +
+      '<div class="card-header"><h3>🎯 四域质量指标 · 策略层</h3><span style="font-size:11px;">研发 · 供应链 · 生产 · 上市后</span></div>' +
+      '<div class="tqm-domains">' +
+      '<div class="domain-item"><div class="domain-name">🔬 ' + (d.rd||{}).name + '</div><div class="domain-score" style="color:#3B82F6;">' + ((d.rd||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.rd||{}).designReview||0) + '%"></span></div></div>' +
+      '<div class="domain-item"><div class="domain-name">📦 ' + (d.supply||{}).name + '</div><div class="domain-score" style="color:#10B981;">' + ((d.supply||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.supply||{}).score||0) + '%"></span></div></div>' +
+      '<div class="domain-item"><div class="domain-name">🏭 ' + (d.mfg||{}).name + '</div><div class="domain-score" style="color:#F59E0B;">' + ((d.mfg||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.mfg||{}).score||0) + '%"></span></div></div>' +
+      '<div class="domain-item"><div class="domain-name">🌐 ' + (d.pms||{}).name + '</div><div class="domain-score" style="color:#8B5CF6;">' + ((d.pms||{}).score||'-') + '</div><div class="domain-bars"><span style="width:' + ((d.pms||{}).score||0) + '%"></span></div></div>' +
+      '</div></div>';
+
+    // === 执行层: 预警 + 待办 ===
+    var alertData = await apiGet('/dashboard/alerts');
+    var alertRows = '';
+    if (alertData && alertData.alerts) {
+      alertRows = alertData.alerts.map(function(a) {
+        var b = a.level==='red'?'danger':a.level==='yellow'?'warning':'success';
+        return '<tr><td><span class="badge badge-' + b + '">' + (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🟢') + '</span></td><td style="font-size:12px;">' + a.message + '</td></tr>';
+      }).join('');
+    }
+    var execHtml = '<div class="card"><div class="card-header"><h3>📋 执行层 · 实时预警与待办</h3></div>' +
+      '<div class="card-body no-padding"><table>' + (alertRows || '<tr><td><div class="empty-state">✅ 所有指标正常</div></td></tr>') + '</table></div></div>';
+
+    // 清理旧元素并插入 TQM 布局
+    var oldQhi = document.getElementById('qhiCard'); if (oldQhi) oldQhi.remove();
+    var oldAlert = document.getElementById('alertCard'); if (oldAlert) oldAlert.remove();
+    var target = document.getElementById('statsGrid');
+    if (target) {
+      var container = document.createElement('div');
+      container.innerHTML = qhiHtml + domainRow + execHtml;
+      target.parentNode.insertBefore(container, target);
+    }
   }
 
   // AI prediction button
