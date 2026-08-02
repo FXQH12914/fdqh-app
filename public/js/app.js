@@ -91,7 +91,7 @@ function navigate(page) {
 
   switch(page) {
     case 'dashboard': loadDashboard(); break;
-    case 'events': loadEvents(); break;
+    case 'events': showEventsSubPage('categories'); loadEvents(); break;
     case 'capa': loadCAPA(); break;
     case 'changes': loadChanges(); break;
     case 'masters': loadMasters(); break;
@@ -888,6 +888,153 @@ async function loadEventCategories() {
 function switchEventCat(id) {
   activeEventCat = id;
   loadEventCategories();
+}
+
+// ===== 体系产品风险检查 (Audit Findings) =====
+var auditFindingsActive = false;
+
+function showEventsSubPage(sub) {
+  var catTabs = document.getElementById('eventCatTabs');
+  var catContent = document.getElementById('eventCatContent');
+  var afContent = document.getElementById('auditFindingsContent');
+  var eventsTable = document.querySelector('#page-events .card');
+  var btns = document.querySelectorAll('#page-events .page-header .btn-group .btn');
+  
+  btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
+  
+  if (sub === 'auditFindings') {
+    auditFindingsActive = true;
+    if (btns[1]) { btns[1].classList.remove('btn-outline'); btns[1].classList.add('btn-primary'); }
+    if (catTabs) catTabs.style.display = 'none';
+    if (catContent) catContent.style.display = 'none';
+    if (afContent) afContent.style.display = 'block';
+    if (eventsTable) eventsTable.style.display = 'none';
+    loadAuditFindings();
+  } else {
+    auditFindingsActive = false;
+    if (btns[0]) { btns[0].classList.remove('btn-outline'); btns[0].classList.add('btn-primary'); }
+    if (catTabs) catTabs.style.display = '';
+    if (catContent) catContent.style.display = '';
+    if (afContent) afContent.style.display = 'none';
+    if (eventsTable) eventsTable.style.display = '';
+    loadEventCategories();
+  }
+}
+
+async function loadAuditFindings() {
+  var data = await apiGet('/audit-findings');
+  if (!data) return;
+  var s = data.summary;
+  var items = data.items || [];
+  
+  var html = '';
+  
+  // === Summary KPI Cards ===
+  html += '<div class="module-summary" style="margin-bottom:16px;">' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.total + '</div><div class="ms-label">📋 总项目数</div><div class="ms-target">体系' + s.systemCount + ' + 产品' + s.productCount + '</div></div>' +
+    '<div class="module-summary-card ms-fail"><div class="ms-value">' + s.keyItems + '</div><div class="ms-label">🔴 关键项目 ***</div><div class="ms-target">可能致产品安全风险</div></div>' +
+    '<div class="module-summary-card ms-warn"><div class="ms-value">' + s.majorItems + '</div><div class="ms-label">🟡 主要项目 **</div><div class="ms-target">多项叠加可能导致风险</div></div>' +
+    '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.generalItems + '</div><div class="ms-label">🟢 一般项目 *</div><div class="ms-target">有影响但程度较轻</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.auditFindings + '</div><div class="ms-label">📋 内外审发现</div><div class="ms-target">Audit-Finding</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + s.dailyFindings + '</div><div class="ms-label">🔍 日常发现</div><div class="ms-target">NCR</div></div>' +
+    '</div>';
+  
+  // === 判定结论 ===
+  var conclusionColor = s.conclusion.indexOf('暂停') >= 0 ? '#DC2626' : s.conclusion.indexOf('限期') >= 0 ? '#D97706' : '#059669';
+  html += '<div style="background:' + conclusionColor + '10;border:1px solid ' + conclusionColor + '30;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">' +
+    '<span style="font-size:20px;">⚖️</span>' +
+    '<div><b style="color:' + conclusionColor + ';">检查结论判定: ' + s.conclusion + '</b>' +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">依据《医疗器械生产质量管理规范检查指导原则》附2/附3判定表</div></div>' +
+    '</div>';
+  
+  // === Seed Button ===
+  html += '<div style="margin-bottom:16px;display:flex;gap:8px;align-items:center;">' +
+    '<button class="btn btn-accent btn-sm" onclick="seedAuditFindings()" id="seedAFBtn">📤 一键导入事件库</button>' +
+    '<span style="font-size:11px;color:var(--text-muted);">将以上项目作为质量事件（内外审发现/日常发现）写入事件库</span>' +
+    '<span id="seedAFResult" style="font-size:12px;"></span>' +
+    '</div>';
+  
+  // === Filter Tabs ===
+  html += '<div class="btn-group" style="margin-bottom:12px;">' +
+    '<button class="btn btn-sm btn-primary" onclick="filterAuditFindings(\'all\')" id="afAll">全部 (' + s.total + ')</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'***\')" id="afKey">关键项目 *** (' + s.keyItems + ')</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'**\')" id="afMajor">主要项目 ** (' + s.majorItems + ')</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'*\')" id="afGeneral">一般项目 * (' + s.generalItems + ')</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'体系风险\')" id="afSys">体系风险 (' + s.systemCount + ')</button>' +
+    '<button class="btn btn-sm btn-outline" onclick="filterAuditFindings(\'产品风险\')" id="afProd">产品风险 (' + s.productCount + ')</button>' +
+    '</div>';
+  
+  // === Table ===
+  html += '<div class="card"><div class="card-header"><h3>📋 体系/产品风险清单 — 对照检查指导原则分类</h3><span style="font-size:11px;">来源: 20260724 体系、产品风险清单汇总 × 医疗器械生产质量管理规范检查指导原则（征求意见稿）</span></div>' +
+    '<div class="card-body no-padding" style="overflow-x:auto;">' +
+    '<table class="data-table" style="min-width:1100px;" id="afTable">' +
+    '<thead><tr>' +
+    '<th>序号</th><th>类别</th><th>风险描述</th><th>规范条款</th><th>风险分级</th><th>项目分类</th><th>发现类型</th><th>风险等级</th><th>目前方案</th>' +
+    '</tr></thead><tbody>';
+  
+  items.forEach(function(item) {
+    var riskClassColor = item.risk_class === '***' ? '#DC2626' : item.risk_class === '**' ? '#D97706' : '#059669';
+    var riskClassBg = item.risk_class === '***' ? '#FEE2E2' : item.risk_class === '**' ? '#FEF3C7' : '#D1FAE5';
+    var eventTypeLabel = item.event_type === 'Audit-Finding' ? '📋 内外审发现' : '🔍 日常发现';
+    var eventTypeColor = item.event_type === 'Audit-Finding' ? '#6366F1' : '#10B981';
+    var riskBadge = getRiskBadge(item.risk_level);
+    
+    html += '<tr class="af-row" data-risk-class="' + item.risk_class + '" data-category="' + item.category + '">' +
+      '<td>' + item.seq + '</td>' +
+      '<td><span style="font-size:11px;color:var(--text-muted);">' + item.category + '</span></td>' +
+      '<td style="max-width:300px;font-size:12px;">' + item.risk_desc + '</td>' +
+      '<td><span style="font-weight:600;color:' + riskClassColor + ';">' + item.clause_ref + '</span><br><span style="font-size:10px;color:var(--text-muted);">' + (item.clause_content || '') + '</span></td>' +
+      '<td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:700;font-size:13px;background:' + riskClassBg + ';color:' + riskClassColor + ';">' + item.risk_class + '</span></td>' +
+      '<td><span style="font-size:12px;font-weight:600;color:' + riskClassColor + ';">' + item.item_type + '</span></td>' +
+      '<td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:' + eventTypeColor + '15;color:' + eventTypeColor + ';font-weight:600;">' + eventTypeLabel + '</span></td>' +
+      '<td><span class="badge badge-' + riskBadge + '">' + item.risk_level + '</span></td>' +
+      '<td style="max-width:200px;font-size:11px;color:var(--text-muted);">' + (item.current_mitigation || '-') + '</td>' +
+      '</tr>';
+  });
+  
+  html += '</tbody></table></div></div>';
+  
+  document.getElementById('auditFindingsContent').innerHTML = html;
+  
+  // Store items for filtering
+  window._auditFindingsData = items;
+}
+
+function filterAuditFindings(filter) {
+  // Update button styles
+  var btns = document.querySelectorAll('#auditFindingsContent .btn-group:last-of-type .btn');
+  btns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
+  var activeBtn = document.getElementById('af' + (filter === 'all' ? 'All' : filter === '***' ? 'Key' : filter === '**' ? 'Major' : filter === '*' ? 'General' : filter === '体系风险' ? 'Sys' : 'Prod'));
+  if (activeBtn) { activeBtn.classList.remove('btn-outline'); activeBtn.classList.add('btn-primary'); }
+  
+  var rows = document.querySelectorAll('#afTable .af-row');
+  rows.forEach(function(row) {
+    if (filter === 'all') {
+      row.style.display = '';
+    } else if (filter === '***' || filter === '**' || filter === '*') {
+      row.style.display = row.getAttribute('data-risk-class') === filter ? '' : 'none';
+    } else {
+      row.style.display = row.getAttribute('data-category') === filter ? '' : 'none';
+    }
+  });
+}
+
+async function seedAuditFindings() {
+  var btn = document.getElementById('seedAFBtn');
+  var result = document.getElementById('seedAFResult');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 导入中...'; }
+  try {
+    var res = await apiPost('/audit-findings/seed', {});
+    if (res) {
+      if (result) result.innerHTML = '<span style="color:#059669;">✅ ' + res.message + '</span>';
+      showToast(res.message, 'success');
+      // Refresh events if on events page
+      if (document.getElementById('page-events').classList.contains('active')) loadEvents();
+    }
+  } catch(e) {
+    if (result) result.innerHTML = '<span style="color:#DC2626;">❌ 导入失败</span>';
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '📤 一键导入事件库'; }
 }
 
 function filterEvents(status) {
