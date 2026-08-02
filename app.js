@@ -95,6 +95,8 @@ function navigate(page) {
     case 'capa': loadCAPA(); break;
     case 'changes': loadChanges(); break;
     case 'masters': loadMasters(); break;
+    case 'qcp': loadQCP(); break;
+    case 'risks': loadRisks(); break;
     case 'audit': loadAuditLogs(); break;
     case 'ai': loadAIAssistant(); break;
   }
@@ -121,6 +123,8 @@ async function loadDashboard() {
     '<div class="stat-card warn"><div class="label">待处理事件</div><div class="value">' + stats.openEvents + '</div><div class="sub">Open / 调查中</div></div>' +
     '<div class="stat-card"><div class="label">CAPA 总数</div><div class="value">' + stats.totalCAPAs + '</div><div class="sub">待处理 ' + stats.openCAPAs + '</div></div>' +
     '<div class="stat-card danger"><div class="label">逾期 CAPA</div><div class="value">' + stats.overdueCAPAs + '</div><div class="sub">需紧急处理</div></div>' +
+    '<div class="stat-card danger"><div class="label">风险记录</div><div class="value">' + (stats.totalRisks||0) + '</div><div class="sub">FMEA 风险库</div></div>' +
+    '<div class="stat-card"><div class="label">控制点库</div><div class="value">' + (stats.totalQCPs||0) + '</div><div class="sub">QCP 总数</div></div>' +
     '<div class="stat-card"><div class="label">变更申请</div><div class="value">' + stats.totalChanges + '</div><div class="sub">待审批 ' + stats.pendingChanges + '</div></div>' +
     '<div class="stat-card"><div class="label">已关闭事件</div><div class="value">' + stats.closedEvents + '</div><div class="sub">闭环率 ' + (stats.totalEvents ? Math.round(stats.closedEvents/stats.totalEvents*100) : 0) + '%</div></div>';
 
@@ -192,16 +196,20 @@ async function loadEvents() {
   var tbody = document.querySelector('#eventsTable tbody');
   tbody.innerHTML = events.length ? events.map(function(e) {
     return '<tr><td><a href="javascript:viewEvent(\'' + e.id + '\')">' + e.id + '</a></td>' +
+      '<td>' + (e.event_code||'-') + '</td>' +
       '<td><span class="badge badge-info">' + e.event_type + '</span></td>' +
+      '<td>' + (e.event_subtype||'-') + '</td>' +
       '<td>' + (e.product_name||'-') + '</td><td>' + (e.batch_no||'-') + '</td>' +
       '<td><span class="badge badge-' + getRiskBadge(e.risk_level) + '">' + e.risk_level + '</span></td>' +
+      '<td>' + (e.rpn_score != null ? e.rpn_score : '-') + '</td>' +
       '<td><span class="badge badge-' + getStatusBadge(e.status) + '">' + e.status + '</span></td>' +
+      '<td>' + (e.responsible_dept||'-') + '</td>' +
       '<td title="' + (e.description||'') + '">' + (e.description||'').slice(0,50) + '</td>' +
       '<td>' + formatDate(e.created_at) + '</td>' +
       '<td><button class="btn btn-outline btn-sm" onclick="eventStatusAction(\'' + e.id + '\',\'' + e.status + '\')">流转</button> ' +
       '<button class="btn btn-outline btn-sm" onclick="editEvent(\'' + e.id + '\')">编辑</button> ' +
       '<button class="btn btn-danger btn-sm" onclick="deleteEvent(\'' + e.id + '\')">删除</button></td></tr>';
-  }).join('') : '<tr><td colspan="9"><div class="empty-state">暂无质量事件记录</div></td></tr>';
+  }).join('') : '<tr><td colspan="13"><div class="empty-state">暂无质量事件记录</div></td></tr>';
 }
 
 function filterEvents(status) {
@@ -326,11 +334,17 @@ async function viewEvent(id) {
   var html =
     '<div class="detail-grid">' +
     '<div class="detail-item"><div class="dl">事件ID</div><div class="dv">' + e.id + '</div></div>' +
+    '<div class="detail-item"><div class="dl">事件编码</div><div class="dv">' + (e.event_code||'-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">类型</div><div class="dv">' + e.event_type + '</div></div>' +
+    '<div class="detail-item"><div class="dl">子类型</div><div class="dv">' + (e.event_subtype||'-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">风险等级</div><div class="dv"><span class="badge badge-' + getRiskBadge(e.risk_level) + '">' + e.risk_level + '</span></div></div>' +
+    '<div class="detail-item"><div class="dl">严重度</div><div class="dv">' + (e.severity||'-') + '</div></div>' +
+    '<div class="detail-item"><div class="dl">RPN评分</div><div class="dv">' + (e.rpn_score != null ? e.rpn_score : '-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">状态</div><div class="dv"><span class="badge badge-' + getStatusBadge(e.status) + '">' + e.status + '</span></div></div>' +
+    '<div class="detail-item"><div class="dl">责任部门</div><div class="dv">' + (e.responsible_dept||'-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">关联产品</div><div class="dv">' + (e.product_name||'-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">批号</div><div class="dv">' + (e.batch_no||'-') + '</div></div>' +
+    '<div class="detail-item"><div class="dl">发生时间</div><div class="dv">' + (e.occurred_at ? formatDate(e.occurred_at) : '-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">上报人</div><div class="dv">' + (e.reported_by||'-') + '</div></div>' +
     '<div class="detail-item"><div class="dl">创建时间</div><div class="dv">' + formatDate(e.created_at) + '</div></div></div>' +
     '<div style="margin-top:16px"><div class="dl" style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">事件描述</div>' +
@@ -363,14 +377,16 @@ async function loadCAPA(filter) {
   var tbody = document.querySelector('#capaTable tbody');
   tbody.innerHTML = rows.length ? rows.map(function(c) {
     var isOverdue = c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed';
-    return '<tr><td>' + c.id + '</td><td>' + c.title + '</td><td>' + (c.event_id||'-') + '</td>' +
-      '<td>' + (c.root_cause||'').slice(0,30) + '</td><td>' + (c.assignee||'-') + '</td>' +
+    return '<tr><td>' + c.id + '</td><td>' + c.title + '</td><td>' + (c.defect_mode||'-') + '</td>' +
+      '<td>' + (c.root_cause_category||'-') + '</td>' +
       '<td><span class="badge badge-' + getStatusBadge(c.status) + '">' + c.status + '</span></td>' +
+      '<td>' + (c.assignee||'-') + '</td>' +
       '<td>' + (c.due_date||'-') + (isOverdue ? ' ⚠️' : '') + '</td>' +
       '<td>' + (c.effectiveness||'-') + '</td>' +
+      '<td>' + (c.verified_by||'-') + '</td>' +
       '<td><button class="btn btn-outline btn-sm" onclick="editCAPA(\'' + c.id + '\')">编辑</button> ' +
       '<button class="btn btn-danger btn-sm" onclick="deleteCAPA(\'' + c.id + '\')">删除</button></td></tr>';
-  }).join('') : '<tr><td colspan="9"><div class="empty-state">暂无 CAPA 记录</div></td></tr>';
+  }).join('') : '<tr><td colspan="10"><div class="empty-state">暂无 CAPA 记录</div></td></tr>';
 }
 
 function filterCAPA(status) { currentCAPAFilter = currentCAPAFilter === status ? '' : status; loadCAPA(); }
@@ -509,14 +525,14 @@ async function showMasterTab(tab) {
     var products = await apiGet('/products');
     var tbody = document.querySelector('#productsTable tbody');
     tbody.innerHTML = (products||[]).map(function(p) {
-      return '<tr><td>' + p.id + '</td><td>' + p.product_name + '</td><td>' + (p.platform||'-') + '</td><td><span class="badge badge-' + getRiskBadge(p.risk_class) + '">' + p.risk_class + '</span></td><td>' + (p.lifecycle_status||'-') + '</td><td>' + (p.regulatory_status||'-') + '</td></tr>';
-    }).join('') || '<tr><td colspan="6"><div class="empty-state">暂无产品数据</div></td></tr>';
+      return '<tr><td>' + p.id + '</td><td>' + p.product_name + '</td><td>' + (p.product_category||'-') + '</td><td>' + (p.detection_tech||'-') + '</td><td><span class="badge badge-' + getRiskBadge(p.risk_class) + '">' + p.risk_class + '</span></td><td>' + (p.lifecycle_status||'-') + '</td><td>' + (p.regulatory_status||'-') + '</td><td>' + (p.reg_no||'-') + '</td></tr>';
+    }).join('') || '<tr><td colspan="8"><div class="empty-state">暂无产品数据</div></td></tr>';
   } else {
     var suppliers = await apiGet('/suppliers');
     var tbody2 = document.querySelector('#suppliersTable tbody');
     tbody2.innerHTML = (suppliers||[]).map(function(s) {
-      return '<tr><td>' + s.id + '</td><td>' + s.supplier_name + '</td><td>' + (s.category||'-') + '</td><td><span class="badge badge-' + getRiskBadge(s.risk_level) + '">' + s.risk_level + '</span></td><td>' + (s.quality_score != null ? '⭐'.repeat(Math.round(s.quality_score/20)) + ' ' + s.quality_score : '-') + '</td><td>' + (s.certification||'-') + '</td><td><button class="btn btn-outline btn-sm" onclick="editSupplier(\'' + s.id + '\')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteSupplier(\'' + s.id + '\')">删除</button></td></tr>';
-    }).join('') || '<tr><td colspan="7"><div class="empty-state">暂无供应商数据</div></td></tr>';
+      return '<tr><td>' + s.id + '</td><td>' + s.supplier_name + '</td><td>' + (s.supplier_code||'-') + '</td><td>' + (s.category||'-') + '</td><td>' + (s.material_category||'-') + '</td><td><span class="badge badge-' + getRiskBadge(s.risk_level) + '">' + s.risk_level + '</span></td><td>' + (s.risk_score != null ? s.risk_score : '-') + '</td><td>' + (s.quality_score != null ? '⭐'.repeat(Math.round(s.quality_score/20)) + ' ' + s.quality_score : '-') + '</td><td>' + (s.certification||'-') + '</td><td>' + (s.audit_result||'-') + '</td><td>' + (s.incoming_pass_rate != null ? s.incoming_pass_rate + '%' : '-') + '</td><td>' + (s.scar_count != null ? s.scar_count : '-') + '</td><td><button class="btn btn-outline btn-sm" onclick="editSupplier(\'' + s.id + '\')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteSupplier(\'' + s.id + '\')">删除</button></td></tr>';
+    }).join('') || '<tr><td colspan="13"><div class="empty-state">暂无供应商数据</div></td></tr>';
   }
 }
 
@@ -575,6 +591,32 @@ async function loadAuditLogs() {
   tbody.innerHTML = (logs||[]).length ? logs.map(function(l) {
     return '<tr><td>' + formatDate(l.timestamp) + '</td><td>' + l.action + '</td><td>' + l.table_name + '</td><td>' + l.record_id + '</td><td>' + (l.detail||'') + '</td><td>' + (l.user||'system') + '</td></tr>';
   }).join('') : '<tr><td colspan="6"><div class="empty-state">暂无审计日志</div></td></tr>';
+}
+
+// ============================================================
+// QCP
+// ============================================================
+async function loadQCP() {
+  var result = await apiGet('/qcp?limit=200');
+  if (!result) return;
+  var qcps = result.data || result;
+  var tbody = document.querySelector('#qcpTable tbody');
+  tbody.innerHTML = (qcps||[]).length ? qcps.map(function(q) {
+    return '<tr><td>' + q.id + '</td><td>' + q.control_name + '</td><td>' + (q.stage||'-') + '</td><td><span class="badge badge-' + getRiskBadge(q.risk_level) + '">' + (q.risk_level||'-') + '</span></td><td>' + (q.control_purpose||'-') + '</td><td>' + (q.key_params||'-') + '</td><td>' + (q.standard||'-') + '</td><td>' + (q.alert_rule||'-') + '</td><td>' + (q.detection_method||'-') + '</td><td>' + (q.frequency||'-') + '</td></tr>';
+  }).join('') : '<tr><td colspan="10"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
+}
+
+// ============================================================
+// RISKS
+// ============================================================
+async function loadRisks() {
+  var result = await apiGet('/risks?limit=200');
+  if (!result) return;
+  var risks = result.data || result;
+  var tbody = document.querySelector('#riskTable tbody');
+  tbody.innerHTML = (risks||[]).length ? risks.map(function(r) {
+    return '<tr><td>' + r.id + '</td><td>' + (r.hazard_description||'').slice(0,40) + '</td><td>' + (r.severity||'-') + '</td><td>' + (r.occurrence||'-') + '</td><td>' + (r.detectability||'-') + '</td><td>' + (r.rpn||'-') + '</td><td><span class="badge badge-' + getRiskBadge(r.risk_level) + '">' + (r.risk_level||'-') + '</span></td><td>' + (r.fmea_type||'-') + '</td><td>' + (r.product_name||'-') + '</td><td>' + ((r.control_measures||'').slice(0,30)) + '</td><td><span class="badge badge-' + getStatusBadge(r.status) + '">' + (r.status||'-') + '</span></td></tr>';
+  }).join('') : '<tr><td colspan="11"><div class="empty-state">暂无风险FMEA数据</div></td></tr>';
 }
 
 // ============================================================
