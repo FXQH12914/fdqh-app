@@ -2007,8 +2007,55 @@ app.get('/api/dashboard/workshop', requireAuth, asyncHandler(async (req, res) =>
     { module: '生产质量', cause: '过程监控', solution: 'SPC加强过程监控', difficulty: '难', impact: '中', owner: '待定', deadline: '待定', quad: 'strategic' }
   ];
 
+  // ===== 行动项跟进 (快赢区 Quick Wins) =====
+  var actionItems = [
+    { id: 'QW1', solution: '关键物料风险预警：安全库存', owner: '沈倩', deadline: '2026-Q3', status: '进行中', light: 'yellow', progress: 40, module: '供应链质量', note: '需质量先提供关键物料清单' },
+    { id: 'QW2', solution: '供应商变更流程优化（进行中）', owner: '刘建芳', deadline: '2026.10.30', status: '进行中', light: 'green', progress: 70, module: '供应链质量', note: '' },
+    { id: 'QW3', solution: '关键检验资源配置：能力及工具', owner: '姚仁杰', deadline: '待定', status: '未启动', light: 'red', progress: 0, module: '供应链质量', note: '待确认工装夹具需求' },
+    { id: 'QW4', solution: 'F-C2000: 注册变更确认符合性', owner: '刘建芳', deadline: '2026.07.31', status: '已完成', light: 'green', progress: 100, module: '研发质量', note: '' },
+    { id: 'QW5', solution: '相似物料定量管理（如螺丝螺母）', owner: '孙卫兵', deadline: '2026.12.31', status: '进行中', light: 'yellow', progress: 30, module: '生产质量', note: '需建立物料分类标准' },
+    { id: 'QW6', solution: '交叉培训，一人多岗，上岗培训', owner: '待定', deadline: '持续', status: '未启动', light: 'red', progress: 0, module: '生产质量', note: '需明确负责人' },
+  ];
+
+  // ===== 专项进展跟进 (战略区 Strategic) =====
+  var strategicProjects = [
+    { id: 'SP1', solution: '供应商整合：集中采购', owner: '刘建芳', deadline: '2026.12.31', status: '进行中', light: 'yellow', progress: 35, module: '供应链质量',
+      hasProject: '是', milestones: [
+        { name: '供应商评估筛选', date: '2026-Q3', done: true },
+        { name: '谈判与合同签订', date: '2026-Q3', done: false },
+        { name: '首批试供验证', date: '2026-Q4', done: false },
+        { name: '全面切换完成', date: '2026.12.31', done: false }
+      ], difficulty: '供应商配合度、采购周期', support: '采购部协同推进', note: '需集中采购清单' },
+    { id: 'SP2', solution: '物料选型优化：建立规划', owner: '姚仁杰', deadline: '待定', status: '未启动', light: 'red', progress: 0, module: '供应链质量',
+      hasProject: '否', milestones: [], difficulty: '需跨部门协调', support: '研发/供应链/质量联合', note: '需先成立工作组' },
+    { id: 'SP3', solution: '图纸修正补齐(2D/3D)', owner: '陈科', deadline: '2026.10.01', status: '进行中', light: 'yellow', progress: 25, module: '研发质量',
+      hasProject: '是', milestones: [
+        { name: '机械工程师到位', date: '2026-Q3', done: false },
+        { name: '关键图纸修正', date: '2026-Q3', done: false },
+        { name: '检规修订', date: '2026-Q4', done: false },
+        { name: '全部图纸归档', date: '2027-Q1', done: false }
+      ], difficulty: '历史图纸缺失，工作量大', support: '一名机械工程师招聘尽快到位', note: '' },
+    { id: 'SP4', solution: '关键物料质检标准更新', owner: '刘建芳', deadline: '2026.09.30', status: '进行中', light: 'green', progress: 60, module: '供应链质量',
+      hasProject: '是', milestones: [
+        { name: '关键物料清单确认', date: '2026-08', done: true },
+        { name: '质检标准起草', date: '2026-08', done: true },
+        { name: '评审发布', date: '2026-09', done: false },
+        { name: '全面实施', date: '2026.09.30', done: false }
+      ], difficulty: '物料种类多', support: '研发提供关键指标', note: '' },
+    { id: 'SP5', solution: '工作校准品赋值标准化', owner: '刘建芳', deadline: '2026.12.31', status: '进行中', light: 'yellow', progress: 30, module: '研发质量',
+      hasProject: '是', milestones: [
+        { name: '赋值标准方案设计', date: '2026-Q3', done: false },
+        { name: '试点产品验证', date: '2026-Q3', done: false },
+        { name: '全产品推广', date: '2026-Q4', done: false },
+        { name: '体系固化', date: '2026.12.31', done: false }
+      ], difficulty: '产品线多，赋值差异大', support: '参考实验室协同', note: '' },
+    { id: 'SP6', solution: '药敏盘：寻找替代供应商', owner: '陈科', deadline: '待定', status: '未启动', light: 'red', progress: 0, module: '供应链质量',
+      hasProject: '否', milestones: [], difficulty: '开模费用16W，可能涉及注册变更', support: '需结构工程师+采购协同', note: '与药敏盘设计迭代联合推进' },
+  ];
+
   res.json({
     processPareto, causePareto, productDist, freqDist, rootCauseCross, impactDist, solutions,
+    actionItems: actionItems, strategicProjects: strategicProjects,
     total: 262, sheet3Source: '汇报分析', sheet2Source: '解决方案汇总',
     updated: '2026-07'
   });
