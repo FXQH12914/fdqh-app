@@ -2000,7 +2000,7 @@ app.get('/api/dashboard/workshop', requireAuth, asyncHandler(async (req, res) =>
     { module: '研发质量', cause: '转产验证', solution: '转产：加强评估+规范设计转换节点', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.10.30', quad: 'strategic' },
     { module: '研发质量', cause: '仪器试剂适配', solution: '工作校准品赋值标准化', difficulty: '难', impact: '高', owner: '刘建芳', deadline: '2026.12.31', quad: 'strategic' },
     { module: '生产质量', cause: '人员不稳定', solution: '交叉培训，一人多岗，上岗培训（持续）', difficulty: '易', impact: '中', owner: '', deadline: '', quad: 'fill' },
-    { module: '生产质量', cause: '台间差/设备', solution: '标准机建立', difficulty: '难', impact: '高', owner: '待定', deadline: '待定', quad: 'strategic' },
+    { module: '生产质量', cause: '台间差/设备', solution: '标准机建立', difficulty: '难', impact: '高', owner: '待定', deadline: '待定', quad: '' },
     { module: '生产质量', cause: '物料齐套', solution: '相似物料定量管理（如螺丝螺母）', difficulty: '易', impact: '高', owner: '孙卫兵', deadline: '2026.12.31', quad: 'quick-win' },
     { module: '生产质量', cause: '标记/包被工艺', solution: '标记/包被工艺标准化', difficulty: '难', impact: '高', owner: '陈科', deadline: '待定', quad: 'strategic' },
     { module: '生产质量', cause: '赋值标准', solution: '工艺标准化，厂内外标准对标', difficulty: '难', impact: '高', owner: '孙卫兵', deadline: '2026.12.31', quad: 'strategic' },
