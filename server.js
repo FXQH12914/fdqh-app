@@ -685,6 +685,51 @@ app.delete('/api/changes/:id', requireAuth, asyncHandler(async (req, res) => {
 
 
 // ============================================================
+// PLM — 产品全生命周期管理 (PLQDP)
+// 来源：复星诊断PLQDP设计方案 + IVD产品全生命周期质量数据对象模型
+// ============================================================
+app.get('/api/plm/stages', requireAuth, asyncHandler(async (req, res) => {
+  var stages = [
+    { id: '01', code: '01', name: '产品立项', icon: '🎯', color: '#6366F1', desc: '市场需求 → 临床需求 → 竞争分析 → QTPP质量目标', inputs: ['市场需求文档', '临床需求分析', '竞争分析报告'], controls: ['需求评审100%完成', '风险识别完成', 'QTPP签批'], outputs: ['产品质量目标QTPP', '立项批准书'], qcpCount: 8, owner: '产品经理 + 市场部' },
+    { id: '02', code: '02', name: '研发设计', icon: '🔬', color: '#8B5CF6', desc: '设计输入 → CQA/CMA/CPP定义 → 风险分析 → 设计验证', inputs: ['QTPP', '用户需求URS', '法规标准'], controls: ['CQA关键质量属性识别', 'CMA关键物料属性定义', 'CPP关键工艺参数确定', 'FMEA风险分析', '设计验证方案'], outputs: ['设计冻结文件', 'CQA/CMA/CPP清单', 'DHF文档'], qcpCount: 20, owner: '研发中心 + DQE' },
+    { id: '03', code: '03', name: '注册转移', icon: '📋', color: '#0EA5E9', desc: '注册申报 → 工艺一致性 → 性能一致性 → 量产工艺包', inputs: ['设计冻结文件', '注册申报资料', '试产数据'], controls: ['注册标准符合性', '工艺一致性验证', '性能一致性验证', '文件完整性审核'], outputs: ['注册证书', '量产工艺包', '转产确认报告'], qcpCount: 15, owner: 'RA法规事务 + 工艺工程' },
+    { id: '04', code: '04', name: '供应链质量', icon: '🏭', color: '#F59E0B', desc: '供应商审核 → 物料分级 → 来料检验 → Material Passport', inputs: ['供应商清单', '物料规格书', '采购合同'], controls: ['供应商审核评分', 'A/B/C物料分级', '来料检验标准', '供应商绩效监控'], outputs: ['Material Passport', '合格供应商清单', '来料检验报告'], qcpCount: 50, owner: 'SQE供应商质量 + 采购部' },
+    { id: '05', code: '05', name: '生产制造', icon: '⚙️', color: '#10B981', desc: '工艺执行 → 参数监控 → SPC → Batch Passport', inputs: ['量产工艺包', '生产计划', '物料批次'], controls: ['关键工艺参数CPP监控', 'SPC统计过程控制', '偏差管理', '批记录完整性'], outputs: ['Batch Passport批次护照', '批生产记录', 'SPC报告'], qcpCount: 30, owner: '生产部 + 制程质量' },
+    { id: '06', code: '06', name: 'QC放行', icon: '✅', color: '#059669', desc: '性能检验 → 稳定性 → 批间一致性 → 电子放行', inputs: ['检验规程', '批样品', '标准品/参考品'], controls: ['成品全项检验', '稳定性考察', '批间一致性分析', 'OOS/OOT处理'], outputs: ['检验报告', '放行审核单', '稳定性数据'], qcpCount: 35, owner: 'QC + QA放行审核' },
+    { id: '07', code: '07', name: '上市后', icon: '🌐', color: '#EF4444', desc: '投诉处理 → EQA → CAPA → 持续改进', inputs: ['客户投诉', 'EQA结果', '不良事件报告', 'PMS数据'], controls: ['投诉调查与关闭', 'EQA性能监控', 'CAPA有效性', '不良事件报告时效', '召回管理'], outputs: ['PMS年度报告', 'CAPA记录', '持续改进计划'], qcpCount: 15, owner: '市场质量 + 体系QA' }
+  ];
+  res.json({ stages: stages, totalQCP: stages.reduce(function(s, st) { return s + st.qcpCount; }, 0), updated: '2026-08' });
+}));
+
+app.get('/api/plm/dashboard', requireAuth, asyncHandler(async (req, res) => {
+  var products = await db.findAll('products');
+  var qcps = await db.findAll('qcps');
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+
+  var lifecycleDist = {};
+  products.forEach(function(p) { var s = p.lifecycle_status || '未定义'; lifecycleDist[s] = (lifecycleDist[s] || 0) + 1; });
+
+  var qcpByStage = {};
+  qcps.forEach(function(q) { var s = q.stage || q.phase || '未分类'; qcpByStage[s] = (qcpByStage[s] || 0) + 1; });
+
+  var summary = {
+    totalProducts: products.length, totalQCPs: qcps.length, totalEvents: events.length, totalCAPAs: capas.length,
+    openCAPAs: capas.filter(function(c) { return c.status !== 'Closed'; }).length,
+    activeProducts: products.filter(function(p) { return p.lifecycle_status === '上市' || p.lifecycle_status === '量产'; }).length,
+    inDevelopment: products.filter(function(p) { return p.lifecycle_status === '研发' || p.lifecycle_status === '注册'; }).length,
+  };
+
+  var productPassports = products.slice(0, 10).map(function(p) {
+    var pQCPs = qcps.filter(function(q) { return q.product_id === p.id || q.product_name === p.product_name; });
+    var pEvents = events.filter(function(e) { return e.product_id === p.id || e.product_name === p.product_name; });
+    return { id: p.id, name: p.product_name || p.name || '未知', platform: p.platform || p.detection_tech || '-', lifecycle: p.lifecycle_status || '未定义', regNo: p.reg_no || '-', qcpCount: pQCPs.length, eventCount: pEvents.length, hasBQI: !!p.bqi_score, bqi: p.bqi_score || null };
+  });
+
+  res.json({ summary: summary, lifecycleDist: lifecycleDist, qcpByStage: qcpByStage, productPassports: productPassports, updated: '2026-08' });
+}));
+
+// ============================================================
 app.get('/api/products', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('products'));
 }));
