@@ -2156,7 +2156,7 @@ function switchPlmTab(tab) {
       '<div class="module-summary-card ms-info"><div class="ms-value">' + s.totalEvents + '</div><div class="ms-label">⚠️ 质量事件</div><div class="ms-target">全生命周期</div></div>' +
       '</div>';
     
-    html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — 7阶段数据链</h3><span style="font-size:11px;">基于PLQDP · 总QCP: ' + window._plmStages.totalQCP + '</span></div>' +
+    html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🔗 产品全生命周期 — PLM标准7阶段</h3><span style="font-size:11px;">立项→设计开发→注册→转产→量产→上市→退市 · 总QCP: ' + window._plmStages.totalQCP + ' · ' + (window._plmStages.standard||'') + '</span></div>' +
       '<div class="card-body"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">';
     
     stagesArr.forEach(function(st, i) {
@@ -2171,7 +2171,15 @@ function switchPlmTab(tab) {
         '</div><div style="margin-top:8px;font-size:10px;">' +
         st.controls.slice(0,3).map(function(ctrl){return '<div style="color:var(--text-muted);">• '+ctrl+'</div>';}).join('') +
         (st.controls.length>3?'<div style="color:var(--text-muted);">…+'+(st.controls.length-3)+'项</div>':'') +
-        '</div></div>';
+        '</div>' +
+        (st.indicators && st.indicators.length ? '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,.08);">' +
+          st.indicators.slice(0,3).map(function(ind) {
+            var ic = ind.type==='红线'?'#DC2626':ind.type==='经营'?'#D97706':'#2563EB';
+            return '<div style="font-size:9px;color:'+ic+';"><span style="background:'+ic+'15;border-radius:8px;padding:0 5px;font-weight:600;">'+ind.type+'</span> '+ind.name+' <b>'+ind.target+'</b></div>';
+          }).join('') +
+          (st.indicators.length>3?'<div style="font-size:9px;color:var(--text-muted);">…'+(st.indicators.length-3)+'项更多</div>':'') +
+          '</div>' : '') +
+        '</div>';
       if (i < stagesArr.length - 1) html += '<div style="display:flex;align-items:center;color:#9CA3AF;font-size:18px;flex-shrink:0;">→</div>';
     });
     
