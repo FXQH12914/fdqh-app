@@ -128,6 +128,31 @@ async function loadDashboard() {
     '<div class="stat-card"><div class="label">变更申请</div><div class="value">' + stats.totalChanges + '</div><div class="sub">待审批 ' + stats.pendingChanges + '</div></div>' +
     '<div class="stat-card"><div class="label">已关闭事件</div><div class="value">' + stats.closedEvents + '</div><div class="sub">闭环率 ' + (stats.totalEvents ? Math.round(stats.closedEvents/stats.totalEvents*100) : 0) + '%</div></div>';
 
+  // QHI — Quality Health Index
+  var qhi = await apiGet('/dashboard/qhi');
+  if (qhi) {
+    var lc = qhi.level === 'green' ? '#10B981' : qhi.level === 'yellow' ? '#F59E0B' : '#EF4444';
+    var qhiHtml = '<div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#1A2330,#2A3A50);color:white;"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;padding:18px 26px;">' +
+      '<div><div style="font-size:12px;opacity:0.6;">Quality Health Index</div><div style="font-size:44px;font-weight:700;color:' + lc + ';">' + qhi.qhi + '</div><div style="font-size:11px;opacity:0.5;">' + (qhi.trend==='up'?'↑':'→') + ' 客户' + qhi.breakdown.customer.score + ' 生产' + qhi.breakdown.production.score + ' 供应' + qhi.breakdown.supply.score + ' 体系' + qhi.breakdown.compliance.score + '</div></div>' +
+      '<div style="text-align:right;font-size:12px;opacity:0.5;">改善' + qhi.breakdown.improvement.score + '<br>效率' + qhi.breakdown.efficiency.score + '</div></div></div>';
+    var statsGrid = document.getElementById('statsGrid');
+    if (statsGrid && !document.getElementById('qhiCard')) { var d = document.createElement('div'); d.id = 'qhiCard'; d.innerHTML = qhiHtml; statsGrid.parentNode.insertBefore(d, statsGrid); }
+  }
+
+  // Traffic Light Alerts
+  var alertData = await apiGet('/dashboard/alerts');
+  if (alertData && alertData.alerts && alertData.alerts.length > 0) {
+    var rows = alertData.alerts.map(function(a) {
+      var b = a.level==='red'?'danger':a.level==='yellow'?'warning':'success';
+      return '<tr><td><span class="badge badge-' + b + '">' + (a.level==='red'?'🔴':a.level==='yellow'?'🟡':'🟢') + '</span></td><td style="font-size:13px;">' + a.message + '</td></tr>';
+    }).join('');
+    var alertHtml = '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🚦 质量预警</h3><span style="font-size:12px;">红' + (alertData.redCount||0) + ' 黄' + (alertData.yellowCount||0) + '</span></div><div class="card-body no-padding"><table>' + rows + '</table></div></div>';
+    var ex = document.getElementById('alertCard'); if (ex) ex.remove();
+    var ad = document.createElement('div'); ad.id = 'alertCard'; ad.innerHTML = alertHtml;
+    var q = document.getElementById('qhiCard'); var s = document.getElementById('statsGrid');
+    if (q) { q.after(ad); } else if (s) { s.parentNode.insertBefore(ad, s); }
+  }
+
   // AI prediction button
   var aiBtnHtml = '<div class="card" style="margin-bottom:20px;"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;">' +
     '<div><span style="font-size:18px;">📈</span> <strong>AI 质量风险预测</strong> <span style="color:var(--text-secondary);font-size:13px;">基于历史数据智能分析</span></div>' +
