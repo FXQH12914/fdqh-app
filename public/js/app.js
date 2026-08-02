@@ -99,6 +99,7 @@ function navigate(page) {
     case 'risks': loadRisks(); break;
     case 'audit': loadAuditLogs(); break;
     case 'ai': loadAIAssistant(); break;
+    case 'complaints': loadComplaintsDashboard(); break;
   }
 }
 
@@ -364,6 +365,90 @@ async function importDashboardData(input) {
     showToast('导入失败', 'error');
   }
   input.value = '';
+}
+
+// ===== 投诉看板 =====
+var complaintFilter = { source: '', cause: '', search: '', page: 1 };
+
+async function loadComplaintsDashboard() {
+  var data = await apiGet('/dashboard/complaints?page=' + complaintFilter.page + '&source=' + encodeURIComponent(complaintFilter.source) + '&cause=' + encodeURIComponent(complaintFilter.cause) + '&search=' + encodeURIComponent(complaintFilter.search));
+  if (!data) return;
+  var html = '';
+
+  // === KPI Cards ===
+  var k = data.kpi;
+  html += '<div class="module-summary">' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + k.total + '</div><div class="ms-label">📢 投诉总数</div><div class="ms-target">2026上半年累计</div></div>' +
+    '<div class="module-summary-card ' + (k.open > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + k.open + '</div><div class="ms-label">🔴 未关闭</div><div class="ms-target">待处理中</div></div>' +
+    '<div class="module-summary-card ms-pass"><div class="ms-value">' + k.closeRate + '%</div><div class="ms-label">✅ 关闭率</div><div class="ms-target">已关闭 ' + k.closed + ' 件</div></div>' +
+    '<div class="module-summary-card ' + (k.highRisk > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + k.highRisk + '</div><div class="ms-label">⚠️ 高风险</div><div class="ms-target">High/Critical</div></div>' +
+    '<div class="module-summary-card ' + (k.repeat > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + k.repeat + '</div><div class="ms-label">🔁 重复投诉</div><div class="ms-target">重复发生</div></div>' +
+    '</div>';
+
+  // === Charts Row 1: 月度趋势 + 来源分布 ===
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>📈 投诉月度趋势 (2026上半年)</h3></div><div class="card-body"><div class="chart-container"><canvas id="compMonthChart"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🏷️ 投诉来源分布</h3></div><div class="card-body"><div class="chart-container"><canvas id="compSourceChart"></canvas></div></div></div>' +
+    '</div>';
+
+  // === Charts Row 2: 原因分类 + Top产品 ===
+  html += '<div class="charts-row">' +
+    '<div class="card"><div class="card-header"><h3>🔍 原因分类</h3></div><div class="card-body"><div class="chart-container"><canvas id="compCauseChart"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🏆 Top 投诉产品</h3></div><div class="card-body no-padding"><table class="mod-table"><thead><tr><th>产品</th><th>投诉数</th><th>占比</th></tr></thead><tbody>' +
+    data.topProducts.map(function(p) {
+      var pct = Math.round(p.count / k.total * 100);
+      return '<tr><td>' + p.name + '</td><td><b>' + p.count + '</b></td><td><div style="background:#F3F4F6;border-radius:4px;height:18px;position:relative;"><div style="background:#EF4444;height:100%;border-radius:4px;width:' + Math.min(pct, 100) + '%;"></div><span style="position:absolute;left:8px;font-size:11px;line-height:18px;">' + pct + '%</span></div></td></tr>';
+    }).join('') + '</tbody></table></div></div>' +
+    '</div>';
+
+  // === Filters ===
+  html += '<div class="card" style="margin-bottom:16px;"><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 16px;">' +
+    '<select onchange="complaintFilter.source=this.value;complaintFilter.page=1;loadComplaintsDashboard();" style="padding:8px;border:1px solid var(--border);border-radius:6px;">' +
+    '<option value="">全部来源</option>' +
+    Object.keys(data.bySource).map(function(s) { return '<option value="' + s + '"' + (complaintFilter.source === s ? ' selected' : '') + '>' + s + ' (' + data.bySource[s] + ')</option>'; }).join('') +
+    '</select>' +
+    '<select onchange="complaintFilter.cause=this.value;complaintFilter.page=1;loadComplaintsDashboard();" style="padding:8px;border:1px solid var(--border);border-radius:6px;">' +
+    '<option value="">全部原因</option>' +
+    Object.keys(data.byCause).map(function(c) { return '<option value="' + c + '"' + (complaintFilter.cause === c ? ' selected' : '') + '>' + c + ' (' + data.byCause[c] + ')</option>'; }).join('') +
+    '</select>' +
+    '<input type="text" placeholder="搜索产品/描述..." value="' + complaintFilter.search + '" oninput="var v=this.value;clearTimeout(window._cs);window._cs=setTimeout(function(){complaintFilter.search=v;complaintFilter.page=1;loadComplaintsDashboard();},400);" style="padding:8px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:150px;">' +
+    '<button class="btn btn-outline btn-sm" onclick="complaintFilter={source:\'\',cause:\'\',search:\'\',page:1};loadComplaintsDashboard();">重置</button>' +
+    '</div></div>';
+
+  // === Detail Table ===
+  var list = data.list;
+  html += '<div class="card"><div class="card-header"><h3>📋 投诉明细</h3><span style="font-size:11px;">共 ' + list.total + ' 条</span></div>' +
+    '<div class="card-body no-padding"><table class="mod-table"><thead><tr><th>产品</th><th>来源</th><th>原因</th><th>风险</th><th>状态</th><th>描述</th></tr></thead><tbody>' +
+    list.data.map(function(e) {
+      var rb = e.risk_level === 'High' || e.risk_level === 'Critical' ? 'badge-danger' : 'badge-warning';
+      var sb = e.status === 'Closed' ? 'badge-success' : e.status === 'Open' ? 'badge-danger' : 'badge-info';
+      return '<tr><td style="font-weight:500;">' + (e.product_name || '') + '</td><td style="font-size:11px;">' + (e.complaint_source || '').replace('2026上半年投诉汇总-', '') + '</td><td style="font-size:11px;">' + (e.complaint_cause || '') + '</td><td><span class="badge ' + rb + '">' + (e.risk_level || '') + '</span></td><td><span class="badge ' + sb + '">' + e.status + '</span></td><td style="font-size:11px;text-align:left;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (e.description || '').substring(0, 60) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div class="card-body" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">' +
+    '<span style="font-size:12px;color:var(--text-muted);">第 ' + list.page + ' / ' + Math.max(1, Math.ceil(list.total / 20)) + ' 页</span>' +
+    '<div class="btn-group">' +
+    '<button class="btn btn-outline btn-sm" ' + (list.page <= 1 ? 'disabled' : '') + ' onclick="complaintFilter.page--;loadComplaintsDashboard();">上一页</button>' +
+    '<button class="btn btn-outline btn-sm" ' + (list.page * 20 >= list.total ? 'disabled' : '') + ' onclick="complaintFilter.page++;loadComplaintsDashboard();">下一页</button>' +
+    '</div></div></div>';
+
+  document.getElementById('complaintsContent').innerHTML = html;
+
+  // === Charts ===
+  setTimeout(function() {
+    var months = ['1月','2月','3月','4月','5月','6月'];
+    var monthData = months.map(function(m) { return data.byMonth[parseInt(m)] || 0; });
+    renderChart('compMonthChart', 'bar', months, monthData, '投诉数', '#EF4444');
+
+    var srcData = data.bySource;
+    var srcLabels = Object.keys(srcData).map(function(s) { return s.replace('2026上半年投诉汇总-', ''); });
+    var srcValues = Object.keys(srcData).map(function(s) { return srcData[s]; });
+    renderPieChart('compSourceChart', srcLabels, srcValues, ['#3B82F6','#10B981','#F59E0B','#8B5CF6','#EC4899']);
+
+    var causeData = data.byCause;
+    var causeLabels = Object.keys(causeData);
+    var causeValues = Object.keys(causeData).map(function(c) { return causeData[c]; });
+    renderChart('compCauseChart', 'bar', causeLabels, causeValues, '件数', '#F59E0B');
+  }, 200);
 }
 
 function renderChart(id, type, labels, data, label, color) {

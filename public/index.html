@@ -32,7 +32,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <h2>🩺 FDQH</h2>
-      <span>FosunDx Quality Hub v2.3</span>
+      <span>FosunDx Quality Hub v2.4</span>
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
@@ -42,6 +42,7 @@
       <a data-page="qcp" onclick="navigate('qcp')"><span class="icon">🎯</span> 控制点库</a>
       <a data-page="masters" onclick="navigate('masters')"><span class="icon">📋</span> 主数据管理</a>
       <a data-page="risks" onclick="navigate('risks')"><span class="icon">⚠️</span> 风险FMEA</a>
+      <a data-page="complaints" onclick="navigate('complaints')"><span class="icon">📢</span> 投诉看板</a>
       <a data-page="ai" onclick="navigate('ai')"><span class="icon">🤖</span> AI 助手</a>
       <a data-page="audit" onclick="navigate('audit')"><span class="icon">📝</span> 审计追踪</a>
     </nav>
@@ -194,6 +195,12 @@
     <!-- ============ AI PAGE ============ -->
     <div id="page-ai" class="page">
       <!-- Dynamically rendered by ai-chat.js -->
+    </div>
+
+    <!-- ============ COMPLAINTS PAGE 投诉看板 ============ -->
+    <div id="page-complaints" class="page">
+      <div class="page-header"><h2>📢 投诉看板</h2><p>2026年上半年投诉分析 · 试剂/仪器全维度监控</p></div>
+      <div id="complaintsContent"></div>
     </div>
 
   </main>

@@ -1344,6 +1344,98 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
 }));
 
 // ============================================================
+// COMPLAINT DASHBOARD — 投诉看板
+// 数据来源: 2026年上半年投诉情况汇总20260728.xlsx (已导入quality_events)
+// ============================================================
+app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
+
+  // === KPI ===
+  var total = complaints.length;
+  var open = complaints.filter(function(c) { return c.status !== 'Closed'; }).length;
+  var closed = complaints.filter(function(c) { return c.status === 'Closed'; }).length;
+  var highRisk = complaints.filter(function(c) { return c.risk_level === 'High' || c.risk_level === 'Critical'; }).length;
+  var repeat = complaints.filter(function(c) { return c.complaint_repeat === true; }).length;
+
+  // === 月度趋势 ===
+  var byMonth = {};
+  complaints.forEach(function(c) {
+    var m = c.complaint_month;
+    if (m) byMonth[m] = (byMonth[m] || 0) + 1;
+  });
+
+  // === 产品线分布 ===
+  var bySource = {};
+  complaints.forEach(function(c) {
+    var src = c.complaint_source || '未分类';
+    bySource[src] = (bySource[src] || 0) + 1;
+  });
+
+  // === 原因分类 (从描述提取) ===
+  var byCause = {};
+  complaints.forEach(function(c) {
+    var cause = c.complaint_cause || '未分类';
+    if (cause.includes('设计')) cause = '设计问题';
+    else if (cause.includes('物料')) cause = '物料问题';
+    else if (cause.includes('工艺')) cause = '工艺问题';
+    else if (cause.includes('生产')) cause = '生产问题';
+    else if (cause.includes('非质量')) cause = '非质量问题';
+    else if (cause.includes('其他')) cause = '其他问题';
+    byCause[cause] = (byCause[cause] || 0) + 1;
+  });
+
+  // === 产品维度 Top ===
+  var byProduct = {};
+  complaints.forEach(function(c) {
+    var p = c.product_name || '未知';
+    byProduct[p] = (byProduct[p] || 0) + 1;
+  });
+  var topProducts = Object.keys(byProduct).map(function(p) { return { name: p, count: byProduct[p] }; })
+    .sort(function(a, b) { return b.count - a.count; }).slice(0, 10);
+
+  // === 故障细分 (仪器) ===
+  var byCategory = {};
+  complaints.forEach(function(c) {
+    var desc = c.description || '';
+    var match = desc.match(/【([^】]+)】/);
+    var cat = match ? match[1] : '其他';
+    if (cat.includes('·')) cat = cat.split('·')[1] || cat;
+    byCategory[cat] = (byCategory[cat] || 0) + 1;
+  });
+  var topCategories = Object.keys(byCategory).map(function(k) { return { name: k, count: byCategory[k] }; })
+    .sort(function(a, b) { return b.count - a.count; }).slice(0, 12);
+
+  // === 明细 (分页) ===
+  var page = parseInt(req.query.page) || 1;
+  var limit = parseInt(req.query.limit) || 20;
+  var sourceFilter = req.query.source || '';
+  var causeFilter = req.query.cause || '';
+  var search = req.query.search || '';
+
+  var filtered = complaints.filter(function(c) {
+    if (sourceFilter && !(c.complaint_source || '').includes(sourceFilter)) return false;
+    if (causeFilter && !(c.complaint_cause || '').includes(causeFilter)) return false;
+    if (search && !((c.description || '') + (c.product_name || '')).includes(search)) return false;
+    return true;
+  });
+  filtered.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+  var start = (page - 1) * limit;
+  var paged = filtered.slice(start, start + limit);
+
+  res.json({
+    kpi: { total: total, open: open, closed: closed, closeRate: total ? Math.round(closed / total * 100) : 0, highRisk: highRisk, repeat: repeat },
+    byMonth: byMonth,
+    bySource: bySource,
+    byCause: byCause,
+    topProducts: topProducts,
+    topCategories: topCategories,
+    list: { data: paged, total: filtered.length, page: page, limit: limit },
+  });
+}));
+
+
+// ============================================================
 // DATA IMPORT / EXPORT — 数据导入导出
 // ============================================================
 // ---- Export: 导出驾驶舱数据为 Excel ----
