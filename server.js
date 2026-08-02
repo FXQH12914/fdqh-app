@@ -2169,7 +2169,7 @@ var auditFindings = [
 
 // GET — 返回分类分析结果（含 ISO 13485 对照 + 条款帕累托）
 app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
-  // ISO 13485 条款映射表
+  // ISO 13485 条款映射表（编号 → 编号 + 中文描述）
   var isoMap = {
     '§2.4.1': 'ISO 13485 7.3.9 / 4.1.4',
     '§3.3.1': 'ISO 13485 6.1 / 6.2',
@@ -2219,15 +2219,59 @@ app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
     '§13.2.1': 'ISO 13485 7.5.11'
   };
 
-  // 为每条目附加 ISO 条款
+  // ISO 13485 条款中文名称
+  var isoNameMap = {
+    '4.1': '总要求', '4.1.4': '变更控制', '4.1.6': '软件确认',
+    '4.2.1': '文件要求', '4.2.3': '文件控制', '4.2.4': '记录控制',
+    '6.1': '资源提供', '6.2': '人力资源(能力/培训/意识)', '6.3': '基础设施', '6.4': '工作环境',
+    '7.3.1': '设计开发策划', '7.3.2': '设计开发策划', '7.3.4': '设计开发输出',
+    '7.3.6': '设计开发验证', '7.3.8': '设计开发转换', '7.3.9': '设计开发变更控制', '7.3.10': '设计开发文档',
+    '7.4.1': '采购过程', '7.4.3': '采购产品验证',
+    '7.5.1': '生产和服务提供控制', '7.5.3': '标识和可追溯性',
+    '7.5.6': '生产和服务过程确认', '7.5.8': '标识', '7.5.9': '可追溯性', '7.5.11': '产品防护',
+    '7.6': '监视和测量设备控制',
+    '8.2.6': '产品监视和测量'
+  };
+
+  // GMP 章节中文名称
+  var gmpChapterMap = {
+    '1': '第一章 总则', '2': '第二章 质量保证', '3': '第三章 机构与人员',
+    '4': '第四章 厂房与设施', '5': '第五章 设备', '6': '第六章 文件与数据管理',
+    '7': '第七章 设计开发', '8': '第八章 采购与原材料管理', '9': '第九章 验证与确认',
+    '10': '第十章 生产管理', '11': '第十一章 质量控制与产品放行',
+    '12': '第十二章 委托生产与外协加工', '13': '第十三章 销售与售后服务',
+    '14': '第十四章 分析与改进'
+  };
+
+  // 辅助：为 ISO 条款编号附加中文名称
+  function enrichISO(isoRef) {
+    if (!isoRef) return '';
+    return isoRef.replace(/ISO 13485 (\d+(?:\.\d+)*)/g, function(match, num) {
+      var name = isoNameMap[num];
+      return name ? (match + ' ' + name) : match;
+    });
+  }
+
+  // 辅助：为 GMP 条款附加章节中文名称
+  function gmpChapter(clause) {
+    var m = clause.match(/^§(\d+)\./);
+    if (m && gmpChapterMap[m[1]]) return gmpChapterMap[m[1]];
+    return '';
+  }
+
+  // 为每条目附加 ISO 条款（含中文名称）+ GMP 章节
   var itemsWithISO = auditFindings.map(function(item) {
     var clauses = item.clause_ref.split(', ');
     var isoRefs = [];
     clauses.forEach(function(c) {
       var iso = isoMap[c.trim()];
-      if (iso) isoRefs.push(iso);
+      if (iso) isoRefs.push(enrichISO(iso));
     });
-    return Object.assign({}, item, { iso_clause: isoRefs.join('; ') || isoRefs[0] || '' });
+    var primaryClause = clauses[0] ? clauses[0].trim() : '';
+    return Object.assign({}, item, {
+      iso_clause: isoRefs.join('; ') || isoRefs[0] || '',
+      gmp_chapter: gmpChapter(primaryClause)
+    });
   });
 
   // === 条款帕累托分析 ===
@@ -2241,7 +2285,7 @@ app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
   });
   // 转为数组并降序排列
   var clausePareto = Object.keys(clauseFreq).map(function(k) {
-    return { clause: k, iso: isoMap[k] || '', count: clauseFreq[k] };
+    return { clause: k, iso: enrichISO(isoMap[k] || ''), chapter: gmpChapter(k), count: clauseFreq[k] };
   }).sort(function(a, b) { return b.count - a.count; });
   // 计算累积占比
   var totalOccurrences = clausePareto.reduce(function(s, x) { return s + x.count; }, 0);
