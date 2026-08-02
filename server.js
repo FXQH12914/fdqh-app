@@ -454,6 +454,12 @@ app.get('/api/qcp', requireAuth, asyncHandler(async (req, res) => {
   res.json(qcps);
 }));
 
+// POST QCP — allow creating new CLIA QCPs
+app.post('/api/qcp', requireAuth, asyncHandler(async (req, res) => {
+  var qcp = await db.insert('qcp_library', req.body, req.user.username);
+  res.status(201).json(qcp);
+}));
+
 // QCP Rule Check — MUST be before /api/qcp/:id to avoid route conflict
 app.get('/api/qcp/check', requireAuth, asyncHandler(async (req, res) => {
   var events = await db.findAll('quality_events');
