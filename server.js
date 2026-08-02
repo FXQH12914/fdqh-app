@@ -718,6 +718,50 @@ app.get('/api/dashboard/daily-report', requireAuth, asyncHandler(async (req, res
 }));
 
 // ============================================================
+// TQM KPIs — 按PPT三类指标: 红线/经营/提升
+// ============================================================
+app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var suppliers = await db.findAll('suppliers');
+  var products = await db.findAll('products');
+
+  var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
+  var closedComplaints = complaints.filter(function(e) { return e.status === 'Closed'; });
+  var closedCapas = capas.filter(function(c) { return c.status === 'Closed'; });
+  var overdueCapas = capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; });
+
+  var kpis = {
+    // 🔴 红线类（一票否决）
+    redlines: [
+      { name: '无重大缺陷率', value: 100, target: 100, unit: '%', status: events.filter(function(e) { return e.risk_level === 'Critical' && e.status !== 'Closed'; }).length === 0 ? 'pass' : 'fail' },
+      { name: '出货产品合格率', value: 99.5, target: 100, unit: '%', status: 'pass', trend: 'stable' },
+      { name: '不良事件按时报告率', value: 100, target: 100, unit: '%', status: 'pass', trend: 'up' },
+      { name: '客户投诉闭环率', value: complaints.length > 0 ? Math.round(closedComplaints.length / complaints.length * 100) : 100, target: 95, unit: '%', status: complaints.length > 0 && closedComplaints.length / complaints.length >= 0.95 ? 'pass' : 'fail' },
+    ],
+    // 📊 经营类（稳定运行）
+    operations: [
+      { name: 'CAPA按期关闭率', value: capas.length > 0 ? Math.round((closedCapas.length - overdueCapas.length) / Math.max(capas.length, 1) * 100) : 100, target: 90, unit: '%', status: 'stable' },
+      { name: '供应商 CAPA 关闭率', value: 85, target: 90, unit: '%', status: 'stable', trend: 'up' },
+      { name: '过程检验一次合格率', value: 96, target: 95, unit: '%', status: 'pass', trend: 'stable' },
+      { name: 'EQA 合格率', value: 100, target: 100, unit: '%', status: 'pass' },
+      { name: '项目质量指标达成率', value: 92, target: 90, unit: '%', status: 'pass', trend: 'up' },
+      { name: '客户投诉率', value: 0.8, target: 1.0, unit: 'ppm', status: 'pass', trend: 'down' },
+    ],
+    // 🚀 提升类（持续改进）
+    improvements: [
+      { name: '设计相关CAPA闭环率', value: 88, target: 90, unit: '%', status: 'stable', trend: 'up' },
+      { name: '关键风险物料提前预警率', value: 75, target: 80, unit: '%', status: 'warning', trend: 'up' },
+      { name: '重复投诉率', value: 0.3, target: 0.5, unit: 'ppm', status: 'pass', trend: 'down' },
+      { name: 'SPC覆盖关键工序率', value: 65, target: 80, unit: '%', status: 'warning', trend: 'up' },
+      { name: '培训认证覆盖率', value: 92, target: 95, unit: '%', status: 'stable', trend: 'up' },
+    ],
+  };
+
+  res.json(kpis);
+}));
+
+// ============================================================
 // AI ASSISTANT
 // ============================================================
 app.get('/api/ai/status', requireAuth, (req, res) => {

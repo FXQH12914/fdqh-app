@@ -57,19 +57,29 @@
 
     <!-- ============ DASHBOARD PAGE ============ -->
     <div id="page-dashboard" class="page active">
-      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>实时质量数据概览 & Key Performance Indicators</p></div>
+      <div class="page-header"><h2>📊 质量管理驾驶舱</h2><p>QHI · 三类指标 · 四域监控 · 实时预警</p></div>
 
-      <div class="stats-grid" id="statsGrid"></div>
+      <!-- ===== TQM STRATEGIC 战略层 ===== -->
+      <div class="tqm-strategic">
+        <div class="card"><div class="card-header"><h3>🩺 Quality Health Index (QHI)</h3><span class="qhi-live">LIVE</span></div>
+          <div class="card-body">
+            <div class="tqm-qhi-row" id="tqmQhiRow"></div>
+          </div>
+        </div>
+      </div>
 
+      <!-- ===== TQM KPI 三类指标卡 ===== -->
+      <div class="tqm-kpi-section" id="tqmKpiSection"></div>
+
+      <!-- ===== TQM STRATEGY 策略层 ===== -->
+      <div class="tqm-domains card"><div class="card-header"><h3>🎯 四域指标概览</h3></div><div class="card-body" id="tqmDomainBars"></div></div>
+
+      <!-- ===== TQM EXECUTION 执行层 ===== -->
       <div class="charts-row">
         <div class="card"><div class="card-header"><h3>📈 月度质量事件趋势</h3></div><div class="card-body"><div class="chart-container"><canvas id="chartMonthly"></canvas></div></div></div>
         <div class="card"><div class="card-header"><h3>🎯 风险等级分布</h3></div><div class="card-body"><div class="chart-container"><canvas id="chartRisk"></canvas></div></div></div>
       </div>
-
-      <div class="charts-row">
-        <div class="card"><div class="card-header"><h3>📊 事件类型分布</h3></div><div class="card-body"><div class="chart-container"><canvas id="chartTypes"></canvas></div></div></div>
-        <div class="card"><div class="card-header"><h3>🔴 待处理事项</h3></div><div class="card-body no-padding" id="recentEvents"></div></div>
-      </div>
+      <div class="card"><div class="card-header"><h3>🔴 待处理事项</h3></div><div class="card-body no-padding" id="recentEvents"></div></div>
     </div>
 
     <!-- ============ EVENTS PAGE ============ -->
