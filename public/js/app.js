@@ -962,6 +962,62 @@ async function loadChanges() {
       '<div class="module-summary-card ms-warn"><div class="ms-value">' + (summary.byLevel.I||0) + '</div><div class="ms-label">Ⅰ类 · 轻度</div></div>' +
       '<div class="module-summary-card ms-info"><div class="ms-value">' + (summary.byLevel.II||0) + '</div><div class="ms-label">Ⅱ类 · 中度</div></div>' +
       '<div class="module-summary-card ms-fail"><div class="ms-value">' + (summary.byLevel.III||0) + '</div><div class="ms-label">Ⅲ类 · 重度</div></div>';
+
+    // Render 4 charts
+    setTimeout(function() {
+      // 1. Base pie
+      var bp = summary.basePie || [];
+      if (bp.length && document.getElementById('changeBase')) {
+        renderPieChart('changeBase', bp.map(function(x){return x.name+' ('+x.pct+'%)';}), bp.map(function(x){return x.count;}), ['#3B82F6','#10B981','#F59E0B','#8B5CF6']);
+      }
+      // 2. Product type pie
+      var pp = summary.productPie || [];
+      if (pp.length && document.getElementById('changeProduct')) {
+        renderPieChart('changeProduct', pp.map(function(x){return x.name+' ('+x.pct+'%)';}), pp.map(function(x){return x.count;}), ['#6366F1','#EC4899','#14B8A6','#F97316']);
+      }
+      // 3. Pareto
+      var cp = summary.changePareto || [];
+      if (cp.length && document.getElementById('changePareto')) {
+        var ctx3 = document.getElementById('changePareto').getContext('2d');
+        if (charts['changePareto']) charts['changePareto'].destroy();
+        charts['changePareto'] = new Chart(ctx3, {
+          type: 'bar',
+          data: {
+            labels: cp.map(function(x){return x.name;}),
+            datasets: [
+              { label: '变更数', data: cp.map(function(x){return x.count;}), backgroundColor: '#3B82F6', borderRadius: 3 },
+              { label: '累积%', type: 'line', data: cp.map(function(x){return x.cumPct;}), borderColor: '#EF4444', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, title: { display: true, text: '变更数' } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '累积%' } } },
+            plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } }
+          }
+        });
+      }
+      // 4. Level stack
+      var ls = summary.levelStack || [];
+      if (ls.length && document.getElementById('changeStack')) {
+        var ctx4 = document.getElementById('changeStack').getContext('2d');
+        if (charts['changeStack']) charts['changeStack'].destroy();
+        charts['changeStack'] = new Chart(ctx4, {
+          type: 'bar',
+          data: {
+            labels: ls.map(function(x){return x.level + ' (' + x.count + '件)';}),
+            datasets: [
+              { label: '已完成', data: ls.map(function(x){return x.complete;}), backgroundColor: '#10B981', borderRadius: 3 },
+              { label: '未完成', data: ls.map(function(x){return x.incomplete;}), backgroundColor: '#EF4444', borderRadius: 3 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: '变更件数' } } },
+            plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } }
+          }
+        });
+      }
+    }, 300);
   }
 
   var result = await apiGet('/changes?limit=300');

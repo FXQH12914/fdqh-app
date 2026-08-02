@@ -346,24 +346,55 @@ app.delete('/api/capa/:id', requireAuth, asyncHandler(async (req, res) => {
 app.get('/api/changes/summary', requireAuth, asyncHandler(async (req, res) => {
   var changes = await db.findAll('change_records');
   var byLevel = { 'I': 0, 'II': 0, 'III': 0 }, byStatus = {}, byType = {}, byBase = {};
+  // 1. I/II/III × 状态交叉表 (累积图)
+  var levelStatus = { 'I': {}, 'II': {}, 'III': {} };
+
   changes.forEach(function(c) {
     var lv = c.change_level || c.risk || '';
-    if (lv.includes('I') && !lv.includes('II')) byLevel.I = (byLevel.I||0) + 1;
-    else if (lv.includes('II') && !lv.includes('III')) byLevel.II = (byLevel.II||0) + 1;
-    else if (lv.includes('III')) byLevel.III = (byLevel.III||0) + 1;
-    var st = c.status || '未知';
+    if (lv.includes('I') && !lv.includes('II')) { byLevel.I = (byLevel.I||0) + 1; lv = 'I'; }
+    else if (lv.includes('II') && !lv.includes('III')) { byLevel.II = (byLevel.II||0) + 1; lv = 'II'; }
+    else if (lv.includes('III')) { byLevel.III = (byLevel.III||0) + 1; lv = 'III'; }
+    else { byLevel.I = (byLevel.I||0) + 1; lv = 'I'; }
+    var st = c.status === '完成' ? '完成' : c.status === '是' ? '完成' : '未完成';
     byStatus[st] = (byStatus[st]||0) + 1;
+    levelStatus[lv][st] = (levelStatus[lv][st]||0) + 1;
     var bt = c.base || '未知';
     byBase[bt] = (byBase[bt]||0) + 1;
-    var ct = c.change_type || c.change_level || '未分类';
+    var ct = c.change_type || '未分类';
     byType[ct] = (byType[ct]||0) + 1;
   });
+
+  // 2. 基地占比 (name + count + pct)
+  var basePie = Object.keys(byBase).map(function(k) { return { name: k, count: byBase[k], pct: Math.round(byBase[k]/changes.length*100) }; }).sort(function(a,b){return b.count-a.count;});
+
+  // 3. 产品类型占比
+  var productPie = Object.keys(byType).map(function(k) { return { name: k, count: byType[k], pct: Math.round(byType[k]/changes.length*100) }; }).sort(function(a,b){return b.count-a.count;});
+
+  // 4. 变更对象帕累托 (按变更类型+等级)
+  var byChangeType = {};
+  changes.forEach(function(c) {
+    var key = (c.product_type_desc || c.change_type || '未分类');
+    byChangeType[key] = (byChangeType[key]||0) + 1;
+  });
+  var pareto = Object.keys(byChangeType).map(function(k) { return { name: k, count: byChangeType[k] }; }).sort(function(a,b){return b.count-a.count;});
+  var pTotal = pareto.reduce(function(s,x){return s+x.count;},0);
+  var cum = 0;
+  pareto.forEach(function(x) { cum += x.count; x.cumPct = pTotal ? Math.round(cum/pTotal*100) : 0; });
+  if (pareto.length > 10) pareto = pareto.slice(0, 10);
+
+  // 5. I/II/III 状态累积 (stacked bar)
+  var levelStack = ['I','II','III'].map(function(lv) {
+    return { level: lv + '类', count: byLevel[lv]||0, complete: levelStatus[lv]['完成']||0, incomplete: levelStatus[lv]['未完成']||0 };
+  });
+
   res.json({
     total: changes.length,
-    byLevel: byLevel,
-    byStatus: byStatus,
-    byBase: byBase,
     completed: changes.filter(function(c) { return c.status === '完成' || c.status === '已完成' || c.status === 'Closed'; }).length,
+    byLevel: byLevel, byStatus: byStatus, byBase: byBase,
+    basePie: basePie,
+    productPie: productPie,
+    changePareto: pareto,
+    levelStack: levelStack,
   });
 }));
 

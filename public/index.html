@@ -159,6 +159,15 @@
       <div class="page-header"><h2>🔄 变更控制</h2><p>设计变更·工程变更 I/II/III 分级管理 · 参照NMPA 2025版GMP</p></div>
       <!-- 变更KPI摘要 -->
       <div class="module-summary" id="changeSummary"></div>
+      <!-- 变更看板图表 -->
+      <div class="charts-row" style="margin-bottom:20px;">
+        <div class="card"><div class="card-header"><h3>🏭 分基地变更数</h3></div><div class="card-body"><div class="chart-container"><canvas id="changeBase"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><h3>🧪 仪器/试剂占比</h3></div><div class="card-body"><div class="chart-container"><canvas id="changeProduct"></canvas></div></div></div>
+      </div>
+      <div class="charts-row" style="margin-bottom:20px;">
+        <div class="card"><div class="card-header"><h3>📊 变更对象帕累托</h3></div><div class="card-body"><div class="chart-container"><canvas id="changePareto"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><h3>📈 I/II/III 状态累积</h3></div><div class="card-body"><div class="chart-container"><canvas id="changeStack"></canvas></div></div></div>
+      </div>
       <div class="card">
         <div class="card-header">
           <div class="btn-group">
