@@ -133,22 +133,9 @@ async function loadDashboard() {
       '<div class="tqm-pillar compliance"><div class="pillar-value">' + t.compliance.score + '</div><div class="pillar-label">📋 合规质量</div><div class="pillar-weight">权重 30% · CAPA关闭' + t.compliance.detail.capa + '% 审计' + t.compliance.detail.audit + '%</div></div>' +
       '<div class="tqm-pillar efficiency"><div class="pillar-value">' + t.efficiency.score + '</div><div class="pillar-label">⚡ 经营效率</div><div class="pillar-weight">权重 30% · 偏差率' + t.efficiency.detail.deviation + '% 供应' + t.efficiency.detail.supply + '%</div></div>' +
       '</div>';
+    }
 
-    // === 策略层: 四域 =====
-    var domains = [
-      { icon: '🔬', label: '研发质量 RD', cls: 'rd', score: (d.rd||{}).score||'--', detail: '设计验证通过率 ' + ((d.rd||{}).designReview||'--') + '%' },
-      { icon: '📦', label: '供应链质量 SC', cls: 'supply', score: (d.supply||{}).score||'--', detail: '来料合格率 ' + ((d.supply||{}).incoming||'--') + '% 供应PPM ' + ((d.supply||{}).ppm||'--') },
-      { icon: '🏭', label: '生产质量 MFG', cls: 'mfg', score: (d.mfg||{}).score||'--', detail: '批合格率 ' + ((d.mfg||{}).batch||'--') + '% CPP达标率 ' + ((d.mfg||{}).cpp||'--') + '%' },
-      { icon: '🌐', label: '上市后质量 PMS', cls: 'pms', score: (d.pms||{}).score||'--', detail: '投诉关闭率 ' + ((d.pms||{}).complaints||'--') + '% PMS及时率 ' + ((d.pms||{}).pmsReport||'--') + '%' },
-    ];
-    document.getElementById('tqmDomainBars').innerHTML = '<div class="domain-bars">' +
-      domains.map(function(dm) {
-        var w = isNaN(dm.score) ? 0 : Math.min(100, dm.score);
-        return '<div class="domain-bar-row"><span class="domain-icon">' + dm.icon + '</span><span class="domain-label">' + dm.label + '</span><div class="domain-bar-track"><div class="domain-bar-fill ' + dm.cls + '" style="width:' + w + '%">' + dm.score + '</div></div><span style="font-size:11px;color:var(--text-muted);">' + dm.detail + '</span></div>';
-      }).join('') + '</div>';
-  }
-
-  // ========== 三类指标卡 (红线 / 经营 / 提升) ==========
+    // ========== 三类指标卡 (红线 / 经营 / 提升) ==========
   var kpis = await apiGet('/dashboard/kpis');
   if (kpis) {
     function renderKpiCard(icon, title, cssClass, items) {
@@ -177,8 +164,8 @@ async function loadDashboard() {
   }
   document.getElementById('recentEvents').innerHTML = '<table>' + alertRows + '</table>';
 
-  // ========== 生产质量看板 (手风琴) ==========
-  loadProductionQuality();
+  // ========== 四维质量看板 ==========
+  loadQualityModules();
 
   // Charts
   renderChart('chartMonthly', 'line', stats.monthlyTrends.map(function(t) { return t.month; }), stats.monthlyTrends.map(function(t) { return t.count; }), '事件数', '#D4875A');
@@ -193,145 +180,117 @@ async function loadDashboard() {
 }
 
 // ===== 保龄球图渲染 =====
-async function loadProductionQuality() {
-  var data = await apiGet('/dashboard/production-quality');
-  if (!data || !data.sections) return;
+var currentModule = 'mfg'; // default active module
+
+async function loadQualityModules() {
+  var data = await apiGet('/dashboard/quality-modules');
+  if (!data || !data.modules) return;
 
   var months = ['1月','2月','3月','4月','5月'];
 
-  function statusDot(s) { return s === 'pass' ? '🟢' : s === 'warning' ? '🟡' : s === 'fail' ? '🔴' : '⚪'; }
-  function cellClass(v, target, dir) { if (v === '--' || v === null) return 'cell-na'; return dir === 'lt' ? (v <= target ? 'cell-pass' : 'cell-fail') : (v >= target ? 'cell-pass' : 'cell-fail'); }
+  // Render tabs
+  var tabsHtml = data.modules.map(function(mod) {
+    var active = mod.id === currentModule ? ' active' : '';
+    return '<button class="module-tab ' + mod.id + active + '" onclick="switchModule(\'' + mod.id + '\')">' + mod.icon + ' ' + mod.title + '</button>';
+  }).join('');
+  document.getElementById('moduleTabs').innerHTML = tabsHtml;
 
-  // ===== Render Accordion =====
-  var html = '<div class="pq-accordion">';
+  // Render active module
+  renderModule(data.modules.find(function(m) { return m.id === currentModule; }), months);
 
-  data.sections.forEach(function(section) {
-    var badgeClass = section.hasData ? 'data' : 'nodata';
-    var badgeText = section.hasData ? '有数据' : '仅有指标';
-    var expandId = 'pq-sec-' + section.title.replace(/[^a-zA-Z\u4e00-\u9fa5]/g, '');
-    var openAttr = section.expanded ? ' open' : '';
+  function renderModule(mod, months) {
+    if (!mod) return;
+    var html = '';
 
-    html += '<div class="pq-section">' +
-      '<div class="pq-section-header' + openAttr + '" onclick="togglePQSection(this)" data-target="' + expandId + '">' +
-      '<span class="pq-icon">' + section.icon + '</span>' +
-      '<span class="pq-title">' + section.title + '</span>' +
-      '<span class="pq-badge ' + badgeClass + '">' + badgeText + '</span>' +
-      '<span class="pq-toggle">▼</span></div>' +
-      '<div class="pq-section-body' + openAttr + '" id="' + expandId + '">';
+    // Summary cards
+    html += '<div class="module-summary">';
+    mod.summary.forEach(function(s) {
+      var cls = s.status === 'pass' ? 'ms-pass' : s.status === 'fail' ? 'ms-fail' : s.status === 'warning' ? 'ms-warn' : 'ms-info';
+      html += '<div class="module-summary-card ' + cls + '"><div class="ms-value">' + s.value + '</div><div class="ms-label">' + s.label + '</div><div class="ms-target">目标: ' + s.target + ' ｜ ' + (s.desc||'') + '</div></div>';
+    });
+    html += '</div>';
 
-    // ---- Render section body based on type ----
-    if (section.metrics && section.hasData && section.metrics[0] && section.metrics[0].months) {
-      // Standard metric table
-      html += '<table class="pq-table"><thead><tr><th>指标</th><th>目标</th>' +
-        months.map(function(m) { return '<th>' + m + '</th>'; }).join('') +
-        '<th>YTD</th></tr></thead><tbody>';
-      section.metrics.forEach(function(m) {
-        var cls = 'cell-' + m.status;
-        html += '<tr><td>' + m.name + (m.note ? ' <small style="color:#DC2626">' + m.note + '</small>' : '') + '</td><td><b>' + m.target + '</b></td>';
-        months.forEach(function(mo) {
-          var v = m.months[mo];
-          var c = v === '--' || v === null ? 'cell-na' : (m.name.includes('缺陷') || m.name.includes('DOA') || m.name.includes('FFR') || m.name.includes('维修') ? (v <= parseFloat(m.target) ? 'cell-pass' : 'cell-fail') : (v >= parseFloat(m.target) ? 'cell-pass' : 'cell-fail'));
-          var disp = v === '--' ? '-' : (v !== null && v !== undefined ? (v >= 100 ? '100' : Number(v).toFixed(1)) + '%' : '-');
-          html += '<td class="' + c + '">' + disp + '</td>';
-        });
-        html += '<td class="' + cls + '"><b>' + m.ytd + '</b> ' + statusDot(m.status) + '</td></tr>';
+    // Sections
+    mod.sections.forEach(function(sec) {
+      html += '<div class="module-section"><div class="module-section-title">' + sec.title + '</div>';
 
-        // Children
-        if (m.children) {
-          m.children.forEach(function(ch) {
-            html += '<tr class="pq-sub' + (ch.alert ? ' alert-row' : '') + '"><td>↳ ' + ch.name + (ch.alert ? ' ⚠️' : '') + '</td><td>' + ch.target + '</td>';
-            months.forEach(function(mo) {
-              var v = ch.months[mo];
-              var c = v === '--' || v === null || v === undefined ? 'cell-na' : (v <= parseFloat(ch.target) ? 'cell-pass' : 'cell-fail');
-              var disp = v === '--' ? '-' : (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-');
-              html += '<td class="' + c + '">' + disp + '</td>';
-            });
-            html += '<td class="cell-' + ch.status + '"><b>' + ch.ytd + '</b> ' + statusDot(ch.status) + '</td></tr>';
-          });
-        }
-      });
-      html += '</tbody></table>';
-    }
-
-    // ---- Instrument cross-table ----
-    if (section.models && section.metrics) {
-      html += '<table class="pq-cross-table"><thead><tr><th>机型</th><th>类型</th><th>装机量</th>';
-      months.forEach(function(m) { html += '<th>' + m + '</th>'; });
-      html += '<th>YTD</th><th>状态</th></tr></thead><tbody>';
-      section.models.forEach(function(model) {
-        var info = section.installSummary[model] || {};
-        section.metrics.forEach(function(met) {
-          var d = met.data[model];
-          if (!d) return;
-          html += '<tr><td class="row-label">' + model + ' ' + met.label + '</td><td>' + d.type + '</td><td>' + (info.new26 || '') + '台</td>';
+      if (sec.type === 'table') {
+        html += '<table class="mod-table"><thead><tr>' + sec.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
+        sec.rows.forEach(function(row) {
+          var cls = 'c-' + row.status;
+          html += '<tr><td>' + row.name + (row.note ? ' <span style="color:#DC2626;font-size:10px;">' + row.note + '</span>' : '') + '</td><td><b>' + row.target + '</b></td>';
           months.forEach(function(mo) {
-            var v = d.months[mo];
-            var c = v === null || v === undefined ? 'cell-na' : (v <= 8 ? 'pass' : 'fail');
-            html += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';
+            var v = row.months[mo];
+            var dir = row.direction || 'gte';
+            var c = v === '--' || v === null || v === undefined ? 'c-na' : (dir === 'lt' ? (v <= parseFloat(row.target) ? 'c-pass' : 'c-fail') : (v >= parseFloat(row.target) ? 'c-pass' : 'c-fail'));
+            var disp = v === '--' ? '-' : (v !== null && v !== undefined ? (v >= 100 ? '100' : Number(v).toFixed(1)) + '%' : '-');
+            html += '<td class="' + c + '">' + disp + '</td>';
           });
-          html += '<td class="' + (d.status === 'pass' ? 'pass' : 'fail') + '"><b>' + d.ytd + '</b></td><td>' + statusDot(d.status) + '</td></tr>';
+          html += '<td class="' + cls + '"><b>' + row.ytd + '</b></td></tr>';
+          // Children
+          if (row.children) {
+            row.children.forEach(function(ch) {
+              html += '<tr class="sub-row"><td>↳ ' + ch.name + '</td><td>' + ch.target + '</td>';
+              months.forEach(function(mo) {
+                var v = ch.months[mo];
+                var c = v === '--' || v === null || v === undefined ? 'c-na' : (v <= parseFloat(ch.target) ? 'c-pass' : 'c-fail');
+                html += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';
+              });
+              html += '<td class="c-' + ch.status + '"><b>' + ch.ytd + '</b></td></tr>';
+            });
+          }
         });
-      });
-      html += '</tbody></table>';
-    }
+        html += '</tbody></table>';
 
-    // ---- System metrics (definition only) ----
-    if (!section.hasData && section.metrics) {
-      html += '<div class="pq-system-grid">';
-      section.metrics.forEach(function(m) {
-        html += '<div class="pq-system-card"><div class="sys-name">' + m.name + '</div>' +
-          '<div class="sys-meta">🏷 ' + m.category + ' ｜ 目标: ' + m.target + ' ｜ 单位: ' + m.unit + '</div>' +
-          '<div class="sys-note">💡 ' + m.note + '</div></div>';
-      });
-      html += '</div>';
-    }
+      } else if (sec.type === 'list') {
+        html += '<ul class="mod-list">';
+        sec.items.forEach(function(item) {
+          html += '<li><span class="mod-issue">' + item.issue + '</span><span class="mod-line">' + (item.line||'') + '</span><span style="font-size:11px;color:var(--text-muted);">' + (item.product||'') + '</span><span class="mod-status ' + (item.status||'open') + '">' + (item.status==='open'?'待解决':'已关闭') + '</span></li>';
+        });
+        html += '</ul>';
 
-    // ---- Complaint section ----
-    if (section.byLine && section.topIssues) {
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;">' +
-        '<div><canvas id="chartCompMonth" height="180"></canvas></div>' +
-        '<div><canvas id="chartCompLine" height="180"></canvas></div></div>';
-      html += '<div style="margin-top:12px;"><b>🔝 Top 客诉问题</b></div>' +
-        '<table class="pq-table"><thead><tr><th>产品</th><th>产品线</th><th>次数</th><th>问题描述</th></tr></thead><tbody>';
-      section.topIssues.forEach(function(t) {
-        html += '<tr><td>' + t.product + '</td><td>' + t.line + '</td><td><b>' + t.count + '</b></td><td style="text-align:left;font-size:11px;">' + t.detail + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
+      } else if (sec.type === 'cards') {
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">';
+        sec.items.forEach(function(item) {
+          html += '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px;"><div style="font-weight:600;font-size:13px;color:#92400E;">' + item.name + '</div><div style="font-size:11px;color:#A16207;margin-top:4px;">目标: ' + item.target + '</div><div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic;">💡 ' + item.note + '</div></div>';
+        });
+        html += '</div>';
 
-    html += '</div></div>'; // close section-body + section
-  });
+      } else if (sec.type === 'summary') {
+        html += '<div class="mod-summary-bar">';
+        sec.items.forEach(function(item) {
+          html += '<div class="mod-summary-item"><span class="msi-label">' + item.label + '</span><span class="msi-value" style="color:' + (item.color||'#3B82F6') + '">' + item.value + '</span></div>';
+        });
+        html += '</div>';
 
-  html += '</div>'; // close accordion
+      } else if (sec.type === 'cross') {
+        html += '<table class="mod-cross"><thead><tr><th>机型</th><th>指标</th>' + months.map(function(m){return '<th>'+m+'</th>';}).join('') + '<th>YTD</th><th>状态</th></tr></thead><tbody>';
+        sec.models.forEach(function(model) {
+          sec.metrics.forEach(function(met) {
+            var d = met.data[model];
+            if (!d) return;
+            html += '<tr><td class="rl">' + model + '</td><td>' + met.label + ' ≤' + met.target + '</td>';
+            months.forEach(function(mo) {
+              var v = d.months[mo];
+              var c = v === null || v === undefined ? 'c-na' : (v <= parseFloat(met.target) ? 'c-pass' : 'c-fail');
+              html += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';
+            });
+            html += '<td class="c-' + d.status + '"><b>' + d.ytd + '</b></td><td>' + (d.status==='pass'?'🟢':d.status==='fail'?'🔴':'🟡') + '</td></tr>';
+          });
+        });
+        html += '</tbody></table>';
+      }
 
-  var el = document.getElementById('productionQualityAccordion');
-  if (el) {
-    el.innerHTML = html;
-    // Render complaint charts if data exists
-    var compSection = data.sections.find(function(s) { return s.byLine; });
-    if (compSection) {
-      setTimeout(function() {
-        renderChart('chartCompMonth', 'bar', Object.keys(compSection.byMonth), Object.values(compSection.byMonth), '客诉数', '#EF4444');
-        var lineData = compSection.byLine;
-        renderPieChart('chartCompLine', lineData.map(function(l) { return l.name; }), lineData.map(function(l) { return l.count; }), lineData.map(function(l) { return l.color; }));
-      }, 200);
-    }
+      html += '</div>'; // close section
+    });
+
+    document.getElementById('moduleContent').innerHTML = html;
   }
 }
 
-// Toggle accordion section
-function togglePQSection(header) {
-  var targetId = header.getAttribute('data-target');
-  var body = document.getElementById(targetId);
-  if (!body) return;
-  var isOpen = body.classList.contains('open');
-  if (isOpen) {
-    body.classList.remove('open');
-    header.classList.remove('open');
-  } else {
-    body.classList.add('open');
-    header.classList.add('open');
-  }
+function switchModule(id) {
+  currentModule = id;
+  loadQualityModules();
 }
 
 function renderChart(id, type, labels, data, label, color) {

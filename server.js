@@ -1014,6 +1014,166 @@ app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (re
   });
 }));
 
+// ============================================================
+// QUALITY MODULES — 四维质量看板 (研发/供应链/生产/体系)
+// ============================================================
+app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var suppliers = await db.findAll('suppliers');
+  var products = await db.findAll('products');
+
+  var months = ['1月','2月','3月','4月','5月'];
+
+  // ===== MODULE 1: 研发质量 R&D =====
+  var rdModule = {
+    id: 'rd', title: '研发质量', icon: '🔬', subtitle: '设计保证 · 新产品导入 · 设计变更',
+    color: '#6366F1',
+    summary: [
+      { label: '新品DOA', value: '9.1%', target: '≤8%', status: 'fail', desc: '仪器到货缺陷率(新产品)' },
+      { label: '新品FFR', value: '7.8%', target: '≤8%', status: 'pass', desc: '仪器维修率(新产品)' },
+      { label: '设计缺陷率', value: '2.2%', target: '≤2.5%', status: 'pass', desc: '试剂设计验证一次通过率' },
+      { label: '设计变更', value: events.filter(function(e) { return e.event_type === 'Change-Control'; }).length, target: '--', status: 'info', desc: '进行中设计变更数' },
+    ],
+    sections: [
+      { title: '新产品导入质量 (DOA / FFR)', type: 'table',
+        headers: ['指标','目标',...months,'YTD'],
+        rows: [
+          { name: 'DOA 到货缺陷率', target: '≤8%', months: {'1月':14.3,'2月':0,'3月':0,'4月':0,'5月':16.7}, ytd:'9.1%', status:'fail', direction:'lt' },
+          { name: 'FFR 月度维修率', target: '≤8%', months: {'1月':12.0,'2月':7.8,'3月':6.0,'4月':7.4,'5月':5.8}, ytd:'7.8%', status:'pass', direction:'lt' },
+        ],
+        children: [
+          { name: 'F-C800P FFR', target: '≤8%', months: {'1月':15.7,'2月':11.7,'3月':8.5,'4月':9.2,'5月':7.3}, ytd:'10.5%', status:'fail' },
+          { name: '药敏 FFR', target: '≤8%', months: {'1月':7.3,'2月':2.8,'3月':2.8,'4月':4.9,'5月':3.8}, ytd:'4.3%', status:'pass' },
+        ]
+      },
+      { title: '设计相关客诉 Top 问题', type: 'list',
+        items: [
+          { issue: 'CKMB假阳性（小批量上市产品）', product: 'CKMB测定试剂盒', line: '生化', status: 'open' },
+          { issue: 'CA系列盲样偏差（京津冀鲁EQA）', product: 'CA242/CA15-3/CA19-9', line: '发光', status: 'open' },
+          { issue: 'HBV迭代后阳性率偏高', product: 'HBV核酸检测', line: '荧光PCR', status: 'open' },
+          { issue: 'PGI/PGII室间质评偏差', product: 'PGI/PGII检测试剂', line: '发光', status: 'open' },
+        ]
+      },
+      { title: '研发体系建设 (待启动)', type: 'cards',
+        items: [
+          { name: '研发项目平均缺陷数', target: '待定', note: '需建立设计评审标准' },
+          { name: '设计验证一次通过率', target: '≥95%', note: '需建立统计口径' },
+        ]
+      },
+    ]
+  };
+
+  // ===== MODULE 2: 供应链质量 SC =====
+  var scModule = {
+    id: 'supply', title: '供应链质量', icon: '📦', subtitle: '来料检验 · 供应商管理 · 仓储物流',
+    color: '#F59E0B',
+    summary: [
+      { label: '原料合格率(试剂)', value: '99.5%', target: '≥99%', status: 'pass', desc: '上海/泰州/长沙 共1586批' },
+      { label: '原料合格率(仪器)', value: '99.0%', target: '≥97%', status: 'pass', desc: '共1574批' },
+      { label: '包材合格率', value: '99.5%', target: '≥98%', status: 'pass', desc: '共546批' },
+      { label: '量产品DOA', value: '7.7%', target: '≤8%', status: 'pass', desc: '量产仪器到货缺陷率' },
+    ],
+    sections: [
+      { title: '来料检验合格率趋势', type: 'table',
+        headers: ['指标','目标',...months,'YTD'],
+        rows: [
+          { name: '包材检验合格率', target: '≥98%', months: {'1月':100,'2月':98.5,'3月':98.4,'4月':100,'5月':100}, ytd:'99.5%', status:'pass', detail:'546批/3不良', direction:'gte' },
+          { name: '原料(试剂)合格率', target: '≥99%', months: {'1月':99.4,'2月':100,'3月':98.5,'4月':99.8,'5月':100}, ytd:'99.5%', status:'pass', detail:'1586批/8不良', direction:'gte' },
+          { name: '原料(仪器)合格率', target: '≥97%', months: {'1月':97.5,'2月':97.5,'3月':99.0,'4月':99.5,'5月':100}, ytd:'99.0%', status:'pass', detail:'1574批/16不良', direction:'gte' },
+        ]
+      },
+      { title: '供应商质量绩效', type: 'table',
+        headers: ['供应商','质量评分','交货评分','体系评分','综合','风险'],
+        rows: suppliers.slice(0, 6).map(function(s) { return {
+          name: s.supplier_name || s.name,
+          quality: s.quality_score || '--',
+          delivery: s.delivery_score || '--',
+          system: s.system_score || '--',
+          total: s.total_score || '--',
+          risk: s.risk_level || '--',
+        };})
+      },
+      { title: '物料相关客诉', type: 'list',
+        items: [
+          { issue: '底物液原料批间差(重复客诉)', product: '全自动底物液', line: '发光', status: 'open' },
+          { issue: 'Lp(a) DAKO原料批间差', product: '脂蛋白a测定试剂盒', line: '生化', status: 'closed' },
+          { issue: 'TT4试剂瓶裂痕漏液', product: 'TT4试剂', line: '发光', status: 'closed' },
+        ]
+      },
+    ]
+  };
+
+  // ===== MODULE 3: 生产质量 MFG =====
+  var mfgModule = {
+    id: 'mfg', title: '生产质量', icon: '🏭', subtitle: '过程控制 · 成品检验 · 批记录 · 仪器质量',
+    color: '#3B82F6',
+    summary: [
+      { label: '半成品合格率', value: '97.4%', target: '≥98%', status: 'warning', desc: '774批/20不良' },
+      { label: '成品合格率(试剂)', value: '99.9%', target: '≥99%', status: 'pass', desc: '876批/1不良' },
+      { label: '批记录合格率', value: '96.7%', target: '≥95%', status: 'pass', desc: '874批/29不良' },
+      { label: 'DOA Overall', value: '8.7%', target: '≤8%', status: 'warning', desc: '整体到货缺陷率' },
+    ],
+    sections: [
+      { title: '过程检验 & 成品检验', type: 'table',
+        headers: ['指标','目标',...months,'YTD'],
+        rows: [
+          { name: '半成品合格率(试剂)', target: '≥98%', months: {'1月':97.1,'2月':99.2,'3月':97.4,'4月':94.6,'5月':99.3}, ytd:'97.4%', status:'warning', direction:'gte' },
+          { name: '成品合格率(试剂)', target: '≥99%', months: {'1月':100,'2月':100,'3月':99.5,'4月':100,'5月':100}, ytd:'99.9%', status:'pass', direction:'gte' },
+          { name: '成品合格率(仪器)', target: '≥85%', months: {'1月':100,'2月':100,'3月':100,'4月':100,'5月':100}, ytd:'100%', status:'pass', direction:'gte' },
+          { name: '批记录合格率', target: '≥95%', months: {'1月':98.3,'2月':97.8,'3月':93.8,'4月':94.5,'5月':100}, ytd:'96.7%', status:'pass', direction:'gte' },
+          { name: '稳定性检测完成率', target: '100%', months: {'1月':'--','2月':'--','3月':'--','4月':'--','5月':'--'}, ytd:'79.2%', status:'fail', note:'⚠️342/432批', direction:'gte' },
+        ]
+      },
+      { title: '仪器质量 (分机型 DOA/FFR)', type: 'cross',
+        models: ['F-C800P','F-i3000','F-i1000','药敏'],
+        metrics: [
+          { label:'DOA', target:'≤8%', data:{'F-C800P':{months:{'1月':0,'2月':0,'3月':0,'4月':0,'5月':20.0},ytd:'9.1%',status:'fail'},'F-i3000':{months:{'1月':0,'2月':0,'3月':0,'4月':0,'5月':0},ytd:'0%',status:'pass'},'F-i1000':{months:{'1月':0,'2月':0,'3月':0,'4月':50.0,'5月':0},ytd:'50%',status:'fail'},'药敏':{months:{'1月':33.3,'2月':0,'3月':0,'4月':0,'5月':0},ytd:'9.1%',status:'fail'}} },
+          { label:'FFR', target:'≤8%', data:{'F-C800P':{months:{'1月':15.7,'2月':11.7,'3月':8.5,'4月':9.2,'5月':7.3},ytd:'10.5%',status:'fail'},'F-i3000':{months:{'1月':17.2,'2月':8.4,'3月':7.3,'4月':6.7,'5月':7.4},ytd:'9.4%',status:'fail'},'F-i1000':{months:{'1月':11.7,'2月':3.9,'3月':5.2,'4月':3.8,'5月':2.5},ytd:'5.4%',status:'pass'},'药敏':{months:{'1月':7.3,'2月':2.8,'3月':2.8,'4月':4.9,'5月':3.8},ytd:'4.3%',status:'pass'}} },
+        ]
+      },
+    ]
+  };
+
+  // ===== MODULE 4: 体系质量 QMS =====
+  var qmsModule = {
+    id: 'qms', title: '体系质量', icon: '📋', subtitle: 'CAPA · 审计 · 文件 · 风险管理',
+    color: '#10B981',
+    summary: [
+      { label: 'CAPA总数', value: capas.length, target: '--', status: 'info', desc: '含关闭' + capas.filter(function(c){return c.status==='Closed';}).length + '件' },
+      { label: '审计发现', value: events.filter(function(e){return e.event_type==='Audit-Finding';}).length, target: '--', status: 'info', desc: '待关闭审计发现' },
+      { label: '客诉闭环率', value: (function(){var ce=events.filter(function(e){return e.event_type==='Complaint';});return ce.length?Math.round(ce.filter(function(e){return e.status==='Closed'}).length/ce.length*100):100;})(), target: '≥95%', status: (function(){var ce=events.filter(function(e){return e.event_type==='Complaint';});return ce.length&&ce.filter(function(e){return e.status==='Closed'}).length/ce.length>=0.95?'pass':'fail';})(), unit:'%', desc: '投诉闭环率' },
+      { label: '文件合格率', value: '96%', target: '≥95%', status: 'pass', desc: '体系文件受控率' },
+    ],
+    sections: [
+      { title: 'CAPA 管理', type: 'summary',
+        items: [
+          { label: 'CAPA总数', value: capas.length },
+          { label: '已关闭', value: capas.filter(function(c){return c.status==='Closed';}).length, color:'#10B981' },
+          { label: '处理中', value: capas.filter(function(c){return c.status==='In Progress';}).length, color:'#3B82F6' },
+          { label: '逾期', value: capas.filter(function(c){return c.due_date&&new Date(c.due_date)<new Date()&&c.status!=='Closed';}).length, color:'#EF4444' },
+        ]
+      },
+      { title: '体系建设指标 (规划中)', type: 'cards',
+        items: [
+          { name: '风险管理覆盖率', target: '100%', note: 'ISO 14971 风险管理覆盖' },
+          { name: 'PMS覆盖率', target: '100%', note: '上市后监督计划执行' },
+          { name: 'GMP平均缺陷数', target: '待定', note: '需建立缺陷分类标准' },
+          { name: '体系文件优化', target: '待定', note: '文件精简/合并计划' },
+        ]
+      },
+      { title: '近期审计发现', type: 'list',
+        items: events.filter(function(e){return e.event_type==='Audit-Finding';}).slice(0, 5).map(function(e){return {issue:e.description||e.title,date:e.created_at,status:e.status};})
+      },
+    ]
+  };
+
+  res.json({
+    modules: [rdModule, scModule, mfgModule, qmsModule],
+    updated: '2026-05',
+  });
+}));
+
 
 // ============================================================
 // AI ASSISTANT
