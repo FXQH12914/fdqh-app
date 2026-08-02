@@ -114,13 +114,11 @@ function toggleNavSub(page) {
   var arrow = document.getElementById('navEventsArrow');
   if (parent.classList.contains('expanded')) {
     parent.classList.remove('expanded');
-    arrow.textContent = '▶';
+    if (arrow) arrow.textContent = '▶';
   } else {
     parent.classList.add('expanded');
-    arrow.textContent = '▼';
+    if (arrow) arrow.textContent = '▼';
   }
-  // Also navigate to the parent page
-  navigate(page);
 }
 
 function navigate(page) {
