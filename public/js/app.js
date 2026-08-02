@@ -79,6 +79,35 @@ function logout() {
   document.getElementById('appLayout').classList.remove('active');
 }
 
+// ---- 修改密码 ----
+function openPasswordModal() {
+  document.getElementById('oldPassword').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('confirmPassword').value = '';
+  document.getElementById('pwdMsg').innerHTML = '';
+  openModal('passwordModal');
+}
+
+async function changePassword() {
+  var oldPwd = document.getElementById('oldPassword').value;
+  var newPwd = document.getElementById('newPassword').value;
+  var confirmPwd = document.getElementById('confirmPassword').value;
+  var msg = document.getElementById('pwdMsg');
+  
+  if (!oldPwd) { msg.innerHTML = '<span style="color:#DC2626;">请输入旧密码</span>'; return; }
+  if (!newPwd || newPwd.length < 6) { msg.innerHTML = '<span style="color:#DC2626;">新密码至少6位</span>'; return; }
+  if (newPwd !== confirmPwd) { msg.innerHTML = '<span style="color:#DC2626;">两次输入的新密码不一致</span>'; return; }
+  
+  var res = await apiPut('/auth/password', { oldPassword: oldPwd, newPassword: newPwd });
+  if (!res) return;
+  
+  if (res.success) {
+    msg.innerHTML = '<span style="color:#059669;">✅ ' + res.message + '</span>';
+    showToast('密码修改成功', 'success');
+    setTimeout(function() { closeModal('passwordModal'); }, 1200);
+  }
+}
+
 // ---- NAVIGATION ----
 function navigate(page) {
   if (dashboardTimer) { clearInterval(dashboardTimer); dashboardTimer = null; }
