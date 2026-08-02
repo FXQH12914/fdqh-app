@@ -1489,13 +1489,20 @@ app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) 
 
   // 2. 仪器问题类型帕累托 (bug清单)
   var instrumentComplaints = complaints.filter(function(c) { return !(c.complaint_source || '').includes('试剂'); });
+  // 排除的条线/来源关键词
+  var BUG_EXCLUDE = ['发光', '生化', '荧光PCR', 'POCT', '药敏', '微生物'];
   var instrumentBugType = {};
   instrumentComplaints.forEach(function(c) {
     var desc = c.description || '';
     var m = desc.match(/【[^】]*·([^】]+)】/);
     var bug = m ? m[1] : ((desc.match(/【([^】]+)】/) ? desc.match(/【([^】]+)】/)[1] : '') || '其他');
     if (bug.includes('·')) bug = bug.split('·')[1] || bug;
-    if (bug.length > 12) bug = bug.substring(0, 12);
+    bug = bug.replace(/^FFR[:：]?\s*/i, '').trim();
+    // 过滤条线名
+    var isLine = BUG_EXCLUDE.some(function(l) { return bug === l || bug.indexOf(l) === 0; });
+    if (isLine) bug = '其他';
+    if (!bug) bug = '其他';
+    if (bug.length > 14) bug = bug.substring(0, 14);
     instrumentBugType[bug] = (instrumentBugType[bug] || 0) + 1;
   });
   var instrumentPareto = Object.keys(instrumentBugType).map(function(k) { return { name: k, count: instrumentBugType[k] }; })
@@ -1515,7 +1522,7 @@ app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) 
   ];
   var reagentLineDesign = LINES.map(function(line) {
     var items = reagentComplaints.filter(function(c) {
-      return (c.description || '').includes('【' + line.key + '】');
+      return (c.description || '').includes('【' + line.key);
     });
     var design = items.filter(function(c) {
       var cause = c.complaint_cause || (c.description || '');
