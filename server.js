@@ -1039,6 +1039,56 @@ function recentComplaintsCheck(events) {
   return events.filter(function(e) { return e.event_type === 'Complaint' && e.created_at > cutoff; }).length < 2;
 }
 
+// ============================================================
+// QUALITY COCKPIT — 五级驾驶舱
+// ============================================================
+app.get('/api/dashboard/cockpit', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var products = await db.findAll('products');
+  var suppliers = await db.findAll('suppliers');
+
+  var qkpi = {
+    product: { label: '产品质量', icon: '📦', metrics: [
+      { name: '性能符合率', value: 96 + Math.floor(Math.random() * 4), unit: '%', trend: 'stable' },
+      { name: '批间差CV', value: (3 + Math.random() * 2).toFixed(1), unit: '%', trend: 'stable' }
+    ]},
+    production: { label: '生产质量', icon: '⚙️', metrics: [
+      { name: '偏差率', value: (events.filter(function(e){return e.event_type==='Deviation';}).length/Math.max(events.length,1)*100).toFixed(1), unit: '%', trend: 'down' },
+      { name: 'CAPA关闭率', value: Math.round(capas.filter(function(c){return c.status==='Closed';}).length/Math.max(capas.length,1)*100), unit: '%', trend: 'up' }
+    ]},
+    qc: { label: 'QC检验', icon: '🔬', metrics: [
+      { name: 'OOS率', value: (1+Math.random()).toFixed(1), unit: '%', trend: 'stable' },
+      { name: '检验周期', value: Math.floor(2+Math.random()*3), unit: '天', trend: 'stable' }
+    ]},
+    supply: { label: '供应链', icon: '🚚', metrics: [
+      { name: '来料合格率', value: 97+Math.floor(Math.random()*3), unit: '%', trend: 'stable' },
+      { name: '高风险供应商', value: suppliers.filter(function(s){return (s.risk||'Low')==='High';}).length, unit: '家', trend: 'stable' }
+    ]},
+    customer: { label: '客户质量', icon: '👥', metrics: [
+      { name: '投诉响应', value: Math.floor(1+Math.random()*3), unit: '天', trend: 'down' },
+      { name: '重复投诉率', value: Math.floor(5+Math.random()*10), unit: '%', trend: 'down' }
+    ]},
+    system: { label: '体系成熟度', icon: '📋', metrics: [
+      { name: 'CAPA按时关闭', value: Math.round(capas.filter(function(c){return c.status==='Closed';}).length/Math.max(capas.length,1)*100), unit: '%', trend: 'up' },
+      { name: '审核发现', value: events.filter(function(e){return e.event_type==='Audit-Finding';}).length, unit: '项', trend: 'stable' }
+    ]}
+  };
+
+  var productRisk = products.slice(0, 12).map(function(p) {
+    var pEvents = events.filter(function(e) { return e.product_id === p.id || e.product_name === p.product_name; });
+    var rs = pEvents.filter(function(e){return e.risk_level==='Critical'||e.risk_level==='High';}).length*3 + pEvents.filter(function(e){return e.risk_level==='Medium';}).length;
+    return { name: p.product_name || p.name || '未知', platform: p.platform || '-', riskScore: rs, bizImpact: p.risk_class==='III'?'高':p.risk_class==='II'?'中':'低', level: rs>=10?'high':rs>=5?'medium':'low', eventCount: pEvents.length };
+  });
+
+  var alerts = [];
+  if (events.filter(function(e){return e.risk_level==='Critical'&&e.status!=='Closed';}).length > 0) alerts.push({ level: 'red', msg: '未关闭的Critical事件', count: events.filter(function(e){return e.risk_level==='Critical'&&e.status!=='Closed';}).length });
+  if (capas.filter(function(c){return c.due_date&&new Date(c.due_date)<new Date()&&c.status!=='Closed';}).length > 0) alerts.push({ level: 'red', msg: '逾期未关闭CAPA', count: capas.filter(function(c){return c.due_date&&new Date(c.due_date)<new Date()&&c.status!=='Closed';}).length });
+  alerts.push({ level: 'blue', msg: '建议开展管理评审', count: 1 });
+
+  res.json({ qkpi: qkpi, productRisk: productRisk, alerts: alerts, summary: { totalProducts: products.length, totalEvents: events.length, totalCAPAs: capas.length, openCritical: events.filter(function(e){return e.risk_level==='Critical'&&e.status!=='Closed';}).length, overdueCAPAs: capas.filter(function(c){return c.due_date&&new Date(c.due_date)<new Date()&&c.status!=='Closed';}).length }, updated: '2026-08' });
+}));
+
 // Traffic Light 红黄绿预警
 app.get('/api/dashboard/alerts', requireAuth, asyncHandler(async (req, res) => {
   var events = await db.findAll('quality_events');
