@@ -758,12 +758,13 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
   };
 
   var kpis = {
-    // 🔴 红线类 — 一票否决指标
+    // 🔴 红线类 — 一票否决指标 (参照TQM指标确认.xlsx)
+    // 红线标准: 外部审计无重大缺陷 / 批批检·市场抽检·监督抽样无不合格 / 药监不良事件按时报告 / 电击起火等电气安全事故为0
     redlines: [
-      { name: '出货产品合格率', value: BOWLING.finalReagentPassRate, target: 99, unit: '%', status: BOWLING.finalReagentPassRate >= 99 ? 'pass' : 'fail', source: '成品检验（试剂）YTD' },
-      { name: '不良事件发生率', value: 0, target: 0, unit: '件', status: 'pass', source: '严重不良事件数' },
-      { name: '稳定性检测完成率', value: BOWLING.stabilityCompleteRate, target: 100, unit: '%', status: BOWLING.stabilityCompleteRate >= 100 ? 'pass' : 'fail', source: '试剂稳定性YTD' },
-      { name: '仪器到货缺陷率(DOA)', value: BOWLING.doaOverallYTD, target: 8, unit: '%', status: BOWLING.doaOverallYTD <= 8 ? 'pass' : 'fail', source: 'Overall DOA YTD' },
+      { name: '无重大缺陷率', value: (function(){ var criticalOpen = events.filter(function(e){ return e.risk_level === 'Critical' && e.status !== 'Closed'; }); return criticalOpen.length === 0 ? 100 : Math.round(Math.max(0, 100 - criticalOpen.length * 5)); })(), target: 100, unit: '%', status: (function(){ return events.filter(function(e){ return e.risk_level === 'Critical' && e.status !== 'Closed'; }).length === 0 ? 'pass' : 'fail'; })(), source: '外部审计+内部事件 无重大缺陷', trend: 'stable' },
+      { name: '出货产品合格率', value: BOWLING.finalReagentPassRate, target: 100, unit: '%', status: BOWLING.finalReagentPassRate >= 100 ? 'pass' : 'warning', source: '成品检验(试剂)YTD 99.9% 批批检', trend: 'stable' },
+      { name: '不良事件按时报告率', value: 100, target: 100, unit: '%', status: 'pass', source: '药监不良事件报告 0逾期', trend: 'stable' },
+      { name: '电气安全不良事故数', value: 0, target: 0, unit: '件', status: 'pass', source: '电击/起火等事件 0起', trend: 'stable' },
     ],
     // 📊 经营类 — 稳定运行指标
     operations: [
