@@ -1751,7 +1751,7 @@ function filterChanges(filter) {
 
 // ===== 变更控制子页面切换 =====
 function showChangesSubPage(sub) {
-  var db = document.getElementById('changesDashboard');
+  var wrap = document.getElementById('changesDashboardWrap');
   var guide = document.getElementById('changesGuideContent');
   var btns = document.querySelectorAll('#page-changes .page-header .btn-group .btn');
   
@@ -1759,20 +1759,13 @@ function showChangesSubPage(sub) {
   
   if (sub === 'guide') {
     if (btns[1]) { btns[1].classList.remove('btn-outline'); btns[1].classList.add('btn-primary'); }
-    if (db) db.style.display = 'none';
+    if (wrap) wrap.style.display = 'none';
     if (guide) guide.style.display = 'block';
-    // Hide chart rows
-    document.querySelectorAll('#page-changes .charts-row, #page-changes .card').forEach(function(el) {
-      if (!el.closest('#changesGuideContent')) el.style.display = 'none';
-    });
     loadChangesGuide();
   } else {
     if (btns[0]) { btns[0].classList.remove('btn-outline'); btns[0].classList.add('btn-primary'); }
-    if (db) db.style.display = '';
+    if (wrap) wrap.style.display = '';
     if (guide) guide.style.display = 'none';
-    document.querySelectorAll('#page-changes .charts-row, #page-changes .card').forEach(function(el) {
-      if (!el.closest('#changesGuideContent')) el.style.display = '';
-    });
   }
 }
 
