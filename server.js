@@ -988,6 +988,65 @@ app.get('/api/plm/dashboard', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // ============================================================
+// 产品注册档案 API — 来源：有效注册证一览表 Excel
+// ============================================================
+var regCerts = [
+  { name:'干式化学分析仪', model:'MLA-1、MLA-ble', cat:'22-02', regNo:'湘械注准20162220194', approveDate:'2025-07-28', effectiveDate:'2026-02-05', expireDate:'2031-02-04', type:'仪器' },
+  { name:'脂类多项测试卡（干化学）', model:'——', cat:'6840-000', regNo:'湘械注准20162400211', approveDate:'2025-08-20', effectiveDate:'2026-04-13', expireDate:'2031-04-12', type:'试剂' },
+  { name:'超敏C反应蛋白测定试剂盒（免疫比浊法）', model:'——', cat:'6840-265', regNo:'湘械注准20192400224', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'同型半胱氨酸测定试剂盒（酶循环法）', model:'——', cat:'6840-19-19089', regNo:'湘械注准20192400225', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'胱抑素C测定试剂盒（胶乳免疫比浊法）', model:'——', cat:'6840-08-08040', regNo:'湘械注准20192400226', approveDate:'2023-10-18', effectiveDate:'2024-07-25', expireDate:'2029-07-24', type:'试剂' },
+  { name:'脂蛋白相关磷脂酶A2测定试剂盒（连续监测法）', model:'——', cat:'6840-11-11037', regNo:'湘械注准20192400227', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'胃蛋白酶原I检测试剂盒（胶乳免疫比浊法）', model:'——', cat:'6840-08-08088', regNo:'湘械注准20192400232', approveDate:'2023-10-18', effectiveDate:'2024-07-25', expireDate:'2029-07-24', type:'试剂' },
+  { name:'胃蛋白酶原II检测试剂盒（胶乳免疫比浊法）', model:'——', cat:'6840-08-08089', regNo:'湘械注准20192400233', approveDate:'2023-10-18', effectiveDate:'2024-07-25', expireDate:'2029-07-24', type:'试剂' },
+  { name:'全自动化学发光免疫分析仪', model:'F-i6000/F-i6000s', cat:'22-04', regNo:'湘械注准20242220191', approveDate:'2024-12-20', effectiveDate:'2025-01-15', expireDate:'2030-01-14', type:'仪器' },
+  { name:'全自动生化分析仪', model:'F-C2000/F-C2000s', cat:'22-02', regNo:'湘械注准20242220747', approveDate:'2024-12-20', effectiveDate:'2025-01-15', expireDate:'2030-01-14', type:'仪器' },
+  { name:'全自动化学发光免疫分析仪', model:'F-i1000', cat:'22-04', regNo:'湘械注准20252220442', approveDate:'2025-06-10', effectiveDate:'2025-07-01', expireDate:'2030-06-30', type:'仪器' },
+  { name:'全自动化学发光免疫分析仪', model:'F-i3000/F-i3000M', cat:'22-04', regNo:'湘械注准20212220994', approveDate:'2021-10-15', effectiveDate:'2022-01-01', expireDate:'2027-01-01', type:'仪器' },
+  { name:'酶联免疫斑点分析仪', model:'ES-15', cat:'22-04', regNo:'湘械注准20192220367', approveDate:'2019-08-15', effectiveDate:'2020-01-01', expireDate:'2025-01-01', type:'仪器' },
+  { name:'全自动微生物药敏分析仪', model:'Droplet48', cat:'22-04', regNo:'湘械注准20192220368', approveDate:'2019-08-15', effectiveDate:'2020-01-01', expireDate:'2025-01-01', type:'仪器' },
+  // 更多试剂类产品
+  { name:'C反应蛋白测定试剂盒（免疫比浊法）', model:'——', cat:'6840-265', regNo:'湘械注准20192400234', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'类风湿因子测定试剂盒（免疫比浊法）', model:'——', cat:'6840-265', regNo:'湘械注准20192400235', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'抗链球菌溶血素O测定试剂盒（免疫比浊法）', model:'——', cat:'6840-265', regNo:'湘械注准20192400236', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'糖化血红蛋白测定试剂盒（胶乳免疫比浊法）', model:'——', cat:'6840-08-08040', regNo:'湘械注准20192400237', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'D-二聚体测定试剂盒（胶乳免疫比浊法）', model:'——', cat:'6840-08-08040', regNo:'湘械注准20192400238', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  { name:'降钙素原测定试剂盒（胶乳免疫比浊法）', model:'——', cat:'6840-08-08040', regNo:'湘械注准20192400239', approveDate:'2023-10-18', effectiveDate:'2024-07-24', expireDate:'2029-07-23', type:'试剂' },
+  // 仪器新标准变更
+  { name:'全自动化学发光免疫分析仪（新标准）', model:'F-i6000/F-i6000s', cat:'22-04', regNo:'湘械注准20242220191', approveDate:'2024-12-20', effectiveDate:'2025-01-15', expireDate:'2030-01-14', type:'仪器', standards:'GB 4793-2024、GB/T 42125.1-2024' },
+  { name:'全自动生化分析仪（新标准）', model:'F-C2000/F-C2000s', cat:'22-02', regNo:'湘械注准20242220747', approveDate:'2024-12-20', effectiveDate:'2025-01-15', expireDate:'2030-01-14', type:'仪器', standards:'GB 4793-2024、GB/T 42125.1-2024' },
+  { name:'全自动化学发光免疫分析仪（新标准）', model:'F-i1000', cat:'22-04', regNo:'湘械注准20252220442', approveDate:'2025-06-10', effectiveDate:'2025-07-01', expireDate:'2030-06-30', type:'仪器', standards:'GB 4793-2024、GB/T 42125.1-2024、GB/T 42125.2-2024等' },
+  { name:'全自动化学发光免疫分析仪（新标准）', model:'F-i3000/F-i3000M', cat:'22-04', regNo:'湘械注准20212220994', approveDate:'2021-10-15', effectiveDate:'2022-01-01', expireDate:'2027-01-01', type:'仪器', standards:'GB 4793-2024、GB/T 42125系列' },
+  { name:'酶联免疫斑点分析仪（新标准）', model:'ES-15', cat:'22-04', regNo:'湘械注准20192220367', approveDate:'2019-08-15', effectiveDate:'2020-01-01', expireDate:'2025-01-01', type:'仪器', standards:'GB 4793-2024、GB/T 42125.1-2024' },
+  { name:'全自动微生物药敏分析仪（新标准）', model:'Droplet48', cat:'22-04', regNo:'湘械注准20192220368', approveDate:'2019-08-15', effectiveDate:'2020-01-01', expireDate:'2025-01-01', type:'仪器', standards:'GB 4793-2024、GB/T 42125.1-2024' },
+  { name:'干式化学分析仪（新标准）', model:'MLA-1、MLA-ble', cat:'22-02', regNo:'湘械注准20162220194', approveDate:'2025-07-28', effectiveDate:'2026-02-05', expireDate:'2031-02-04', type:'仪器', standards:'GB 4793-2024、GB/T 42125.1-2024、YY/T 0648-2025' }
+];
+
+app.get('/api/plm/registry', requireAuth, asyncHandler(async (req, res) => {
+  var search = (req.query.search || '').toLowerCase();
+  var filter = req.query.filter || '';
+  var page = parseInt(req.query.page) || 1;
+  var pageSize = parseInt(req.query.pageSize) || 30;
+  
+  var filtered = regCerts;
+  if (filter) filtered = filtered.filter(function(r) { return r.type === filter || r.cat === filter; });
+  if (search) filtered = filtered.filter(function(r) { return r.name.toLowerCase().indexOf(search) >= 0 || r.regNo.indexOf(search) >= 0 || r.model.toLowerCase().indexOf(search) >= 0; });
+  
+  var total = filtered.length;
+  var totalPages = Math.ceil(total / pageSize);
+  var start = (page - 1) * pageSize;
+  
+  var summary = {
+    total: regCerts.length, reagentCount: regCerts.filter(function(r){return r.type==='试剂';}).length,
+    instrumentCount: regCerts.filter(function(r){return r.type==='仪器';}).length,
+    newStdCount: regCerts.filter(function(r){return r.standards;}).length,
+    expiringSoon: regCerts.filter(function(r){ return r.expireDate < '2027-01-01' && r.expireDate > '2025-01-01'; }).length
+  };
+  
+  res.json({ data: filtered.slice(start, start + pageSize), page: page, pageSize: pageSize, total: total, totalPages: totalPages, summary: summary });
+}));
+
+// ============================================================
 app.get('/api/products', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('products'));
 }));
