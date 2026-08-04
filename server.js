@@ -1,5 +1,5 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server v2.17.0
+// FDQH - FosunDx Quality Hub Server v2.18.0
 // MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
@@ -948,6 +948,117 @@ app.get('/api/batch-passport/:batchId', requireAuth, asyncHandler(async (req, re
   var dbEvents = await db.findAll('quality_events');
   var matchingEvents = dbEvents.filter(function(e) { return e.batch_no === batch.batchId || (e.product_name && batch.productName && e.product_name.indexOf(batch.productName.substring(0,4)) >= 0); }).slice(0, 5);
   res.json({ batch: batch, relatedDBEvents: matchingEvents.slice(0, 3) });
+}));
+
+// ============================================================
+// PLM 产品线视图 — 按6大产品线组织 QCP词典/质量档案/批护照
+// ============================================================
+app.get('/api/plm/product-lines', requireAuth, asyncHandler(async (req, res) => {
+  var products = await db.findAll('products');
+  var qcps = await db.findAll('qcp_library');
+  
+  // 六条产品线定义
+  var productLines = [
+    { id: 'clia', name: '化学发光', icon: '💡', color: '#6366F1', desc: '化学发光免疫分析平台', keywords: ['化学发光', 'CLIA', 'clia', '发光'] },
+    { id: 'biochem', name: '生化', icon: '🧪', color: '#10B981', desc: '临床生化分析平台', keywords: ['生化', 'biochem', '干式化学', '干化学', '免疫比浊', '酶循环'] },
+    { id: 'colloidal-gold', name: '胶体金', icon: '🟡', color: '#F59E0B', desc: '胶体金免疫层析平台', keywords: ['胶体金', 'POCT', '层析', '试纸条'] },
+    { id: 'molecular', name: '分子', icon: '🧬', color: '#EC4899', desc: '分子诊断平台', keywords: ['分子', 'PCR', '核酸', '测序'] },
+    { id: 'microbio', name: '微生物', icon: '🦠', color: '#8B5CF6', desc: '微生物检测平台', keywords: ['微生物', '药敏', '细菌', '培养'] },
+    { id: 'instrument', name: '仪器', icon: '🔬', color: '#0EA5E9', desc: '体外诊断仪器设备', keywords: ['仪器', '分析仪', 'F-i', 'F-C', 'ES-', 'Droplet'] }
+  ];
+
+  function matchLine(item, key) {
+    var val = (item[key] || '').toString().toLowerCase();
+    var name = (item.product_name || item.name || '').toLowerCase();
+    var platform = (item.platform || '').toLowerCase();
+    var category = (item.product_category || item.category || '').toLowerCase();
+    var combined = val + ' ' + name + ' ' + platform + ' ' + category;
+    
+    for (var i = 0; i < productLines.length; i++) {
+      for (var j = 0; j < productLines[i].keywords.length; j++) {
+        if (combined.indexOf(productLines[i].keywords[j].toLowerCase()) >= 0) return productLines[i].id;
+      }
+    }
+    return null;
+  }
+
+  var result = productLines.map(function(line) {
+    // 过滤产品
+    var lineProducts = products.filter(function(p) {
+      return matchLine(p, 'product_name') === line.id || matchLine(p, 'platform') === line.id
+        || matchLine(p, 'detection_tech') === line.id || matchLine(p, 'product_category') === line.id;
+    });
+    
+    // 过滤QCP (by product_line field or product_category)
+    var lineQCPs = qcps.filter(function(q) {
+      var pl = (q.product_line || q.product_category || '').toLowerCase();
+      if (pl === '全部' || pl === 'all') return true;
+      return matchLine(q, 'product_line') === line.id || matchLine(q, 'product_category') === line.id
+        || matchLine(q, 'name') === line.id;
+    });
+
+    // 过滤批次护照 (by platform)
+    var lineBatches = batchPassports.filter(function(b) {
+      return matchLine(b, 'platform') === line.id || matchLine(b, 'productName') === line.id;
+    });
+
+    // 过滤注册证书 (by type/name)
+    var lineRegCerts = regCerts.filter(function(r) {
+      return matchLine(r, 'name') === line.id || matchLine(r, 'type') === line.id;
+    });
+
+    // 生命周期分布
+    var lifecycleDist = {};
+    lineProducts.forEach(function(p) {
+      var s = p.lifecycle_status || '未定义';
+      lifecycleDist[s] = (lifecycleDist[s] || 0) + 1;
+    });
+
+    // 统计
+    var totalBQI = 0, bqiCount = 0;
+    lineBatches.forEach(function(b) { totalBQI += b.bqi || 0; bqiCount++; });
+
+    return {
+      id: line.id, name: line.name, icon: line.icon, color: line.color, desc: line.desc,
+      stats: {
+        totalProducts: lineProducts.length,
+        totalQCPs: lineQCPs.length,
+        totalBatches: lineBatches.length,
+        totalRegCerts: lineRegCerts.length,
+        avgBQI: bqiCount ? Math.round(totalBQI / bqiCount * 10) / 10 : null
+      },
+      lifecycleDist: lifecycleDist,
+      products: lineProducts.map(function(p) { return {
+        id: p.id, name: p.product_name || p.name, category: p.product_category || '',
+        platform: p.platform || p.detection_tech || '', riskClass: p.risk_class || '',
+        lifecycle: p.lifecycle_status || '', regNo: p.reg_no || '',
+        cqa: p.cqa_list || '', cma: p.cma_list || '', cpp: p.cpp_list || '',
+        spec: p.spec_model || '', storage: p.storage_condition || '', shelf: p.shelf_life || '',
+        batchNo: p.batch_no || '', batchStatus: p.batch_status || '', bqi: p.bqi || null
+      }; }),
+      qcps: lineQCPs.map(function(q) { return {
+        id: q.id, code: q.qcp_code || '', name: q.name || q.control_point || '',
+        domain: q.domain || '', stage: q.stage || '', risk: q.risk_level || '',
+        method: q.control_method || '', keyParam: q.key_param || '',
+        spec: q.spec_standard || '', alert: q.alert_rule || '',
+        frequency: q.frequency || '', owner: q.owner || ''
+      }; }),
+      batches: lineBatches.map(function(b) { return {
+        batchId: b.batchId, productName: b.productName, platform: b.platform,
+        site: b.site, quantity: b.quantity, status: b.status,
+        bqi: b.bqi, bqiLevel: b.bqiLevel, date: b.productionDate,
+        materialCount: (b.materials || []).length, qcPassed: (b.qcResults || []).filter(function(qc){return qc.result==='pass';}).length,
+        qcTotal: (b.qcResults || []).length
+      }; }),
+      regCerts: lineRegCerts.map(function(r) { return {
+        name: r.name, model: r.model, regNo: r.regNo,
+        approveDate: r.approveDate, expireDate: r.expireDate,
+        type: r.type, cat: r.cat, standards: r.standards || ''
+      }; })
+    };
+  });
+
+  res.json({ productLines: result, totalLines: result.length, updated: '2026-08' });
 }));
 
 // ============================================================
@@ -3105,7 +3216,7 @@ app.get('*', (req, res) => {
 
 db.connect().then(function() {
   app.listen(PORT, function() {
-	    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v2.17.0             ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
+		    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v2.18.0             ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
     console.log('  默认账号: admin / admin123');
   });
 }).catch(function(err) {
