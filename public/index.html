@@ -32,7 +32,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <h2>🩺 FDQH</h2>
-      <span>FosunDx Quality Hub v2.16.3</span>
+      <span>FosunDx Quality Hub v2.17.0</span>
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
@@ -125,10 +125,18 @@
 	    <!-- ============ EVENTS PAGE ============ -->
 	    <div id="page-events" class="page">
 	      <div class="page-header"><h2>⚠️ 质量事件管理</h2><p>偏差 · 内审发现 · 日常发现 · 客户投诉 四分类看板</p>
+	      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
       <div class="btn-group" style="margin-top:8px;">
         <button class="btn btn-sm btn-primary" onclick="showEventsSubPage('categories')">📊 四分类看板</button>
         <button class="btn btn-sm btn-outline" onclick="showEventsSubPage('auditFindings')">📋 体系产品风险检查</button>
         <button class="btn btn-sm btn-outline" onclick="showEventsSubPage('aiRiskPredict')">🤖 AI 风险预测</button>
+      </div>
+      <div class="btn-group" style="margin-top:8px;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="exportEvents()">📥 导出事件</button>
+        <button class="btn btn-sm btn-outline" onclick="downloadEventsTemplate()">📄 下载模板</button>
+        <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;">📤 导入事件<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importEvents(this)"></label>
+        <span id="eventsImportMsg" style="font-size:11px;color:var(--text-muted);"></span>
+      </div>
       </div>
 	      </div>
 
@@ -183,11 +191,19 @@
 
     <!-- ============ CHANGES PAGE ============ -->
     <div id="page-changes" class="page">
-      <div class="page-header"><h2>🔄 变更控制</h2><p>设计变更·工程变更 I/II/III 分级管理 · 参照NMPA 2025版GMP</p>
+	      <div class="page-header"><h2>🔄 变更控制</h2><p>设计变更·工程变更 I/II/III 分级管理 · 参照NMPA 2025版GMP</p>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
       <div class="btn-group" style="margin-top:8px;">
         <button class="btn btn-sm btn-primary" onclick="showChangesSubPage('dashboard')">📊 变更看板</button>
         <button class="btn btn-sm btn-outline" onclick="showChangesSubPage('guide')">📋 操作指南提示卡</button>
         <button class="btn btn-sm btn-outline" onclick="showChangesSubPage('registration')">📑 注册变更项目</button>
+      </div>
+      <div class="btn-group" style="margin-top:8px;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="exportChanges()">📥 导出变更</button>
+        <button class="btn btn-sm btn-outline" onclick="downloadChangesTemplate()">📄 下载模板</button>
+        <label class="btn btn-sm btn-accent" style="cursor:pointer;margin:0;">📤 导入变更<input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importChanges(this)"></label>
+        <span id="changesImportMsg" style="font-size:11px;color:var(--text-muted);"></span>
+      </div>
       </div>
       </div>
       <div id="changesDashboardWrap">
@@ -414,7 +430,7 @@
 
 </div><!-- /appLayout -->
 
-<script src="/js/app.js?v=2.16.3"></script>
+<script src="/js/app.js?v=2.17.0"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
