@@ -273,7 +273,20 @@
         <span id="qcpSeedMsg" style="font-size:11px;color:var(--text-muted);"></span>
       </div>
       </div>
-      <div class="card"><div class="card-body no-padding"><div style="overflow-x:auto;"><table id="qcpTable"><thead><tr><th>QCP编号</th><th>模块</th><th>控制点名称</th><th>阶段</th><th>风险</th><th>控制方法</th><th>关键参数</th><th>CQA/CMA/CPP</th><th>标准</th><th>预警规则</th><th>频率</th><th>负责人</th></tr></thead><tbody></tbody></table></div></div></div>
+      <div class="btn-group" style="margin-top:8px;margin-left:8px;">
+        <select id="qcpLineFilter" onchange="filterQCP()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;">
+          <option value="">全部产品线</option>
+          <option value="化学发光">💡 化学发光</option>
+          <option value="胶体金">🟡 胶体金</option>
+          <option value="分子">🧬 分子</option>
+          <option value="生化">🧪 生化</option>
+          <option value="微生物">🦠 微生物</option>
+          <option value="仪器">🔬 仪器</option>
+        </select>
+        <span id="qcpCount" style="font-size:11px;color:var(--text-muted);"></span>
+      </div>
+      </div>
+      <div class="card"><div class="card-body no-padding"><div style="overflow-x:auto;"><table id="qcpTable"><thead><tr><th>QCP编号</th><th>产品线</th><th>模块</th><th>控制点名称</th><th>阶段</th><th>风险</th><th>控制方法</th><th>关键参数</th><th>标准</th><th>预警规则</th><th>频率</th><th>负责人</th></tr></thead><tbody></tbody></table></div></div></div>
     </div>
 
     <!-- ============ PLM PAGE 产品全生命周期 ============ -->
