@@ -2558,8 +2558,87 @@ async function switchPlmTab(tab) {
       });
       html += '</div></div>';
     });
-    html += '</div>';
-  } else if (tab === 'risk' && c) {
+	    html += '</div>';
+	    
+	  } else if (tab === 'riskMgmt') {
+	    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载统一风险管理视图...</div></div>';
+	    var riskData = await apiGet('/plm/risks');
+	    if (!riskData) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">❌ 加载失败</div></div>'; return; }
+	    
+	    var summary = riskData.summary;
+	    var sRisks = riskData.stageRisks;
+	    var register = riskData.riskRegister;
+	    
+	    html = '';
+	    
+	    var rateColor = summary.controlledRate >= 70 ? '#059669' : summary.controlledRate >= 40 ? '#D97706' : '#DC2626';
+	    html += '<div class="module-summary" style="margin-bottom:20px;">' +
+	      '<div class="module-summary-card ms-info"><div class="ms-value">' + summary.total + '</div><div class="ms-label">📋 风险登记总数</div></div>' +
+	      '<div class="module-summary-card ms-' + (summary.open > 0 ? 'warn' : 'pass') + '"><div class="ms-value">' + summary.open + '</div><div class="ms-label">⚠️ 未关闭</div></div>' +
+	      '<div class="module-summary-card ms-fail"><div class="ms-value">' + summary.critical + '</div><div class="ms-label">🔴 严重风险</div></div>' +
+	      '<div class="module-summary-card ms-warn"><div class="ms-value">' + summary.high + '</div><div class="ms-label">🟡 高风险</div></div>' +
+	      '<div class="module-summary-card ms-pass"><div class="ms-value" style="color:' + rateColor + ';">' + summary.controlledRate + '%</div><div class="ms-label">🛡️ 受控率</div></div>' +
+	      '</div>';
+	    
+	    // Stage waterfall
+	    html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3>🌊 阶段风险瀑布</h3><span style="font-size:11px;color:var(--text-muted);">7阶段 × 4风险等级</span></div>' +
+	      '<div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+	    
+	    var maxTotal = Math.max.apply(null, sRisks.map(function(s){return s.total;})) || 1;
+	    sRisks.forEach(function(sr, i) {
+	      var barH = Math.max(20, Math.round(sr.total / maxTotal * 120));
+	      html += '<div style="flex:1;min-width:90px;background:#F9FAFB;border-radius:10px;padding:10px;text-align:center;border-top:3px solid ' + sr.color + ';">' +
+	        '<div style="font-size:11px;font-weight:600;color:' + sr.color + ';margin-bottom:4px;">' + sr.name + '</div>' +
+	        '<div style="display:flex;flex-direction:column-reverse;gap:2px;height:' + barH + 'px;max-width:50px;margin:0 auto 6px;">';
+	      ['critical','high','medium','low'].forEach(function(k) {
+	        var v = sr[k] || 0;
+	        if (v > 0) {
+	          var colors = { critical:'#DC2626', high:'#F59E0B', medium:'#3B82F6', low:'#10B981' };
+	          var segH = Math.max(4, Math.round(v / Math.max(sr.total, 1) * barH));
+	          html += '<div style="background:' + colors[k] + ';height:' + segH + 'px;border-radius:2px;" title="' + k + ': ' + v + '"></div>';
+	        }
+	      });
+	      html += '</div><div style="font-size:20px;font-weight:700;">' + sr.total + '</div><div style="font-size:10px;color:var(--text-muted);">项</div>';
+	      var stRate = sr.total > 0 ? Math.round(sr.controlled / sr.total * 100) : 100;
+	      var stColor = stRate >= 70 ? '#059669' : stRate >= 40 ? '#D97706' : '#DC2626';
+	      html += '<div style="margin-top:4px;font-size:10px;color:' + stColor + ';">受控' + stRate + '%</div></div>';
+	    });
+	    html += '</div>' +
+	      '<div style="display:flex;gap:16px;justify-content:center;margin-top:12px;font-size:11px;">' +
+	        '<span>🔴Critical</span><span>🟡High</span><span>🔵Medium</span><span>🟢Low</span></div>';
+	    html += '</div></div>';
+	    
+	    // Unified register table
+	    var stageNames = ['立项','设计开发','注册','转产','量产','上市','退市'];
+	    html += '<div class="card"><div class="card-header"><h3>📋 统一风险登记册</h3>' +
+	      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+	        '<select id="riskRegFilter" onchange="filterRiskRegister()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;">' +
+	          '<option value="">全部等级</option><option value="Critical">🔴 Critical</option><option value="High">🟡 High</option><option value="Medium">🔵 Medium</option><option value="Low">🟢 Low</option></select>' +
+	        '<select id="riskRegSource" onchange="filterRiskRegister()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;">' +
+	          '<option value="">全部来源</option><option value="FMEA">🔍 FMEA</option><option value="QCP">🎯 QCP</option><option value="质量事件">⚠️ 质量事件</option><option value="审计发现">📋 审计发现</option></select>' +
+	        '<select id="riskRegStage" onchange="filterRiskRegister()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;">' +
+	          '<option value="">全部阶段</option>' + stageNames.map(function(sn){return '<option value="'+sn+'">'+sn+'</option>';}).join('') + '</select>' +
+	        '<button class="btn btn-sm btn-outline" onclick="filterRiskRegister()" style="font-size:11px;">筛选</button>' +
+	      '</div></div>' +
+	      '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" id="riskRegTable" style="font-size:11px;"><thead><tr>' +
+	        '<th>ID</th><th>来源</th><th>描述</th><th>阶段</th><th>S</th><th>O</th><th>D</th><th>RPN</th><th>等级</th><th>状态</th></tr></thead><tbody>';
+	    
+	    register.forEach(function(r) {
+	      var lvlBadge = r.level === 'Critical' ? 'badge-danger' : r.level === 'High' ? 'badge-warning' : r.level === 'Medium' ? 'badge-info' : 'badge-success';
+	      var stBadge = r.status === '受控' || r.status === '已控' || r.status === 'Closed' ? 'badge-success' : 'badge-warning';
+	      html += '<tr class="risk-reg-row" data-level="' + r.level + '" data-source="' + r.source + '" data-stage="' + r.stage + '">' +
+	        '<td style="font-size:10px;">' + (r.id||'-') + '</td>' +
+	        '<td>' + (r.sourceIcon||'') + ' ' + r.source + '</td>' +
+	        '<td><span title="' + (r.description||'') + '">' + (r.description||'').substring(0, 50) + '</span></td>' +
+	        '<td>' + r.stage + '</td>' +
+	        '<td>' + (r.severity||'-') + '</td><td>' + (r.probability||'-') + '</td><td>' + (r.detectability||'-') + '</td>' +
+	        '<td>' + (r.rpn ? '<b>' + r.rpn + '</b>' : '-') + '</td>' +
+	        '<td><span class="badge ' + lvlBadge + '" style="font-size:10px;">' + r.level + '</span></td>' +
+	        '<td><span class="badge ' + stBadge + '" style="font-size:10px;">' + r.status + '</span></td></tr>';
+	    });
+	    html += '</tbody></table></div></div>';
+	    
+	  } else if (tab === 'risk' && c) {
     var pr = c.productRisk || [];
     html += '<div class="card"><div class="card-header"><h3>🎯 产品风险矩阵</h3></div>' +
       '<div class="card-body" style="overflow-x:auto;"><table class="data-table"><thead><tr><th>产品</th><th>平台</th><th>风险评分</th><th>业务影响</th><th>风险等级</th><th>事件数</th></tr></thead><tbody>';
@@ -2692,6 +2771,21 @@ function toggleLineCard(cardId) {
   if (detail) {
     detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
   }
+}
+
+// ===== 风险登记册筛选 =====
+function filterRiskRegister() {
+  var level = document.getElementById('riskRegFilter')?.value || '';
+  var source = document.getElementById('riskRegSource')?.value || '';
+  var stage = document.getElementById('riskRegStage')?.value || '';
+  var rows = document.querySelectorAll('.risk-reg-row');
+  rows.forEach(function(row) {
+    var show = true;
+    if (level && row.getAttribute('data-level') !== level) show = false;
+    if (source && row.getAttribute('data-source') !== source) show = false;
+    if (stage && row.getAttribute('data-stage') !== stage) show = false;
+    row.style.display = show ? '' : 'none';
+  });
 }
 
 // ===== 注册档案辅助 =====
