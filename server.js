@@ -1158,18 +1158,32 @@ app.get('/api/plm/risks', requireAuth, asyncHandler(async (req, res) => {
     });
   });
   
-  // 3. Quality events -> PLM stage via product lifecycle
+  // 3. Quality events -> PLM stage via product lifecycle + event_type fallback
   events.forEach(function(e) {
-    var stage = '上市'; // default
+    // Skip events without risk data
+    if (!e.risk_level) return;
+    
+    var stage = null;
+    // Try mapping via product
     if (e.product_id) {
       var prod = products.find(function(p) { return p.id === e.product_id; });
       if (prod) stage = lifecycleToStage(prod.lifecycle_status || '');
     }
-    var controlled = e.status === 'Closed' || e.status === 'Closed - No Action';
+    // Fallback: use event_type to infer stage
+    if (!stage) {
+      var et = (e.event_type || '').toLowerCase();
+      if (et.indexOf('deviation') >= 0 || et.indexOf('oos') >= 0 || et.indexOf('oot') >= 0) stage = '量产';
+      else if (et.indexOf('complaint') >= 0) stage = '上市';
+      else if (et.indexOf('audit') >= 0) stage = '设计开发';
+      else if (et.indexOf('ncr') >= 0 || et.indexOf('scar') >= 0) stage = '量产';
+      else stage = '量产';
+    }
+    
+    var controlled = (e.status === 'Closed' || e.status === 'Closed - No Action' || e.status === 'CAPA Created');
     addToStage(stage, e.risk_level || 'Medium', controlled);
     register.push({
       id: e.event_code || e.id, source: '质量事件', sourceIcon: '⚠️',
-      description: (e.description || '').substring(0, 120), stage: stage,
+      description: (e.description || '').substring(0, 100), stage: stage,
       severity: e.severity || '', probability: e.occurrence || '',
       detectability: e.detectability || '', rpn: e.rpn_score || null,
       level: e.risk_level || 'Medium',
