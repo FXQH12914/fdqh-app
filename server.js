@@ -1582,14 +1582,15 @@ app.post('/api/qcp/seed-colloidal-gold', requireAuth, asyncHandler(async (req, r
   
   var qcpData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   var existing = await db.findAll('qcp_library');
-  var existingCodes = new Set(existing.map(function(q) { return q.qcp_code; }));
+  var existingKeys = new Set(existing.map(function(q) { return q.qcp_code + '|' + (q.product_line || ''); }));
   
   var created = 0, skipped = 0;
   for (var i = 0; i < qcpData.length; i++) {
     var q = qcpData[i];
-    if (existingCodes.has(q.qcp_code)) { skipped++; continue; }
+    var key = q.qcp_code + '|' + (q.product_line || '');
+    if (existingKeys.has(key)) { skipped++; continue; }
     await db.insert('qcp_library', q, req.user.username);
-    existingCodes.add(q.qcp_code);
+    existingKeys.add(key);
     created++;
   }
   res.json({ success: true, created: created, skipped: skipped, total: qcpData.length, message: '导入完成: ' + created + ' 新增, ' + skipped + ' 已存在跳过' });
@@ -1602,19 +1603,20 @@ app.post('/api/qcp/seed-molecular', requireAuth, asyncHandler(async (req, res) =
   var filePath = path.join(__dirname, 'data', 'qcp_molecular.json');
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'QCP数据文件未找到: data/qcp_molecular.json' });
   
-  var qcpData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  var existing = await db.findAll('qcp_library');
-  var existingCodes = new Set(existing.map(function(q) { return q.qcp_code; }));
+  var qcpData2 = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  var existing2 = await db.findAll('qcp_library');
+  var existingKeys2 = new Set(existing2.map(function(q) { return q.qcp_code + '|' + (q.product_line || ''); }));
   
-  var created = 0, skipped = 0;
-  for (var i = 0; i < qcpData.length; i++) {
-    var q = qcpData[i];
-    if (existingCodes.has(q.qcp_code)) { skipped++; continue; }
-    await db.insert('qcp_library', q, req.user.username);
-    existingCodes.add(q.qcp_code);
-    created++;
+  var created2 = 0, skipped2 = 0;
+  for (var j = 0; j < qcpData2.length; j++) {
+    var q2 = qcpData2[j];
+    var key2 = q2.qcp_code + '|' + (q2.product_line || '');
+    if (existingKeys2.has(key2)) { skipped2++; continue; }
+    await db.insert('qcp_library', q2, req.user.username);
+    existingKeys2.add(key2);
+    created2++;
   }
-  res.json({ success: true, created: created, skipped: skipped, total: qcpData.length, message: '分子QCP导入: ' + created + ' 新增, ' + skipped + ' 跳过' });
+  res.json({ success: true, created: created2, skipped: skipped2, total: qcpData2.length, message: '分子QCP导入: ' + created2 + ' 新增, ' + skipped2 + ' 跳过' });
 }));
 
 app.get('/api/qcp/:id', requireAuth, asyncHandler(async (req, res) => {
