@@ -1,5 +1,5 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server v2.14.0
+// FDQH - FosunDx Quality Hub Server v2.17.0
 // MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
@@ -2513,6 +2513,66 @@ app.post('/api/dashboard/import', requireAuth, upload.single('file'), asyncHandl
 }));
 
 // ============================================================
+// 事件导入导出
+// ============================================================
+app.get('/api/events/export', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var XLSX = require('xlsx');
+  var wb = XLSX.utils.book_new();
+  var data = events.map(function(e) { return { '事件ID': e.id, '事件类型': e.event_type, '子类型': e.event_subtype||'', '产品': e.product_name||'', '批号': e.batch_no||'', '风险等级': e.risk_level||'', '状态': e.status||'', '描述': (e.description||'').slice(0,500), '创建时间': e.created_at||'' }; });
+  var ws = XLSX.utils.json_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb, ws, '质量事件');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=FDQH_events_export.xlsx');
+  res.send(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+}));
+app.get('/api/events/import/template', requireAuth, (req, res) => {
+  var XLSX = require('xlsx'); var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.json_to_sheet([{ '事件类型': 'Deviation', '子类型': '', '产品名称': '', '批号': '', '风险等级': 'Medium', '描述': '' }]);
+  XLSX.utils.book_append_sheet(wb, ws, '事件导入模板');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=FDQH_events_template.xlsx');
+  res.send(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+});
+app.post('/api/events/import', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '请上传文件' });
+  var XLSX = require('xlsx'); var wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+  var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); var created = 0;
+  for (var i = 0; i < rows.length; i++) { var r = rows[i]; if (!r['事件类型']) continue;
+    await db.insert('quality_events', { event_type: r['事件类型'], event_subtype: r['子类型']||'', product_name: r['产品名称']||'', batch_no: r['批号']||'', risk_level: r['风险等级']||'Medium', description: r['描述']||'', status: 'Open', reported_by: req.user.username, imported: true }, req.user.username); created++; }
+  res.json({ success: true, created: created, message: '导入' + created + '条' });
+}));
+
+// ============================================================
+// 变更导入导出
+// ============================================================
+app.get('/api/changes/export', requireAuth, asyncHandler(async (req, res) => {
+  var changes = await db.findAll('change_records');
+  var XLSX = require('xlsx'); var wb = XLSX.utils.book_new();
+  var data = changes.map(function(c) { return { '变更编号': c.change_no||c.id, '变更类型': c.change_type||'', '变更等级': c.change_level||c.risk||'', '产品': c.product_id||'', '风险': c.risk||'', '描述': c.description||'', '状态': c.status||'' }; });
+  var ws = XLSX.utils.json_to_sheet(data); XLSX.utils.book_append_sheet(wb, ws, '变更记录');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=FDQH_changes_export.xlsx');
+  res.send(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+}));
+app.get('/api/changes/import/template', requireAuth, (req, res) => {
+  var XLSX = require('xlsx'); var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.json_to_sheet([{ '变更类型': '设计变更', '产品ID': '', '风险等级': 'Medium', '变更等级': '', '描述': '' }]);
+  XLSX.utils.book_append_sheet(wb, ws, '变更导入模板');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=FDQH_changes_template.xlsx');
+  res.send(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+});
+app.post('/api/changes/import', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '请上传文件' });
+  var XLSX = require('xlsx'); var wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+  var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); var created = 0;
+  for (var i = 0; i < rows.length; i++) { var r = rows[i]; if (!r['变更类型']) continue;
+    await db.insert('change_records', { change_type: r['变更类型'], product_id: r['产品ID']||'', risk: r['风险等级']||'Medium', change_level: r['变更等级']||'', description: r['描述']||'', status: '未完成', initiator: req.user.username, imported: true }, req.user.username); created++; }
+  res.json({ success: true, created: created, message: '导入' + created + '条' });
+}));
+
+// ============================================================
 // WORKSHOP DASHBOARD — 生产质量一体化Workshop看板
 // 数据来源: 生产质量一体化Workshop-汇报版本输出.xlsx (Sheet 2+3)
 // ============================================================
@@ -3044,7 +3104,7 @@ app.get('*', (req, res) => {
 
 db.connect().then(function() {
   app.listen(PORT, function() {
-	    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v2.13.0             ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
+	    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v2.17.0             ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
     console.log('  默认账号: admin / admin123');
   });
 }).catch(function(err) {
