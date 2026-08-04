@@ -2434,10 +2434,117 @@ async function switchPlmTab(tab) {
       html += '<tr style="cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')"><td><b>' + p.name + '</b></td><td>' + p.platform + '</td>' +
         '<td style="color:' + lcColor + ';">' + p.lifecycle + '</td><td>' + p.regNo + '</td><td>' + p.qcpCount + '</td><td>' + p.eventCount + '</td></tr>';
     });
-    html += '</tbody></table></div></div>';
-    html += '<div style="text-align:center;margin-top:16px;"><button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')">🎯 打开质量控制点库 →</button></div>';
-    
-  } else if (tab === 'qkpi' && c) {
+	    html += '</tbody></table></div></div>';
+	    html += '<div style="text-align:center;margin-top:16px;"><button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')">🎯 打开质量控制点库 →</button></div>';
+	    
+	  } else if (tab === 'productLines') {
+	    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载产品线视图...</div></div>';
+	    var linesData = await apiGet('/plm/product-lines');
+	    if (!linesData || !linesData.productLines) { container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">❌ 加载失败</div></div>'; return; }
+	    
+	    var lines = linesData.productLines;
+	    html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">';
+	    
+	    lines.forEach(function(line, idx) {
+	      var s = line.stats;
+	      var hasData = s.totalProducts > 0 || s.totalQCPs > 0 || s.totalBatches > 0;
+	      var cardId = 'lineCard_' + line.id;
+	      
+	      html += '<div class="card" id="' + cardId + '" style="border-top:3px solid ' + line.color + ';' + (hasData ? 'cursor:pointer;' : 'opacity:0.6;') + '" onclick="' + (hasData ? 'toggleLineCard(\'' + cardId + '\')' : '') + '">' +
+	        '<div class="card-header" style="display:flex;align-items:center;gap:8px;">' +
+	          '<span style="font-size:24px;">' + line.icon + '</span>' +
+	          '<div style="flex:1;"><h3 style="margin:0;">' + line.name + '</h3><span style="font-size:10px;color:var(--text-muted);">' + line.desc + '</span></div>' +
+	          '<div style="text-align:right;"><div style="font-size:20px;font-weight:700;color:' + line.color + ';">' + s.totalProducts + '</div><div style="font-size:10px;color:var(--text-muted);">产品</div></div>' +
+	        '</div>' +
+	        '<div class="card-body" style="padding:12px 16px;">' +
+	          '<div style="display:flex;gap:12px;font-size:11px;color:var(--text-secondary);flex-wrap:wrap;">' +
+	            '<span>🎯 QCP: <b>' + s.totalQCPs + '</b></span>' +
+	            '<span>📦 批次: <b>' + s.totalBatches + '</b></span>' +
+	            '<span>📋 注册: <b>' + s.totalRegCerts + '</b></span>' +
+	            (s.avgBQI !== null ? '<span>📊 均BQI: <b style="color:' + (s.avgBQI >= 90 ? '#059669' : s.avgBQI >= 75 ? '#D97706' : '#DC2626') + ';">' + s.avgBQI + '</b></span>' : '<span style="color:#9CA3AF;">暂无批次</span>') +
+	          '</div>';
+	      
+	      // Expandable detail
+	      if (hasData) {
+	        html += '<div id="' + cardId + '_detail" style="display:' + (idx === 0 ? 'block' : 'none') + ';margin-top:12px;border-top:1px solid #E5E7EB;padding-top:12px;">';
+	        
+	        // Products table
+	        if (line.products.length) {
+	          html += '<div style="margin-bottom:12px;"><b style="font-size:12px;color:' + line.color + ';">📋 产品质量档案</b>' +
+	            '<div style="overflow-x:auto;max-height:200px;overflow-y:auto;margin-top:4px;"><table style="font-size:10px;width:100%;border-collapse:collapse;"><thead><tr style="background:#F9FAFB;">' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;text-align:left;">产品名称</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">类别</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">生命阶段</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">BQI</th></tr></thead><tbody>';
+	          line.products.forEach(function(p) {
+	            var lcColor = p.lifecycle === '生产' ? '#059669' : p.lifecycle === '研发' ? '#6366F1' : '#6B7280';
+	            html += '<tr><td style="padding:4px 6px;border:1px solid #E5E7EB;"><b>' + p.name + '</b></td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + p.category + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;color:' + lcColor + ';">' + p.lifecycle + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + (p.bqi || '-') + '</td></tr>';
+	            // CQA/CMA/CPP tags
+	            if (p.cqa || p.cma || p.cpp) {
+	              html += '<tr><td colspan="4" style="padding:2px 6px;border:1px solid #E5E7EB;font-size:9px;">' +
+	                (p.cqa ? '<span style="background:#DBEAFE;padding:1px 4px;border-radius:3px;margin:1px;">📊CQA:' + p.cqa + '</span> ' : '') +
+	                (p.cma ? '<span style="background:#D1FAE5;padding:1px 4px;border-radius:3px;margin:1px;">🧪CMA:' + p.cma + '</span> ' : '') +
+	                (p.cpp ? '<span style="background:#FEF3C7;padding:1px 4px;border-radius:3px;margin:1px;">⚙️CPP:' + p.cpp + '</span>' : '') +
+	                '</td></tr>';
+	            }
+	          });
+	          html += '</tbody></table></div></div>';
+	        }
+	        
+	        // Batch passports
+	        if (line.batches.length) {
+	          html += '<div style="margin-bottom:12px;"><b style="font-size:12px;color:' + line.color + ';">📦 批质量护照</b>' +
+	            '<div style="overflow-x:auto;max-height:150px;overflow-y:auto;margin-top:4px;"><table style="font-size:10px;width:100%;border-collapse:collapse;"><thead><tr style="background:#F9FAFB;">' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;text-align:left;">批号</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">产品</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">BQI</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">QC通过</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">状态</th></tr></thead><tbody>';
+	          line.batches.forEach(function(b) {
+	            var bqiColor = b.bqiLevel === 'green' ? '#059669' : b.bqiLevel === 'yellow' ? '#D97706' : '#DC2626';
+	            html += '<tr><td style="padding:4px 6px;border:1px solid #E5E7EB;"><b>' + b.batchId + '</b></td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + b.productName + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;"><b style="color:' + bqiColor + ';">' + b.bqi + '</b></td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + b.qcPassed + '/' + b.qcTotal + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + b.status + '</td></tr>';
+	          });
+	          html += '</tbody></table></div></div>';
+	        }
+	        
+	        // QCP dictionary
+	        if (line.qcps.length) {
+	          html += '<div><b style="font-size:12px;color:' + line.color + ';">🎯 QCP词典 (' + line.qcps.length + '项)</b>' +
+	            '<div style="overflow-x:auto;max-height:150px;overflow-y:auto;margin-top:4px;"><table style="font-size:10px;width:100%;border-collapse:collapse;"><thead><tr style="background:#F9FAFB;">' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">编码</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;text-align:left;">控制点</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">阶段</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">风险</th>' +
+	            '<th style="padding:4px 6px;border:1px solid #E5E7EB;">方法</th></tr></thead><tbody>';
+	          line.qcps.forEach(function(q) {
+	            var riskColor = q.risk === 'Critical' ? '#DC2626' : q.risk === 'High' ? '#D97706' : '#059669';
+	            html += '<tr><td style="padding:4px 6px;border:1px solid #E5E7EB;">' + (q.code || q.id) + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;"><b>' + q.name + '</b></td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + (q.stage || '-') + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;color:' + riskColor + ';">' + (q.risk || '-') + '</td>' +
+	              '<td style="padding:4px 6px;border:1px solid #E5E7EB;">' + (q.method || '-') + '</td></tr>';
+	          });
+	          html += '</tbody></table></div></div>';
+	        }
+	        
+	        html += '</div>'; // detail div
+	      } else {
+	        html += '<div style="margin-top:8px;font-size:11px;color:#9CA3AF;text-align:center;padding:12px;">暂无数据 · 待建设</div>';
+	      }
+	      
+	      html += '</div></div>'; // card-body, card
+	    });
+	    
+	    html += '</div>'; // grid
+	    
+	  } else if (tab === 'qkpi' && c) {
     var kpis = c.qkpi;
     var keys = ['product','production','qc','supply','customer','system'];
     html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">';
@@ -2576,6 +2683,14 @@ function toggleNavSubPlm() {
   } else {
     parent.classList.add('expanded');
     if (arrow) arrow.textContent = '▼';
+  }
+}
+
+// ===== 产品线卡片展开/折叠 =====
+function toggleLineCard(cardId) {
+  var detail = document.getElementById(cardId + '_detail');
+  if (detail) {
+    detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
   }
 }
 
