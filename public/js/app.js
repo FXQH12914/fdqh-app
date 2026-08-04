@@ -644,8 +644,133 @@ async function importDashboardData(input) {
   } catch (e) {
     resultEl.innerHTML = '❌ 导入失败: ' + e.message;
     showToast('导入失败', 'error');
-  }
-  input.value = '';
+	}
+	input.value = '';
+}
+
+// ===== 事件导入导出 =====
+async function exportEvents() {
+	var res = await fetch(API + '/events/export', { headers: { 'Authorization': 'Bearer ' + token } });
+	if (res.status === 401) { logout(); return; }
+	if (!res.ok) { showToast('导出失败', 'error'); return; }
+	var blob = await res.blob();
+	var url = URL.createObjectURL(blob);
+	var a = document.createElement('a');
+	var dateStr = new Date().toISOString().slice(0, 10);
+	a.href = url; a.download = 'FDQH_events_export_' + dateStr + '.xlsx';
+	document.body.appendChild(a); a.click();
+	setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+	showToast('✅ 事件数据已导出', 'success');
+}
+
+async function downloadEventsTemplate() {
+	var res = await fetch(API + '/events/import/template', { headers: { 'Authorization': 'Bearer ' + token } });
+	if (res.status === 401) { logout(); return; }
+	if (!res.ok) { showToast('模板下载失败', 'error'); return; }
+	var blob = await res.blob();
+	var url = URL.createObjectURL(blob);
+	var a = document.createElement('a');
+	a.href = url; a.download = 'FDQH_events_import_template.xlsx';
+	document.body.appendChild(a); a.click();
+	setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+	showToast('📄 事件导入模板已下载', 'success');
+}
+
+async function importEvents(input) {
+	if (!input.files || !input.files[0]) return;
+	var file = input.files[0];
+	var formData = new FormData();
+	formData.append('file', file);
+	var msgEl = document.getElementById('eventsImportMsg');
+	if (msgEl) { msgEl.innerHTML = '⏳ 正在导入 ' + file.name + ' ...'; }
+
+	try {
+		var res = await fetch(API + '/events/import', {
+			method: 'POST',
+			headers: { 'Authorization': 'Bearer ' + token },
+			body: formData
+		});
+		if (res.status === 401) { logout(); return; }
+		var data = await res.json();
+		if (!data.success) {
+			if (msgEl) msgEl.innerHTML = '❌ ' + (data.error || '导入失败');
+			showToast('导入失败', 'error');
+			return;
+		}
+		var count = data.created || data.imported || 0;
+		if (msgEl) msgEl.innerHTML = '✅ 导入 ' + count + ' 条事件';
+		showToast('📤 导入成功: ' + count + ' 条事件', 'success');
+		if (document.getElementById('page-events').classList.contains('active')) {
+			loadEvents();
+			loadEventCategories();
+		}
+	} catch (e) {
+		if (msgEl) msgEl.innerHTML = '❌ 导入失败: ' + e.message;
+		showToast('导入失败', 'error');
+	}
+	input.value = '';
+}
+
+// ===== 变更导入导出 =====
+async function exportChanges() {
+	var res = await fetch(API + '/changes/export', { headers: { 'Authorization': 'Bearer ' + token } });
+	if (res.status === 401) { logout(); return; }
+	if (!res.ok) { showToast('导出失败', 'error'); return; }
+	var blob = await res.blob();
+	var url = URL.createObjectURL(blob);
+	var a = document.createElement('a');
+	var dateStr = new Date().toISOString().slice(0, 10);
+	a.href = url; a.download = 'FDQH_changes_export_' + dateStr + '.xlsx';
+	document.body.appendChild(a); a.click();
+	setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+	showToast('✅ 变更数据已导出', 'success');
+}
+
+async function downloadChangesTemplate() {
+	var res = await fetch(API + '/changes/import/template', { headers: { 'Authorization': 'Bearer ' + token } });
+	if (res.status === 401) { logout(); return; }
+	if (!res.ok) { showToast('模板下载失败', 'error'); return; }
+	var blob = await res.blob();
+	var url = URL.createObjectURL(blob);
+	var a = document.createElement('a');
+	a.href = url; a.download = 'FDQH_changes_import_template.xlsx';
+	document.body.appendChild(a); a.click();
+	setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+	showToast('📄 变更导入模板已下载', 'success');
+}
+
+async function importChanges(input) {
+	if (!input.files || !input.files[0]) return;
+	var file = input.files[0];
+	var formData = new FormData();
+	formData.append('file', file);
+	var msgEl = document.getElementById('changesImportMsg');
+	if (msgEl) { msgEl.innerHTML = '⏳ 正在导入 ' + file.name + ' ...'; }
+
+	try {
+		var res = await fetch(API + '/changes/import', {
+			method: 'POST',
+			headers: { 'Authorization': 'Bearer ' + token },
+			body: formData
+		});
+		if (res.status === 401) { logout(); return; }
+		var data = await res.json();
+		if (!data.success) {
+			if (msgEl) msgEl.innerHTML = '❌ ' + (data.error || '导入失败');
+			showToast('导入失败', 'error');
+			return;
+		}
+		var count = data.created || data.imported || 0;
+		if (msgEl) msgEl.innerHTML = '✅ 导入 ' + count + ' 条变更';
+		showToast('📤 导入成功: ' + count + ' 条变更', 'success');
+		if (document.getElementById('page-changes').classList.contains('active')) {
+			loadChanges();
+		}
+	} catch (e) {
+		if (msgEl) msgEl.innerHTML = '❌ 导入失败: ' + e.message;
+		showToast('导入失败', 'error');
+	}
+	input.value = '';
 }
 
 // ===== 投诉看板 =====
