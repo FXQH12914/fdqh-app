@@ -56,17 +56,35 @@ npm start
 
 ## MongoDB 配置（可选）
 
-设置环境变量启用 MongoDB 持久化：
+### MongoDB Atlas 免费云数据库（推荐）
+
+Railway 云端 + 本地电脑**共享同一数据库**，数据自动同步：
+
+1. 注册 [MongoDB Atlas](https://www.mongodb.com/atlas)（免费 512MB）
+2. 创建免费集群 → 点击 "Connect" → "Drivers"
+3. 复制连接字符串，替换 `<password>`
+4. 设置环境变量：
 
 ```bash
-# Linux / macOS
-export MONGODB_URI='mongodb://localhost:27017/fdqh'
+# Railway 环境变量
+MONGODB_URI=mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/fdqh?retryWrites=true&w=majority
 
-# Windows (PowerShell)
-$env:MONGODB_URI='mongodb://localhost:27017/fdqh'
+# 本地 Windows (PowerShell)
+$env:MONGODB_URI='mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/fdqh?retryWrites=true&w=majority'
+
+# 本地 Linux
+export MONGODB_URI='mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/fdqh?retryWrites=true&w=majority'
 ```
 
-不设置 MONGODB_URI 时，数据存储在 `data/` 目录的 JSON 文件中，适合轻量级部署。
+### 本地 MongoDB
+
+```bash
+export MONGODB_URI='mongodb://localhost:27017/fdqh'
+```
+
+### 不使用 MongoDB
+
+不设置 `MONGODB_URI` → 自动使用 `data/` 目录 JSON 文件存储。
 
 ---
 
