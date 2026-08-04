@@ -1595,6 +1595,28 @@ app.post('/api/qcp/seed-colloidal-gold', requireAuth, asyncHandler(async (req, r
   res.json({ success: true, created: created, skipped: skipped, total: qcpData.length, message: '导入完成: ' + created + ' 新增, ' + skipped + ' 已存在跳过' });
 }));
 
+// ---- 分子PCR QCP 字典一键导入 ----
+app.post('/api/qcp/seed-molecular', requireAuth, asyncHandler(async (req, res) => {
+  var fs = require('fs');
+  var path = require('path');
+  var filePath = path.join(__dirname, 'data', 'qcp_molecular.json');
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'QCP数据文件未找到: data/qcp_molecular.json' });
+  
+  var qcpData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  var existing = await db.findAll('qcp_library');
+  var existingCodes = new Set(existing.map(function(q) { return q.qcp_code; }));
+  
+  var created = 0, skipped = 0;
+  for (var i = 0; i < qcpData.length; i++) {
+    var q = qcpData[i];
+    if (existingCodes.has(q.qcp_code)) { skipped++; continue; }
+    await db.insert('qcp_library', q, req.user.username);
+    existingCodes.add(q.qcp_code);
+    created++;
+  }
+  res.json({ success: true, created: created, skipped: skipped, total: qcpData.length, message: '分子QCP导入: ' + created + ' 新增, ' + skipped + ' 跳过' });
+}));
+
 app.get('/api/qcp/:id', requireAuth, asyncHandler(async (req, res) => {
   var qcp = await db.findById('qcp_library', req.params.id);
   if (!qcp) return res.status(404).json({ error: 'Not found' });
