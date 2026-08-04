@@ -1,5 +1,5 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server v2.18.0
+// FDQH - FosunDx Quality Hub Server v2.19.0
 // MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
@@ -1073,6 +1073,155 @@ app.get('/api/plm/product-lines', requireAuth, asyncHandler(async (req, res) => 
   });
 
   res.json({ productLines: result, totalLines: result.length, updated: '2026-08' });
+}));
+
+// ============================================================
+// PLM 统一风险管理 — 跨数据源聚合 (FMEA + QCP + 事件 + 审计发现)
+// ============================================================
+app.get('/api/plm/risks', requireAuth, asyncHandler(async (req, res) => {
+  var risks = await db.findAll('risk_database');
+  var qcps = await db.findAll('qcp_library');
+  var events = await db.findAll('quality_events');
+  var products = await db.findAll('products');
+  
+  // 阶段定义
+  var stageNames = ['立项', '设计开发', '注册', '转产', '量产', '上市', '退市'];
+  var stageColors = ['#6366F1', '#8B5CF6', '#0EA5E9', '#F59E0B', '#10B981', '#059669', '#6B7280'];
+  
+  // Helper: lifecycle_status -> PLM stage
+  function lifecycleToStage(lc) {
+    var map = { '研发': '设计开发', '开发中': '设计开发', '注册中': '注册', '注册': '注册',
+      '试生产': '转产', '生产': '量产', '上市': '上市', '量产': '量产', '退市': '退市' };
+    return map[lc] || '量产';
+  }
+  
+  // Helper: fmea_type -> PLM stage
+  function fmeaToStage(ft) {
+    if (ft === 'DFMEA') return '设计开发';
+    if (ft === 'PFMEA') return '量产';
+    return '设计开发';
+  }
+  
+  // Helper: risk level to score for sorting
+  function riskScore(lv) {
+    if (lv === 'Critical') return 4;
+    if (lv === 'High') return 3;
+    if (lv === 'Medium') return 2;
+    return 1;
+  }
+  
+  // Aggregate stage risks
+  var stageRisks = stageNames.map(function(name, idx) {
+    return { id: 'S' + (idx + 1), name: name, color: stageColors[idx],
+      critical: 0, high: 0, medium: 0, low: 0, controlled: 0, total: 0 };
+  });
+  
+  function addToStage(sName, level, controlled) {
+    var st = stageRisks.find(function(s) { return s.name === sName; });
+    if (!st) st = stageRisks[4]; // default to 量产
+    st.total++;
+    if (level === 'Critical') st.critical++;
+    else if (level === 'High') st.high++;
+    else if (level === 'Medium') st.medium++;
+    else st.low++;
+    if (controlled) st.controlled++;
+  }
+  
+  // Unified risk register
+  var register = [];
+  
+  // 1. FMEA risks
+  risks.forEach(function(r) {
+    var stage = fmeaToStage(r.fmea_type || '');
+    var controlled = r.status === '已控';
+    addToStage(stage, r.risk_level || 'Medium', controlled);
+    register.push({
+      id: r.risk_code || r.id, source: 'FMEA', sourceIcon: '🔍',
+      description: r.hazard || r.risk_name || '', stage: stage,
+      severity: r.severity || '', probability: r.probability || '',
+      detectability: r.detectability || '', rpn: r.rpn || null,
+      level: r.risk_level || 'Medium', status: r.status || '监控中',
+      measure: r.control_measure || '', fmeaType: r.fmea_type || ''
+    });
+  });
+  
+  // 2. QCP risks (per stage)
+  qcps.forEach(function(q) {
+    var stage = q.stage || '设计开发';
+    addToStage(stage, q.risk_level || 'Medium', true);
+    register.push({
+      id: q.qcp_code || q.id, source: 'QCP', sourceIcon: '🎯',
+      description: q.name || q.control_point || '', stage: stage,
+      severity: '', probability: '', detectability: '',
+      rpn: null, level: q.risk_level || 'Medium',
+      status: '受控', measure: q.control_method || ''
+    });
+  });
+  
+  // 3. Quality events -> PLM stage via product lifecycle
+  events.forEach(function(e) {
+    var stage = '上市'; // default
+    if (e.product_id) {
+      var prod = products.find(function(p) { return p.id === e.product_id; });
+      if (prod) stage = lifecycleToStage(prod.lifecycle_status || '');
+    }
+    var controlled = e.status === 'Closed' || e.status === 'Closed - No Action';
+    addToStage(stage, e.risk_level || 'Medium', controlled);
+    register.push({
+      id: e.event_code || e.id, source: '质量事件', sourceIcon: '⚠️',
+      description: (e.description || '').substring(0, 120), stage: stage,
+      severity: e.severity || '', probability: e.occurrence || '',
+      detectability: e.detectability || '', rpn: e.rpn_score || null,
+      level: e.risk_level || 'Medium',
+      status: e.status || 'Open', measure: ''
+    });
+  });
+  
+  // 4. Audit findings (hardcoded 24 items, approximate stage mapping)
+  var auditFindings = [
+    { clause: '§6.4.1', stage: '设计开发', level: 'Critical', desc: '赋值记录与检验规范缺失：未建立原料/成品赋值与检验记录制度' },
+    { clause: '§6.4.2', stage: '设计开发', level: 'High', desc: '过程控制点遗漏：过程控制覆盖不足' },
+    { clause: '§9.2.1', stage: '量产', level: 'Critical', desc: '供应商质量管理：未对关键物料供应商进行年度审核' },
+    { clause: '§10.3.1', stage: '量产', level: 'High', desc: '变更控制流程：变更记录与评估不完整' },
+    { clause: '§10.4.1', stage: '上市', level: 'Critical', desc: '客户投诉管理：投诉处理与关闭时效不满足要求' },
+    { clause: '§7.5.1', stage: '量产', level: 'Medium', desc: '设备验证与校准：关键设备未建立预防性维护计划' },
+    { clause: '§5.2.1', stage: '设计开发', level: 'Medium', desc: '风险管理文件更新：风险分析未随设计变更同步更新' },
+    { clause: '§8.2.1', stage: '量产', level: 'High', desc: '批记录完整性：生产记录缺少关键工艺参数追溯' },
+    { clause: '§4.2.3', stage: '设计开发', level: 'Medium', desc: '文件控制流程：SOP版本混乱缺少变更历史' },
+    { clause: '§6.3.1', stage: '量产', level: 'Critical', desc: '工艺验证：关键工序验证数据不够充分' },
+    { clause: '§3.5.1', stage: '设计开发', level: 'High', desc: '设计评审：设计评审节点不明确评审记录缺失' },
+    { clause: '§11.8.1', stage: '上市', level: 'Medium', desc: '不良事件监测：定期风险评价报告更新不及时' }
+  ];
+  
+  auditFindings.forEach(function(af) {
+    addToStage(af.stage, af.level, false);
+    register.push({
+      id: af.clause, source: '审计发现', sourceIcon: '📋',
+      description: af.desc, stage: af.stage,
+      severity: '', probability: '', detectability: '', rpn: null,
+      level: af.level, status: 'Open', measure: ''
+    });
+  });
+  
+  // Sort register by risk level then RPN
+  register.sort(function(a, b) {
+    if (riskScore(b.level) !== riskScore(a.level)) return riskScore(b.level) - riskScore(a.level);
+    return (b.rpn || 0) - (a.rpn || 0);
+  });
+  
+  // Summary
+  var summary = {
+    total: register.length,
+    open: register.filter(function(r) { return r.status !== 'Closed' && r.status !== '受控' && r.status !== '已控'; }).length,
+    critical: register.filter(function(r) { return r.level === 'Critical'; }).length,
+    high: register.filter(function(r) { return r.level === 'High'; }).length,
+    medium: register.filter(function(r) { return r.level === 'Medium'; }).length,
+    low: register.filter(function(r) { return r.level === 'Low'; }).length,
+    controlledRate: stageRisks.reduce(function(s, st) { return s + st.total; }, 0) > 0
+      ? Math.round(stageRisks.reduce(function(s, st) { return s + st.controlled; }, 0) / stageRisks.reduce(function(s, st) { return s + st.total; }, 0) * 100) : 0
+  };
+  
+  res.json({ stageRisks: stageRisks, riskRegister: register, summary: summary, updated: '2026-08' });
 }));
 
 // ============================================================
@@ -3230,7 +3379,7 @@ app.get('*', (req, res) => {
 
 db.connect().then(function() {
   app.listen(PORT, function() {
-		    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v2.18.0             ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
+		    console.log('\n  ╔══════════════════════════════════════════════╗\n  ║   FosunDx Quality Hub (FDQH) Platform       ║\n  ║   IVD 数字化质量管理平台 v2.19.0             ║\n  ║   http://localhost:' + PORT + '                      ║\n  ╚══════════════════════════════════════════════╝\n  ');
     console.log('  默认账号: admin / admin123');
   });
 }).catch(function(err) {
