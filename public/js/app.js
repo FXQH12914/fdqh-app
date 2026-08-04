@@ -2852,6 +2852,21 @@ async function seedColloidalGoldQCP() {
   }
 }
 
+// ===== 分子PCR QCP字典一键导入 =====
+async function seedMolecularQCP() {
+  var msgEl = document.getElementById('qcpSeedMsg');
+  if (msgEl) msgEl.innerHTML = '⏳ 正在导入分子PCR QCP字典...';
+  try {
+    var res = await apiPost('/qcp/seed-molecular', {});
+    if (!res) { if (msgEl) msgEl.innerHTML = '❌ 导入失败'; return; }
+    if (msgEl) msgEl.innerHTML = '✅ ' + (res.message || '导入完成');
+    showToast('📥 ' + res.message, 'success');
+    loadQCP();
+  } catch(e) {
+    if (msgEl) msgEl.innerHTML = '❌ ' + e.message;
+  }
+}
+
 // ============================================================
 // RISKS
 // ============================================================
