@@ -1,5 +1,5 @@
 // ============================================================
-// FDQH - FosunDx Quality Hub Server v2.19.0
+// FDQH - FosunDx Quality Hub Server v2.20.0
 // MongoDB + JSON Fallback | Rate Limiting | Session Expiry
 // ============================================================
 const express = require('express');
@@ -1571,6 +1571,28 @@ app.get('/api/qcp/check', requireAuth, asyncHandler(async (req, res) => {
   if (recentComplaints.length >= 3) failed++; else if (recentComplaints.length >= 2) warning++; else passed++;
 
   res.json({ results: results, summary: { passed: passed, failed: failed, warning: warning, total: passed + failed + warning } });
+}));
+
+// ---- 胶体金 QCP 字典一键导入 ----
+app.post('/api/qcp/seed-colloidal-gold', requireAuth, asyncHandler(async (req, res) => {
+  var fs = require('fs');
+  var path = require('path');
+  var filePath = path.join(__dirname, 'data', 'qcp_colloidal_gold.json');
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'QCP数据文件未找到: data/qcp_colloidal_gold.json' });
+  
+  var qcpData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  var existing = await db.findAll('qcp_library');
+  var existingCodes = new Set(existing.map(function(q) { return q.qcp_code; }));
+  
+  var created = 0, skipped = 0;
+  for (var i = 0; i < qcpData.length; i++) {
+    var q = qcpData[i];
+    if (existingCodes.has(q.qcp_code)) { skipped++; continue; }
+    await db.insert('qcp_library', q, req.user.username);
+    existingCodes.add(q.qcp_code);
+    created++;
+  }
+  res.json({ success: true, created: created, skipped: skipped, total: qcpData.length, message: '导入完成: ' + created + ' 新增, ' + skipped + ' 已存在跳过' });
 }));
 
 app.get('/api/qcp/:id', requireAuth, asyncHandler(async (req, res) => {
