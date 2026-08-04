@@ -32,7 +32,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <h2>🩺 FDQH</h2>
-      <span>FosunDx Quality Hub v2.17.0</span>
+      <span>FosunDx Quality Hub v2.18.0</span>
     </div>
     <nav>
       <a data-page="dashboard" class="active" onclick="navigate('dashboard')"><span class="icon">📊</span> 驾驶舱</a>
@@ -50,6 +50,7 @@
         <a href="#" data-page="plm" onclick="navigate('plm');return false;"><span class="icon">🔗</span> 全生命周期</a>
         <span class="nav-arrow" id="navPlmArrow" onclick="toggleNavSubPlm()" style="position:absolute;right:12px;top:14px;cursor:pointer;color:rgba(255,255,255,.5);font-size:10px;z-index:2;">▶</span>
         <div class="nav-sub" id="navPlmSub">
+          <a href="#" data-page="plm" onclick="navigate('plm');switchPlmTab('productLines');return false;"><span class="icon">📦</span> 产品线视图</a>
           <a href="#" data-page="qcp" onclick="navigate('qcp');return false;"><span class="icon">🎯</span> 控制点库</a>
           <a href="#" data-page="masters" onclick="navigate('masters');return false;"><span class="icon">📋</span> 主数据管理</a>
         </div>
@@ -273,6 +274,7 @@
       <div class="page-header"><h2>🔗 产品全生命周期管理</h2><p>PLQDP · 7阶段 · 173 QCP · 产品护照 · 质量驾驶舱</p>
       <div class="btn-group" style="margin-top:8px;">
         <button class="btn btn-sm btn-primary" onclick="switchPlmTab('lifecycle')" id="ptLifecycle">🔗 生命周期</button>
+        <button class="btn btn-sm btn-outline" onclick="switchPlmTab('productLines')" id="ptProductLines">📦 产品线视图</button>
         <button class="btn btn-sm btn-outline" onclick="switchPlmTab('qkpi')" id="ptQkpi">📊 Q-KPI</button>
         <button class="btn btn-sm btn-outline" onclick="switchPlmTab('risk')" id="ptRisk">🎯 风险矩阵</button>
         <button class="btn btn-sm btn-outline" onclick="switchPlmTab('alerts')" id="ptAlerts">🚨 AI预警</button>
@@ -430,7 +432,7 @@
 
 </div><!-- /appLayout -->
 
-<script src="/js/app.js?v=2.17.0"></script>
+<script src="/js/app.js?v=2.18.0"></script>
 <script src="/js/ai-chat.js?v=2.5.3"></script>
 </body>
 </html>
