@@ -2816,25 +2816,44 @@ function filterRegistry(filterVal) {
 }
 
 async function loadQCP() {
-  var result = await apiGet('/qcp?limit=200');
+  var result = await apiGet('/qcp?limit=1000');
   if (!result) return;
   var qcps = result.data || result;
+  window._allQCPs = qcps;
+  renderQCPTable(qcps);
+}
+
+function renderQCPTable(qcps) {
   var tbody = document.querySelector('#qcpTable tbody');
-  tbody.innerHTML = (qcps||[]).length ? qcps.map(function(q) {
-    var cqaCpp = [q.cqa, q.cma, q.cpp].filter(Boolean).join(' / ') || '-';
-    return '<tr><td>' + (q.qcp_code||q.id) + '</td>' +
-      '<td>' + (q.module||q.domain||'-') + '</td>' +
-      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (q.name||q.control_name||'') + '">' + (q.name||q.control_name||'-') + '</td>' +
+  var countEl = document.getElementById('qcpCount');
+  if (countEl) countEl.textContent = '共 ' + qcps.length + ' 条';
+  
+  var lineColors = { '化学发光': '#6366F1', '胶体金': '#F59E0B', '分子': '#EC4899', '生化': '#10B981', '微生物': '#8B5CF6', '仪器': '#0EA5E9' };
+  tbody.innerHTML = qcps.length ? qcps.map(function(q) {
+    var pl = q.product_line || '通用';
+    var plColor = lineColors[pl] || '#6B7280';
+    var plBg = pl === '通用' ? '#F3F4F6' : (lineColors[pl] || '#6B7280') + '15';
+    return '<tr class="qcp-row" data-line="' + (q.product_line || '') + '">' +
+      '<td style="font-size:10px;">' + (q.qcp_code||q.id) + '</td>' +
+      '<td><span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;background:' + plBg + ';color:' + plColor + ';font-weight:600;">' + pl + '</span></td>' +
+      '<td>' + (q.domain||q.module||'-') + '</td>' +
+      '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (q.name||'') + '">' + (q.name||'-') + '</td>' +
       '<td>' + (q.stage||'-') + '</td>' +
-      '<td><span class="badge badge-' + getRiskBadge(q.risk_level) + '">' + (q.risk_level||'-') + '</span></td>' +
+      '<td><span class="badge badge-' + getRiskBadge(q.risk_level) + '" style="font-size:10px;">' + (q.risk_level||'-') + '</span></td>' +
       '<td>' + (q.control_method||q.detection_method||'-') + '</td>' +
-      '<td>' + (q.key_param||q.key_params||'-') + '</td>' +
-      '<td style="font-size:11px;">' + cqaCpp + '</td>' +
-      '<td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + (q.spec_standard||q.standard||'') + '">' + (q.spec_standard||q.standard||'-') + '</td>' +
-      '<td style="font-size:11px;color:var(--danger);">' + (q.alert_rule||'-') + '</td>' +
-      '<td>' + (q.frequency||'-') + '</td>' +
-      '<td>' + (q.owner||'-') + '</td></tr>';
-	  }).join('') : '<tr><td colspan="12"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
+      '<td style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + (q.key_param||'') + '">' + (q.key_param||'-') + '</td>' +
+      '<td style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + (q.spec_standard||'') + '">' + (q.spec_standard||'-') + '</td>' +
+      '<td style="font-size:10px;color:var(--danger);max-width:80px;overflow:hidden;text-overflow:ellipsis;" title="' + (q.alert_rule||'') + '">' + (q.alert_rule||'-') + '</td>' +
+      '<td style="font-size:10px;">' + (q.frequency||'-') + '</td>' +
+      '<td style="font-size:10px;">' + (q.owner||'-') + '</td></tr>';
+  }).join('') : '<tr><td colspan="12"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
+}
+
+function filterQCP() {
+  var line = document.getElementById('qcpLineFilter')?.value || '';
+  var all = window._allQCPs || [];
+  var filtered = line ? all.filter(function(q) { return (q.product_line || '') === line; }) : all;
+  renderQCPTable(filtered);
 }
 
 // ===== 胶体金QCP字典一键导入 =====
