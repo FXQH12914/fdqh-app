@@ -972,8 +972,22 @@ app.get('/api/plm/product-lines', requireAuth, asyncHandler(async (req, res) => 
     var name = (item.product_name || item.name || '').toLowerCase();
     var platform = (item.platform || '').toLowerCase();
     var category = (item.product_category || item.category || '').toLowerCase();
-    var combined = val + ' ' + name + ' ' + platform + ' ' + category;
+    var type = (item.type || '').toLowerCase();
+    var combined = val + ' ' + name + ' ' + platform + ' ' + category + ' ' + type;
     
+    // Priority: explicit product_category match first
+    if (category === '仪器' || category === 'instrument') return 'instrument';
+    if (category === '试剂' || category === 'reagent') {
+      // Further classify reagent by detection tech
+      if (combined.indexOf('化学发光') >= 0 || combined.indexOf('clia') >= 0) return 'clia';
+      if (combined.indexOf('胶体金') >= 0) return 'colloidal-gold';
+      if (combined.indexOf('生化') >= 0 || combined.indexOf('干化学') >= 0 || combined.indexOf('免疫比浊') >= 0 || combined.indexOf('酶循环') >= 0) return 'biochem';
+      if (combined.indexOf('分子') >= 0 || combined.indexOf('pcr') >= 0 || combined.indexOf('核酸') >= 0) return 'molecular';
+      if (combined.indexOf('微生物') >= 0 || combined.indexOf('药敏') >= 0 || combined.indexOf('细菌') >= 0) return 'microbio';
+      return 'clia'; // default reagent → CLIA
+    }
+    
+    // Keyword matching for non-product items
     for (var i = 0; i < productLines.length; i++) {
       for (var j = 0; j < productLines[i].keywords.length; j++) {
         if (combined.indexOf(productLines[i].keywords[j].toLowerCase()) >= 0) return productLines[i].id;
