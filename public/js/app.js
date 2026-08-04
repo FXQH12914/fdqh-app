@@ -2834,7 +2834,22 @@ async function loadQCP() {
       '<td style="font-size:11px;color:var(--danger);">' + (q.alert_rule||'-') + '</td>' +
       '<td>' + (q.frequency||'-') + '</td>' +
       '<td>' + (q.owner||'-') + '</td></tr>';
-  }).join('') : '<tr><td colspan="12"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
+	  }).join('') : '<tr><td colspan="12"><div class="empty-state">暂无质量控制点数据</div></td></tr>';
+}
+
+// ===== 胶体金QCP字典一键导入 =====
+async function seedColloidalGoldQCP() {
+  var msgEl = document.getElementById('qcpSeedMsg');
+  if (msgEl) msgEl.innerHTML = '⏳ 正在导入胶体金QCP字典...';
+  try {
+    var res = await apiPost('/qcp/seed-colloidal-gold', {});
+    if (!res) { if (msgEl) msgEl.innerHTML = '❌ 导入失败'; return; }
+    if (msgEl) msgEl.innerHTML = '✅ ' + (res.message || '导入完成');
+    showToast('📥 ' + res.message, 'success');
+    loadQCP();
+  } catch(e) {
+    if (msgEl) msgEl.innerHTML = '❌ ' + e.message;
+  }
 }
 
 // ============================================================
