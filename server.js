@@ -299,7 +299,7 @@ app.get('/api/events/export', requireAuth, asyncHandler(async (req, res) => {
 }));
 app.get('/api/events/import/template', requireAuth, (req, res) => {
   var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.json_to_sheet([{ '事件类型': 'Deviation', '子类型': '', '产品名称': '', '批号': '', '风险等级': 'Medium', '描述': '' }]);
+  var ws = XLSX.utils.json_to_sheet([{ '事件类型': 'Deviation', '子类型': '工艺偏差', '产品名称': '', '产品线': '化学发光', '批号': '', '风险等级': 'Medium', '描述': '', '责任部门': '生产部', '状态': 'Open' }]);
   XLSX.utils.book_append_sheet(wb, ws, '事件导入模板');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename=FDQH_events_template.xlsx');
@@ -310,7 +310,7 @@ app.post('/api/events/import', requireAuth, upload.single('file'), asyncHandler(
   var wb = XLSX.read(req.file.buffer, { type: 'buffer' });
   var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); var created = 0;
   for (var i = 0; i < rows.length; i++) { var r = rows[i]; if (!r['事件类型']) continue;
-    await db.insert('quality_events', { event_type: r['事件类型'], event_subtype: r['子类型']||'', product_name: r['产品名称']||'', batch_no: r['批号']||'', risk_level: r['风险等级']||'Medium', description: r['描述']||'', status: 'Open', reported_by: req.user.username, imported: true }, req.user.username); created++; }
+    await db.insert('quality_events', { event_type: r['事件类型'], event_subtype: r['子类型']||'', product_name: r['产品名称']||'', product_line: r['产品线']||'', batch_no: r['批号']||'', risk_level: r['风险等级']||'Medium', description: r['描述']||'', responsible_dept: r['责任部门']||'', status: r['状态']||'Open', reported_by: req.user.username, imported: true }, req.user.username); created++; }
   res.json({ success: true, created: created, message: '导入' + created + '条' });
 }));
 
@@ -782,7 +782,7 @@ app.get('/api/changes/export', requireAuth, asyncHandler(async (req, res) => {
 }));
 app.get('/api/changes/import/template', requireAuth, (req, res) => {
   var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.json_to_sheet([{ '变更类型': '设计变更', '产品ID': '', '风险等级': 'Medium', '变更等级': '', '描述': '' }]);
+  var ws = XLSX.utils.json_to_sheet([{ '变更类型': '设计变更', '产品ID': '', '产品名称': '', '变更等级': 'II类', '风险等级': 'Medium', '影响描述': '', '验证状态': '待验证', '描述': '', '状态': '未完成' }]);
   XLSX.utils.book_append_sheet(wb, ws, '变更导入模板');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename=FDQH_changes_template.xlsx');
@@ -793,7 +793,7 @@ app.post('/api/changes/import', requireAuth, upload.single('file'), asyncHandler
   var wb = XLSX.read(req.file.buffer, { type: 'buffer' });
   var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); var created = 0;
   for (var i = 0; i < rows.length; i++) { var r = rows[i]; if (!r['变更类型']) continue;
-    await db.insert('change_records', { change_type: r['变更类型'], product_id: r['产品ID']||'', risk: r['风险等级']||'Medium', change_level: r['变更等级']||'', description: r['描述']||'', status: '未完成', initiator: req.user.username, imported: true }, req.user.username); created++; }
+    await db.insert('change_records', { change_type: r['变更类型'], product_id: r['产品ID']||'', product_name: r['产品名称']||'', risk: r['风险等级']||'Medium', change_level: r['变更等级']||'', impact: r['影响描述']||'', description: r['描述']||'', validation_status: r['验证状态']||'', status: r['状态']||'未完成', initiator: req.user.username, imported: true }, req.user.username); created++; }
   res.json({ success: true, created: created, message: '导入' + created + '条' });
 }));
 
@@ -2808,15 +2808,24 @@ app.get('/api/dashboard/export', requireAuth, asyncHandler(async (req, res) => {
 
 // 导入模板下载
 app.get('/api/dashboard/import/template', requireAuth, asyncHandler(async (req, res) => {
-  var template = [
-    { '事件ID': 'QE001', '类型': 'Deviation', '风险等级': 'Medium', '产品名称': 'CA19-9检测试剂盒', '批号': 'B2606001', '描述': '填写事件描述', '状态': 'Open' },
-    { '事件ID': 'QE002', '类型': 'Complaint', '风险等级': 'High', '产品名称': '糖类抗原19-9', '批号': 'C2509037', '描述': '客户投诉示例', '状态': 'In Investigation' },
-  ];
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(template), '质量事件模板');
+  // Sheet 1: 质量事件模板
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
-    { '标题': 'CAPA示例', '关联事件ID': 'QE001', '根因': '填写根本原因', '行动计划': '填写纠正预防措施', '负责人': '张三', '截止日期': '2026-08-31', '状态': 'Open' }
+    { '事件类型': 'Deviation', '子类型': '工艺偏差', '产品名称': 'CA19-9检测试剂盒', '产品线': '化学发光', '批号': 'B2606001', '风险等级': 'Medium', '描述': '填写事件描述', '责任部门': '生产部', '状态': 'Open' },
+    { '事件类型': 'Complaint', '子类型': '', '产品名称': '糖类抗原19-9', '产品线': '化学发光', '批号': 'C2509037', '风险等级': 'High', '描述': '客户投诉示例', '责任部门': 'QA部', '状态': 'In Investigation' },
+  ]), '质量事件模板');
+  // Sheet 2: CAPA模板
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    { '标题': 'CAPA示例', '关联事件ID': '', '审核来源': '内部审核', '缺陷模式': '填写缺陷模式', '根因类别': '人员/设备/物料/方法/环境', '根因': '填写根本原因', '行动计划': '填写纠正预防措施', '负责人': '张三', '截止日期': '2026-08-31', '状态': 'Open' }
   ]), 'CAPA模板');
+  // Sheet 3: 产品主数据模板
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    { '产品名称': '示例试剂盒', '产品类别': '试剂', '检测技术': 'CLIA', '平台': '化学发光平台', '产品线': '化学发光', '风险等级': 'III', '注册类别': '三类', '生命周期': '生产', '注册状态': '已注册', '注册编号': '国械注准20253400000', '规格型号': '100T/盒', '储存条件': '2-8°C', '有效期': '12个月' },
+  ]), '产品主数据模板');
+  // Sheet 4: QCP控制点模板
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    { 'QCP编号': 'Q01-001', '控制点名称': '临床需求确认', '模块': '设计开发', '阶段': '设计开发', '产品线': '化学发光', '风险等级': 'Medium', '控制方法': '审核', '关键参数': 'URS批准', '规格标准': '100%批准', '预警规则': '', '频率': '立项时', '负责人': '产品经理' },
+  ]), 'QCP控制点模板');
   var buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="FDQH_import_template.xlsx"');
@@ -2859,8 +2868,10 @@ app.post('/api/dashboard/import', requireAuth, upload.single('file'), asyncHandl
             risk_level: row['风险等级'] || row.risk_level || 'Medium',
             product_id: row['产品ID'] || row.product_id || '',
             product_name: row['产品名称'] || row.product_name || '',
+            product_line: row['产品线'] || row.product_line || '',
             batch_no: row['批号'] || row.batch_no || '',
             description: row['描述'] || row.description || '',
+            responsible_dept: row['责任部门'] || row.responsible_dept || '',
             status: row['状态'] || row.status || 'Open',
             created_at: row['创建时间'] || row.created_at || new Date().toISOString(),
             imported: true
@@ -2899,9 +2910,42 @@ app.post('/api/dashboard/import', requireAuth, upload.single('file'), asyncHandl
           result.errors.push('CAPA行' + (j+1) + ': ' + e.message);
         }
       }
-    }
+	    }
 
-    res.json({ success: true, ...result });
+	    // Import products (产品主数据)
+	    var productData = sheets['产品主数据模板'] || sheets['产品主数据'] || sheets['产品'] || [];
+	    if (productData.length) {
+	      result.imported.products = 0;
+	      for (var k = 0; k < productData.length; k++) {
+	        var prow = productData[k];
+	        if (!prow['产品名称'] && !prow.product_name) continue;
+	        try {
+	          var prodPayload = {
+	            product_name: prow['产品名称'] || prow.product_name,
+	            product_category: prow['产品类别'] || prow.product_category || '试剂',
+	            detection_tech: prow['检测技术'] || prow.detection_tech || '',
+	            platform: prow['平台'] || prow.platform || '',
+	            product_line: prow['产品线'] || prow.product_line || '',
+	            risk_class: prow['风险等级'] || prow.risk_class || '',
+	            reg_category: prow['注册类别'] || prow.reg_category || '',
+	            lifecycle_status: prow['生命周期'] || prow.lifecycle_status || '研发',
+	            regulatory_status: prow['注册状态'] || prow.regulatory_status || '',
+	            reg_no: prow['注册编号'] || prow.reg_no || '',
+	            spec_model: prow['规格型号'] || prow.spec_model || '',
+	            storage_condition: prow['储存条件'] || prow.storage_condition || '',
+	            shelf_life: prow['有效期'] || prow.shelf_life || '',
+	            imported: true
+	          };
+	          await db.insert('products', prodPayload, req.user.username);
+	          result.imported.products++;
+	          result.details.push('导入产品: ' + prodPayload.product_name);
+	        } catch (e) {
+	          result.errors.push('产品行' + (k+1) + ': ' + e.message);
+	        }
+	      }
+	    }
+
+	    res.json({ success: true, ...result });
   } catch (e) {
     res.status(500).json({ success: false, error: '解析文件失败: ' + e.message });
   }
