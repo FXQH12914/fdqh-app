@@ -2535,8 +2535,37 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
 
 // ============================================================
 // COMPLAINT DASHBOARD — 投诉看板
-// 数据来源: 2026年上半年投诉情况汇总20260728.xlsx (已导入quality_events)
+// 数据来源: 质量管理保龄球图-2026(2).xlsx (试剂投诉汇总+仪器投诉汇总, 已导入quality_events)
 // ============================================================
+// 投诉数据导入 (从 data/complaints_2026_import.json)
+app.post('/api/dashboard/import-complaints', requireAuth, asyncHandler(async (req, res) => {
+  var fs = require('fs');
+  var path = require('path');
+  var filePath = path.join(__dirname, 'data', 'complaints_2026_import.json');
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '数据文件未找到' });
+  
+  var data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  var events = await db.findAll('quality_events');
+  
+  // 删除旧投诉事件
+  var deleted = 0;
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].event_type === 'Complaint') {
+      await db.delete('quality_events', events[i].id, req.user.username);
+      deleted++;
+    }
+  }
+  
+  // 导入新投诉
+  var created = 0;
+  for (var j = 0; j < data.length; j++) {
+    await db.insert('quality_events', data[j], req.user.username);
+    created++;
+  }
+  
+  res.json({ success: true, deleted: deleted, created: created, message: '投诉数据更新: 删除' + deleted + '条旧数据, 导入' + created + '条新数据' });
+}));
+
 app.get('/api/dashboard/complaints', requireAuth, asyncHandler(async (req, res) => {
   var events = await db.findAll('quality_events');
   var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
