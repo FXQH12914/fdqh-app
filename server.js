@@ -2283,11 +2283,11 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
     sections: [
       { title: '考核指标 (KPI)', type: 'table', headers: ['指标','定义','目标','状态'],
         rows: [
-          { name:'项目质量指标达成率', target:'≥90%', months:{}, ytd:'92%', status:'pass', desc:'质量目标达成数/计划目标总数' },
-          { name:'需求变更控制率', target:'≤3次/项目', months:{}, ytd:'--', status:'na', desc:'需求不明确导致设计变更次数' },
-          { name:'试剂-仪器匹配验证率(发光)', target:'100%', months:{}, ytd:'--', status:'na', desc:'通过验证组合/总申报组合' },
+          { name:'项目质量指标达成率', target:'≥90%', months:{}, ytd:'92%', status:'pass', desc:'质量目标达成数/计划目标总数', collapsed: true },
+          { name:'需求变更控制率', target:'≤3次/项目', months:{}, ytd:'--', status:'na', desc:'需求不明确导致设计变更次数', collapsed: true },
+          { name:'试剂-仪器匹配验证率(发光)', target:'100%', months:{}, ytd:'--', status:'na', desc:'通过验证组合/总申报组合', collapsed: true },
           { name:'产品成熟度评分', target:'≥85分', months:{'7月': 60}, ytd:'60%', status:'warning', desc:'性能+工艺成熟度评分(陈科总维度表) 7月: 仪器60% 试剂60%' },
-          { name:'关键性能KPI验证覆盖率', target:'待定', months:{}, ytd:'--', status:'na', desc:'已验证KPI/注册要求KPI' },
+          { name:'关键性能KPI验证覆盖率', target:'待定', months:{}, ytd:'--', status:'na', desc:'已验证KPI/注册要求KPI', collapsed: true },
         ]
       },
       { title: '新产品导入质量 (DOA/FFR)', type: 'table', headers: ['指标','目标','1月','2月','3月','4月','5月','6月','7月','YTD'],
