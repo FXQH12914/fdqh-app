@@ -857,12 +857,12 @@ async function loadComplaintsDashboard() {
 
   // === Charts ===
   setTimeout(function() {
-    var months = ['1月','2月','3月','4月','5月','6月'];
+    var months = ['1月','2月','3月','4月','5月','6月','7月'];
     var monthData = months.map(function(m) { return data.byMonth[parseInt(m)] || 0; });
     renderChart('compMonthChart', 'bar', months, monthData, '投诉数', '#EF4444');
 
     var srcData = data.bySource;
-    var srcLabels = Object.keys(srcData).map(function(s) { return s.replace('2026上半年投诉汇总-', ''); });
+    var srcLabels = Object.keys(srcData).map(function(s) { return s.replace('2026上半年投诉汇总-', '').replace('试剂投诉-', '试剂-').replace('仪器投诉-', '仪器-'); });
     var srcValues = Object.keys(srcData).map(function(s) { return srcData[s]; });
     renderPieChart('compSourceChart', srcLabels, srcValues, ['#3B82F6','#10B981','#F59E0B','#8B5CF6','#EC4899']);
 
