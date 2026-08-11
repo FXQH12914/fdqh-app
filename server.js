@@ -1924,9 +1924,9 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
     ffrOverallYTD: 8.2,       // 装机月度仪器维修率 Overall YTD 8.2%, target 8%
     ffrNewYTD: 8.0,           // 新品维修率 YTD 8.0%
     ffrMassYTD: 8.2,          // 量产维修率 YTD 8.2%
-    reagentDefectOverallYTD: 2.2,  // 试剂市场缺陷率 Overall YTD 2.2%, target 2.5%
-    reagentDefectCLIA: 5.9,   // 发光条线缺陷率 YTD 5.9% ⚠️
-    reagentDefectBio: 1.1,    // 生化条线 YTD 1.1%
+    reagentDefectOverallYTD: 2.7,  // 试剂市场缺陷率 Overall YTD 2.7%, target 2.5%
+    reagentDefectCLIA: 6.3,   // 发光条线缺陷率 YTD 6.3% ⚠️
+    reagentDefectBio: 1.7,    // 生化条线 YTD 1.7%
     reagentDefectMol: 5.6,    // 分子条线 YTD 5.6% ⚠️
 
     // 日常检验 KPI (YTD)
@@ -1963,7 +1963,7 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
     // 🚀 提升类 — 持续改进指标 (参照TQM: 缺陷率/供应预警/SPC/培训)
     improvements: [
       { name: '试剂市场缺陷率', value: BOWLING.reagentDefectOverallYTD, target: 2.5, unit: '%', status: BOWLING.reagentDefectOverallYTD <= 2.5 ? 'pass' : 'warning', source: '市场缺陷率≤2.5%' },
-      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标 5.9%' },
+      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标 6.3%' },
       { name: '供应商CAPA按时关闭率', value: 85, target: 90, unit: '%', status: 85 >= 90 ? 'pass' : 'warning', source: '3个月无进料全部关闭' },
       { name: '关键风险物料提前预警率', value: 75, target: 90, unit: '%', status: 75 >= 90 ? 'pass' : 'warning', source: '预警数/需预警总数 ABC分级' },
       { name: 'SPC覆盖关键工序率', value: 65, target: 80, unit: '%', status: 65 >= 80 ? 'pass' : 'warning', source: '生产质量一体化专项' },
@@ -2011,7 +2011,7 @@ app.get('/api/dashboard/bowling-chart', requireAuth, asyncHandler(async (req, re
         { sub: '9.2 量产品 FFR', target: 8, ytd: 8.2, months: [16.0, 7.4, 6.8, 6.1, 6.3, 6.8, 9.5] },
       ]
     },
-    { id: '10', name: '试剂市场缺陷率', target: 2.5, unit: '%', ytd: 2.2, trend: 'stable',
+    { id: '10', name: '试剂市场缺陷率', target: 2.5, unit: '%', ytd: 2.7, trend: 'up',
       months: [
         { month: '1月', plan: 2.5, actual: 3.1, status: 'fail' },
         { month: '2月', plan: 2.5, actual: 1.5, status: 'pass' },
@@ -2019,11 +2019,11 @@ app.get('/api/dashboard/bowling-chart', requireAuth, asyncHandler(async (req, re
         { month: '4月', plan: 2.5, actual: 2.1, status: 'pass' },
         { month: '5月', plan: 2.5, actual: 2.1, status: 'pass' },
         { month: '6月', plan: 2.5, actual: 2.6, status: 'fail' },
-        { month: '7月', plan: 2.5, actual: 2.2, status: 'pass' },
+        { month: '7月', plan: 2.5, actual: 5.4, status: 'fail' },
       ],
       drilldown: [
-        { sub: '10.1 发光条线', target: 2.5, ytd: 5.9, months: [4.7, 5.0, 4.7, 19.0, 2.5, 0, 6.8], alert: true },
-        { sub: '10.2 生化条线', target: 2.5, ytd: 1.1, months: [1.8, 0, 1.0, 0, 2.2, 2.6, 0] },
+        { sub: '10.1 发光条线', target: 2.5, ytd: 6.3, months: [4.7, 5.0, 4.7, 19.0, 2.5, 0, 8.5], alert: true },
+        { sub: '10.2 生化条线', target: 2.5, ytd: 1.7, months: [1.8, 0, 1.0, 0, 2.2, 2.6, 4.3], alert: true },
         { sub: '10.3 分子条线', target: 2.5, ytd: 5.6, months: [12.5, 12.5, 0, 0, 0, 12.5, 0], alert: true },
         { sub: '10.4 微生物条线', target: 2.5, ytd: null, months: [12.5, null, null, null, null, null, null] },
         { sub: '10.5 POCT条线', target: 2.5, ytd: 0, months: [0, null, null, null, null, null, null] },
@@ -2085,11 +2085,11 @@ app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (re
           { id: 'FFR-M', name: '量产品 FFR', target: '≤8%', ytd: '8.2%', status: 'fail', months: { '1月': 16.0, '2月': 7.4, '3月': 6.8, '4月': 6.1, '5月': 6.3, '6月': 6.8, '7月': 9.5 } }
         ]
       },
-      { id: 'DEFECT', name: '试剂市场缺陷率', target: '≤2.5%', ytd: '2.2%', status: 'pass', unit: '%',
-        months: { '1月': { plan: 2.5, actual: 3.1 }, '2月': { plan: 2.5, actual: 1.5 }, '3月': { plan: 2.5, actual: 2.0 }, '4月': { plan: 2.5, actual: 2.1 }, '5月': { plan: 2.5, actual: 2.1 }, '6月': { plan: 2.5, actual: 2.6 }, '7月': { plan: 2.5, actual: 2.2 } },
+      { id: 'DEFECT', name: '试剂市场缺陷率', target: '≤2.5%', ytd: '2.7%', status: 'fail', unit: '%',
+        months: { '1月': { plan: 2.5, actual: 3.1 }, '2月': { plan: 2.5, actual: 1.5 }, '3月': { plan: 2.5, actual: 2.0 }, '4月': { plan: 2.5, actual: 2.1 }, '5月': { plan: 2.5, actual: 2.1 }, '6月': { plan: 2.5, actual: 2.6 }, '7月': { plan: 2.5, actual: 5.4 } },
         children: [
-          { id: 'DEF-CLIA', name: '发光条线', target: '≤2.5%', ytd: '5.9%', status: 'fail', alert: true, months: { '1月': 4.7, '2月': 5.0, '3月': 4.7, '4月': 19.0, '5月': 2.5, '6月': 0, '7月': 6.8 } },
-          { id: 'DEF-BIO', name: '生化条线', target: '≤2.5%', ytd: '1.1%', status: 'pass', months: { '1月': 1.8, '2月': 0, '3月': 1.0, '4月': 0, '5月': 2.2, '6月': 2.6, '7月': 0 } },
+          { id: 'DEF-CLIA', name: '发光条线', target: '≤2.5%', ytd: '6.3%', status: 'fail', alert: true, months: { '1月': 4.7, '2月': 5.0, '3月': 4.7, '4月': 19.0, '5月': 2.5, '6月': 0, '7月': 8.5 } },
+          { id: 'DEF-BIO', name: '生化条线', target: '≤2.5%', ytd: '1.7%', status: 'fail', alert: true, months: { '1月': 1.8, '2月': 0, '3月': 1.0, '4月': 0, '5月': 2.2, '6月': 2.6, '7月': 4.3 } },
           { id: 'DEF-MOL', name: '分子条线', target: '≤2.5%', ytd: '5.6%', status: 'fail', alert: true, months: { '1月': 12.5, '2月': 12.5, '3月': 0, '4月': 0, '5月': 0, '6月': 12.5, '7月': 0 } },
           { id: 'DEF-MICRO', name: '微生物条线', target: '≤2.5%', ytd: '--', status: 'na', months: { '1月': 12.5, '2月': '--', '3月': '--', '4月': '--', '5月': '--', '6月': '--', '7月': '--' } },
           { id: 'DEF-POCT', name: 'POCT条线', target: '≤2.5%', ytd: '0%', status: 'pass', months: { '1月': 0, '2月': '--', '3月': '--', '4月': '--', '5月': '--', '6月': '--', '7月': '--' } }
@@ -2466,7 +2466,7 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
     color: '#EC4899',
     summary: [
       { label:'客诉总数(1-7月)', value:'108件', target:'≤50件/半年', status:'warning', desc:'发光38/微生物38/生化21/分子10' },
-      { label:'试剂市场缺陷率', value:'2.2%', target:'≤2.5%', status:'pass', desc:'总体达标' },
+      { label:'试剂市场缺陷率', value:'5.4%', target:'≤2.5%', status:'fail', desc:'7月年中调整后口径 超标' },
       { label:'EQA合格率', value:'100%', target:'100%', status:'pass', desc:'室间质评参评项目' },
       { label:'到货缺陷率DOA', value:'8.1%', target:'≤5%(新标)', status:'fail', desc:'TQM新标准 ≤5%' },
     ],
@@ -2484,16 +2484,16 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
       },
       { title: '试剂市场缺陷率 (月度)', type: 'table', headers: ['指标','目标','1月','2月','3月','4月','5月','6月','7月','YTD'],
         rows: [
-          { name:'Overall缺陷率', target:'≤2.5%', months:{'1月':3.1,'2月':1.5,'3月':2.0,'4月':2.1,'5月':2.1,'6月':2.6,'7月':2.2}, ytd:'2.2%', status:'pass', direction:'lt' },
-          { name:'发光条线', target:'≤2.5%', months:{'1月':4.7,'2月':5.0,'3月':4.7,'4月':19.0,'5月':2.5,'6月':0,'7月':6.8}, ytd:'5.9%', status:'fail', direction:'lt' },
-          { name:'生化条线', target:'≤2.5%', months:{'1月':1.8,'2月':0,'3月':1.0,'4月':0,'5月':2.2,'6月':2.6,'7月':0}, ytd:'1.1%', status:'pass', direction:'lt' },
+          { name:'Overall缺陷率', target:'≤2.5%', months:{'1月':3.1,'2月':1.5,'3月':2.0,'4月':2.1,'5月':2.1,'6月':2.6,'7月':5.4}, ytd:'2.7%', status:'fail', direction:'lt', desc:'7月按年中调整后口径 5.4%' },
+          { name:'发光条线', target:'≤2.5%', months:{'1月':4.7,'2月':5.0,'3月':4.7,'4月':19.0,'5月':2.5,'6月':0,'7月':8.5}, ytd:'6.3%', status:'fail', direction:'lt', desc:'7月按年中调整后口径 8.5%' },
+          { name:'生化条线', target:'≤2.5%', months:{'1月':1.8,'2月':0,'3月':1.0,'4月':0,'5月':2.2,'6月':2.6,'7月':4.3}, ytd:'1.7%', status:'fail', direction:'lt', desc:'7月按年中调整后口径 4.3%' },
           { name:'分子条线', target:'≤2.5%', months:{'1月':12.5,'2月':12.5,'3月':0,'4月':0,'5月':0,'6月':12.5,'7月':0}, ytd:'5.6%', status:'fail', direction:'lt' },
         ]
       },
       { title: '客诉月度趋势', type: 'table', headers: ['指标','1月','2月','3月','4月','5月','6月','7月','合计'],
         rows: [
           { name:'客诉总数', target:'--', months:{'1月':21,'2月':8,'3月':16,'4月':13,'5月':21,'6月':9,'7月':20}, ytd:'108件', status:'warning' },
-          { name:'发光', target:'--', months:{}, ytd:'38件', status:'fail', desc:'缺陷率5.9% 偏高' },
+          { name:'发光', target:'--', months:{}, ytd:'38件', status:'fail', desc:'7月缺陷率8.5% 超标' },
           { name:'微生物', target:'--', months:{}, ytd:'38件', status:'warning' },
           { name:'生化', target:'--', months:{}, ytd:'21件', status:'pass' },
           { name:'荧光PCR', target:'--', months:{}, ytd:'10件', status:'pass' },
