@@ -284,8 +284,9 @@ async function loadQualityModules() {
           secMonths.forEach(function(mo) {
             var v = row.months[mo];
             var dir = row.direction || 'gte';
+            var hasPct = !isNaN(parseFloat(row.target));
             var c = v === '--' || v === null || v === undefined ? 'c-na' : (dir === 'lt' ? (v <= parseFloat(row.target) ? 'c-pass' : 'c-fail') : (v >= parseFloat(row.target) ? 'c-pass' : 'c-fail'));
-            var disp = v === '--' ? '-' : (v !== null && v !== undefined ? (v >= 100 ? '100' : Number(v).toFixed(1)) + (isNaN(parseFloat(row.target)) ? '' : '%') : '-');
+            var disp = v === '--' ? '-' : (v !== null && v !== undefined ? ((hasPct && v >= 100) ? '100' : String(v)) + (hasPct ? '%' : '') : '-');
             rowHtml += '<td class="' + c + '">' + disp + '</td>';
           });
           rowHtml += '<td class="' + cls + '"><b>' + row.ytd + '</b></td></tr>';
