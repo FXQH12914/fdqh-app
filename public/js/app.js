@@ -273,31 +273,48 @@ async function loadQualityModules() {
       html += '<div class="module-section"><div class="module-section-title">' + sec.title + '</div>';
 
       if (sec.type === 'table') {
-        html += '<table class="mod-table"><thead><tr>' + sec.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
-        sec.rows.forEach(function(row) {
+        // 折叠无数据行 (collapsed: true) — 仅保留有7月数据的行
+        var visibleRows = sec.rows.filter(function(r) { return !r.collapsed; });
+        var collapsedRows = sec.rows.filter(function(r) { return r.collapsed; });
+        
+        function renderTableRow(row, isSub) {
+          var rowHtml = '';
           var cls = 'c-' + row.status;
-          html += '<tr><td>' + row.name + (row.note ? ' <span style="color:#DC2626;font-size:10px;">' + row.note + '</span>' : '') + (row.desc ? ' <small style="color:var(--text-muted)">' + row.desc + '</small>' : '') + '</td><td><b>' + row.target + '</b></td>';
+          rowHtml += '<tr' + (isSub ? ' class="sub-row"' : '') + '><td>' + (isSub ? '↳ ' : '') + row.name + (row.note ? ' <span style="color:#DC2626;font-size:10px;">' + row.note + '</span>' : '') + (row.desc ? ' <small style="color:var(--text-muted)">' + row.desc + '</small>' : '') + '</td><td><b>' + row.target + '</b></td>';
           secMonths.forEach(function(mo) {
             var v = row.months[mo];
             var dir = row.direction || 'gte';
             var c = v === '--' || v === null || v === undefined ? 'c-na' : (dir === 'lt' ? (v <= parseFloat(row.target) ? 'c-pass' : 'c-fail') : (v >= parseFloat(row.target) ? 'c-pass' : 'c-fail'));
             var disp = v === '--' ? '-' : (v !== null && v !== undefined ? (v >= 100 ? '100' : Number(v).toFixed(1)) + (isNaN(parseFloat(row.target)) ? '' : '%') : '-');
-            html += '<td class="' + c + '">' + disp + '</td>';
+            rowHtml += '<td class="' + c + '">' + disp + '</td>';
           });
-          html += '<td class="' + cls + '"><b>' + row.ytd + '</b></td></tr>';
+          rowHtml += '<td class="' + cls + '"><b>' + row.ytd + '</b></td></tr>';
           if (row.children) {
             row.children.forEach(function(ch) {
-              html += '<tr class="sub-row"><td>↳ ' + ch.name + '</td><td>' + ch.target + '</td>';
+              rowHtml += '<tr class="sub-row"><td>↳ ' + ch.name + '</td><td>' + ch.target + '</td>';
               secMonths.forEach(function(mo) {
                 var v = ch.months[mo];
                 var c = v === '--' || v === null || v === undefined ? 'c-na' : (v <= parseFloat(ch.target) ? 'c-pass' : 'c-fail');
-                html += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';
+                rowHtml += '<td class="' + c + '">' + (v !== null && v !== undefined ? Number(v).toFixed(1) + '%' : '-') + '</td>';
               });
-              html += '<td class="c-' + ch.status + '"><b>' + ch.ytd + '</b></td></tr>';
+              rowHtml += '<td class="c-' + ch.status + '"><b>' + ch.ytd + '</b></td></tr>';
             });
           }
-        });
+          return rowHtml;
+        }
+        
+        html += '<table class="mod-table"><thead><tr>' + sec.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
+        visibleRows.forEach(function(row) { html += renderTableRow(row, false); });
         html += '</tbody></table>';
+        
+        // 折叠区: 暂无7月数据的指标行
+        if (collapsedRows.length) {
+          html += '<details style="margin-top:6px;font-size:11px;">' +
+            '<summary style="cursor:pointer;color:var(--text-muted);padding:4px 2px;">📁 暂无7月数据指标 (' + collapsedRows.length + '项) — 点击展开</summary>' +
+            '<table class="mod-table" style="margin-top:6px;opacity:0.8;"><thead><tr>' + sec.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
+          collapsedRows.forEach(function(row) { html += renderTableRow(row, false); });
+          html += '</tbody></table></details>';
+        }
 
       } else if (sec.type === 'list') {
         html += '<ul class="mod-list">';
