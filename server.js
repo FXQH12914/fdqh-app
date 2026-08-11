@@ -2490,6 +2490,12 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
           { name:'分子条线', target:'≤2.5%', months:{'1月':12.5,'2月':12.5,'3月':0,'4月':0,'5月':0,'6月':12.5,'7月':0}, ytd:'5.6%', status:'fail', direction:'lt' },
         ]
       },
+      { title: '仪器上市后质量 (月度)', type: 'table', headers: ['指标','目标','1月','2月','3月','4月','5月','6月','7月','YTD'],
+        rows: [
+          { name:'仪器总FFR', target:'<8%', months:{'1月':13.8,'2月':7.6,'3月':6.4,'4月':6.8,'5月':6.0,'6月':6.9,'7月':10.3}, ytd:'8.3%', status:'fail', direction:'lt', desc:'装机月度仪器维修率 7月反弹超标' },
+          { name:'仪器到货缺陷率(DOA)', target:'<8%', months:{'1月':12.5,'2月':0,'3月':0,'4月':7.7,'5月':13.3,'6月':13.3,'7月':9.6}, ytd:'8.1%', status:'fail', direction:'lt', desc:'装机时出现缺陷台数/当月装机 7月超标' },
+        ]
+      },
       { title: '客诉月度趋势', type: 'table', headers: ['指标','1月','2月','3月','4月','5月','6月','7月','合计'],
         rows: [
           { name:'客诉总数', target:'--', months:{'1月':21,'2月':8,'3月':16,'4月':13,'5月':21,'6月':9,'7月':20}, ytd:'108件', status:'warning' },
