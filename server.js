@@ -1915,32 +1915,32 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
   var closedCapas = capas.filter(function(c) { return c.status === 'Closed'; });
   var overdueCapas = capas.filter(function(c) { return c.due_date && new Date(c.due_date) < new Date() && c.status !== 'Closed'; });
 
-  // ===== 红牌 KPI from 保龄球图 (2026-05 YTD) =====
+  // ===== 红牌 KPI from 保龄球图 (2026-07 YTD) =====
   var BOWLING = {
     // 战略解码 - 仪器/试剂质量
-    doaOverallYTD: 8.7,       // 仪器到货缺陷率 Overall YTD 8.7%, target 8%
-    doaNewYTD: 9.1,           // 新产品质量 DOA YTD 9.1%
-    doaMassYTD: 7.7,          // 量产品 DOA YTD 7.7%
-    ffrOverallYTD: 8.1,       // 装机月度仪器维修率 Overall YTD 8.1%, target 8%
-    ffrNewYTD: 7.8,           // 新品维修率 YTD 7.8%
-    ffrMassYTD: 8.5,          // 量产维修率 YTD 8.5%
+    doaOverallYTD: 8.1,       // 仪器到货缺陷率 Overall YTD 8.1%, target 8%
+    doaNewYTD: 8.5,           // 新产品质量 DOA YTD 8.5%
+    doaMassYTD: 7.1,          // 量产品 DOA YTD 7.1%
+    ffrOverallYTD: 8.2,       // 装机月度仪器维修率 Overall YTD 8.2%, target 8%
+    ffrNewYTD: 8.0,           // 新品维修率 YTD 8.0%
+    ffrMassYTD: 8.2,          // 量产维修率 YTD 8.2%
     reagentDefectOverallYTD: 2.2,  // 试剂市场缺陷率 Overall YTD 2.2%, target 2.5%
-    reagentDefectCLIA: 6.0,   // 发光条线缺陷率 YTD 6.0% ⚠️
-    reagentDefectBio: 0.9,    // 生化条线 YTD 0.9%
-    reagentDefectMol: 3.7,    // 分子条线 YTD 3.7% ⚠️
+    reagentDefectCLIA: 5.9,   // 发光条线缺陷率 YTD 5.9% ⚠️
+    reagentDefectBio: 1.1,    // 生化条线 YTD 1.1%
+    reagentDefectMol: 5.6,    // 分子条线 YTD 5.6% ⚠️
 
     // 日常检验 KPI (YTD)
     pkgPassRate: 99.5,        // 包材检验合格率 99.5%, target 98%
-    rawReagentPassRate: 99.5, // 原料检验合格率（试剂）99.5%, target 99%
-    rawInstrumentPassRate: 99.0, // 原料检验合格率（仪器）99.0%, target 97%
-    semiReagentPassRate: 97.4, // 半成品检验合格率 97.4%, target 98% ⚠️
-    finalReagentPassRate: 99.9, // 成品检验合格率（试剂）99.9%, target 99%
+    rawReagentPassRate: 99.6, // 原料检验合格率（试剂）99.6%, target 99%
+    rawInstrumentPassRate: 99.1, // 原料检验合格率（仪器）99.1%, target 97%
+    semiReagentPassRate: 96.8, // 半成品检验合格率 96.8%, target 98% ⚠️
+    finalReagentPassRate: 99.1, // 成品检验合格率（试剂）99.1%, target 99%
     finalInstrumentPassRate: 100, // 成品检验合格率（仪器）100%, target 85%
-    batchRecordPassRate: 96.7, // 批记录合格率 96.7%, target 95%
-    stabilityCompleteRate: 79.2, // 稳定性检测完成率 79.2% 🔴 target 100%
+    batchRecordPassRate: 96.0, // 批记录合格率 96.0%, target 95%
+    stabilityCompleteRate: 83.9, // 稳定性检测完成率 83.9% 🔴 target 100%
     stabilityPassRate: 100,    // 稳定性检测合格率 100%
-    complaintCountYTD: 79,     // 1-5月客诉总计 79件
-    complaintsByLine: { '发光': 30, '生化': 13, '微生物': 26, '荧光PCR': 9, 'POCT': 1 },
+    complaintCountYTD: 108,     // 1-7月客诉总计 108件
+    complaintsByLine: { '发光': 38, '生化': 21, '微生物': 38, '荧光PCR': 10, 'POCT': 3 },
   };
 
   var kpis = {
@@ -1963,7 +1963,7 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
     // 🚀 提升类 — 持续改进指标 (参照TQM: 缺陷率/供应预警/SPC/培训)
     improvements: [
       { name: '试剂市场缺陷率', value: BOWLING.reagentDefectOverallYTD, target: 2.5, unit: '%', status: BOWLING.reagentDefectOverallYTD <= 2.5 ? 'pass' : 'warning', source: '市场缺陷率≤2.5%' },
-      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标 6.0%' },
+      { name: '发光条线缺陷率', value: BOWLING.reagentDefectCLIA, target: 2.5, unit: '%', status: BOWLING.reagentDefectCLIA <= 2.5 ? 'pass' : 'fail', source: '⚠️ 超目标 5.9%' },
       { name: '供应商CAPA按时关闭率', value: 85, target: 90, unit: '%', status: 85 >= 90 ? 'pass' : 'warning', source: '3个月无进料全部关闭' },
       { name: '关键风险物料提前预警率', value: 75, target: 90, unit: '%', status: 75 >= 90 ? 'pass' : 'warning', source: '预警数/需预警总数 ABC分级' },
       { name: 'SPC覆盖关键工序率', value: 65, target: 80, unit: '%', status: 65 >= 80 ? 'pass' : 'warning', source: '生产质量一体化专项' },
@@ -2178,17 +2178,17 @@ app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (re
 
   // ===== SECTION 5: 客诉分析 =====
   var complaintSection = {
-    title: '客诉分析 · 2026年1-5月 (共79件)',
+    title: '客诉分析 · 2026年1-7月 (共108件)',
     icon: '📋',
     hasData: true,
     expanded: false,
-    byMonth: { '1月': 21, '2月': 8, '3月': 16, '4月': 13, '5月': 21 },
+    byMonth: { '1月': 21, '2月': 8, '3月': 16, '4月': 13, '5月': 21, '6月': 9, '7月': 20 },
     byLine: [
-      { name: '发光', count: 30, color: '#3B82F6', risk: '缺陷率6.0%超标' },
-      { name: '微生物', count: 26, color: '#10B981', risk: 'I-SPOT/真菌药敏为主' },
-      { name: '生化', count: 13, color: '#F59E0B', risk: 'CKMB假阳/Lp(a)批间差' },
-      { name: '荧光PCR', count: 9, color: '#8B5CF6', risk: 'HBV内参/迭代偏差' },
-      { name: 'POCT', count: 1, color: '#EC4899', risk: '低' },
+      { name: '发光', count: 38, color: '#3B82F6', risk: '缺陷率5.9%超标' },
+      { name: '微生物', count: 38, color: '#10B981', risk: 'I-SPOT/真菌药敏为主' },
+      { name: '生化', count: 21, color: '#F59E0B', risk: 'CKMB假阳/Lp(a)批间差' },
+      { name: '荧光PCR', count: 10, color: '#8B5CF6', risk: 'HBV内参/迭代偏差' },
+      { name: 'POCT', count: 3, color: '#EC4899', risk: '低' },
     ],
     topIssues: [
       { product: '结核I-SPOT', line: '微生物', count: 6, detail: '抗原漏液/无标签/阳性对照无斑点' },
@@ -2202,8 +2202,8 @@ app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (re
 
   res.json({
     sections: [strategicKPIs, dailyMetrics, instrumentMetrics, systemMetrics, complaintSection],
-    updated: '2026-05',
-    dataSource: '质量管理保龄球图-202605.xlsx'
+    updated: '2026-08',
+    dataSource: '质量管理保龄球图-2026(2).xlsx'
   });
 }));
 
