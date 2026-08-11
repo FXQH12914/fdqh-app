@@ -2394,11 +2394,11 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
     sections: [
       { title: '考核指标 (KPI)', type: 'table', headers: ['指标','目标','定义'],
         rows: [
-          { name:'质量原因退货率', target:'≤0.1%', months:{}, ytd:'--', status:'na', desc:'质量原因退货盒数/放行总盒数' },
-          { name:'变更引发不合格品率', target:'≤5%', months:{}, ytd:'--', status:'na', desc:'变更后首批不合格品/该批总数' },
-          { name:'参考区间验证率', target:'100%', months:{}, ytd:'--', status:'na', desc:'验证符合样本数/总验证样本数(新行标)' },
-          { name:'仪器早期故障识别率', target:'100%', months:{}, ytd:'--', status:'na', desc:'可追溯元器件数/总使用数' },
-          { name:'产品稳定性监测达标率', target:'100%', months:{}, ytd:'--', status:'na', desc:'实时/加速稳定性符合预设标准' },
+          { name:'质量原因退货率', target:'≤0.1%', months:{}, ytd:'--', status:'na', desc:'质量原因退货盒数/放行总盒数', collapsed: true },
+          { name:'变更引发不合格品率', target:'≤5%', months:{}, ytd:'--', status:'na', desc:'变更后首批不合格品/该批总数', collapsed: true },
+          { name:'参考区间验证率', target:'100%', months:{}, ytd:'--', status:'na', desc:'验证符合样本数/总验证样本数(新行标)', collapsed: true },
+          { name:'仪器早期故障识别率', target:'100%', months:{}, ytd:'--', status:'na', desc:'可追溯元器件数/总使用数', collapsed: true },
+          { name:'产品稳定性监测达标率', target:'100%', months:{}, ytd:'--', status:'na', desc:'实时/加速稳定性符合预设标准', collapsed: true },
         ]
       },
       { title: '过程检验 & 成品 (月度)', type: 'table', headers: ['指标','目标','1月','2月','3月','4月','5月','6月','7月','YTD'],
