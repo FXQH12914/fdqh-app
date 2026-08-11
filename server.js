@@ -2278,7 +2278,7 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
       { label:'项目质量达成率', value:'92%', target:'≥90%', status:'pass', desc:'项目质量目标达成' },
       { label:'新品DOA', value:'8.5%', target:'≤8%', status:'fail', desc:'仪器到货缺陷率 YTD' },
       { label:'新品FFR', value:'8.0%', target:'≤8%', status:'warning', desc:'仪器维修率 YTD' },
-      { label:'设计变更', value:'12', target:'--', status:'info', desc:'进行中设计变更' },
+      { label:'设计变更', value:'18', target:'--', status:'info', desc:'进行中设计变更' },
     ],
     sections: [
       { title: '考核指标 (KPI)', type: 'table', headers: ['指标','定义','目标','状态'],
