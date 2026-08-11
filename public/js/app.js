@@ -243,7 +243,7 @@ async function loadQualityModules() {
   var data = await apiGet('/dashboard/quality-modules');
   if (!data || !data.modules) return;
 
-  var months = ['1月','2月','3月','4月','5月'];
+  var months = ['1月','2月','3月','4月','5月','6月','7月'];
 
   // Render tabs
   var tabsHtml = data.modules.map(function(mod) {
