@@ -3442,6 +3442,8 @@ app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
     systemCount: auditFindings.filter(function(f) { return f.category === '体系风险'; }).length,
     productCount: auditFindings.filter(function(f) { return f.category === '产品风险'; }).length,
     keyItems: auditFindings.filter(function(f) { return f.item_type === '关键项目'; }).length,
+    systemKeyItems: auditFindings.filter(function(f) { return f.category === '体系风险' && f.item_type === '关键项目'; }).length,
+    productKeyItems: auditFindings.filter(function(f) { return f.category === '产品风险' && f.item_type === '关键项目'; }).length,
     majorItems: auditFindings.filter(function(f) { return f.item_type === '主要项目'; }).length,
     generalItems: auditFindings.filter(function(f) { return f.item_type === '一般项目'; }).length,
     auditFindings: auditFindings.filter(function(f) { return f.event_type === 'Audit-Finding'; }).length,
