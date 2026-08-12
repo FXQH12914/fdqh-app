@@ -3212,102 +3212,98 @@ app.get('/api/dashboard/workshop', requireAuth, asyncHandler(async (req, res) =>
 // 对照《医疗器械生产质量管理规范检查指导原则》分类
 // ============================================================
 var auditFindings = [
-  // ===== 体系风险 (18项) =====
-  { seq: 1, category: '体系风险', risk_desc: '赋值记录缺失，实际赋值的机型少于产品定值表中载明的机型。品种多，批次多，机型多，资源少，为了产品交付，赋值记录未纳入批生产记录进行审核放行，存在数据真实性和溯源性问题。',
-    current_mitigation: '对发现有机型差的项目真实赋值（但非赋值流程，仅验证性赋值），未赋值的机型按日立机型值出具。赋值记录有要求，但当下无法实现。',
+  // ===== 体系风险 (18项) — 20260724清单V2 =====
+  { seq: 1, category: '体系风险', risk_desc: '生化产品赋值记录缺失，实际赋值的机型少于产品定值表中载明的机型。品种多，批次多，机型多，资源少，为了产品交付，赋值记录未纳入批生产记录进行审核放行，存在数据真实性和溯源性问题。',
+    current_mitigation: '短期措施：对发现有机型差的项目真实赋值（但非赋值流程，仅验证性赋值），未赋值的机型按日立机型值出具赋值记录；短期措施已落实；长期措施推进中',
     event_type: 'Audit-Finding', clause_ref: '§6.4.1, §10.4.1', clause_content: '规范第四十五条(***)/八十一条(***)：记录应当真实准确完整及时可追溯；每批产品均应当有生产记录并满足追溯要求',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
   { seq: 2, category: '体系风险', risk_desc: '部分产品生产工艺与实际操作不符，批生产记录按照工艺填写，存在数据真实性和溯源性问题，当发生不合格或客诉时不易溯源',
-    current_mitigation: '生产有真实的作业指导书，相关物料使用信息及配制记录记录在作业指导书中',
+    current_mitigation: '输出真实作业指导书，评估实际差异；按照变更（内部变更或注册变更）完成真实有效受控',
     event_type: 'Audit-Finding', clause_ref: '§10.1.1, §6.4.1', clause_content: '规范第七十八条(***)/四十五条(***)：建立生产过程控制程序并按要求组织生产；记录应当真实准确完整及时',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 3, category: '体系风险', risk_desc: '泰州持证产品委托上海进行受托生产，注册人制度下如何落实主体责任',
-    current_mitigation: '无',
-    event_type: 'Audit-Finding', clause_ref: '§12.1.1, §12.2.1', clause_content: '规范第一百零七条(***)/一百零八条(***)：委托方质量管理体系应覆盖医疗器械全生命周期；双方签订质量协议明确各自权利义务和责任',
+  { seq: 3, category: '体系风险', risk_desc: '生产现场及实验室的配制记录、称量记录、设备使用记录填写普遍存在不及时现象，未能遵循即时记录要求；研发实验室设备使用记录及冰箱温度记录长期由同一人代填，记录真实性与及时性缺失',
+    current_mitigation: '组织记录控制程序和记录要求培训；定期组织现场审核跟踪记录及时性、完整性检查',
+    event_type: 'Audit-Finding', clause_ref: '§6.4.1, §3.8.2', clause_content: '规范第四十五条(***)/二十一条(**)：记录应当真实准确完整及时清晰不得随意涂改或销毁；生产管理部门负责人应确保生产记录真实准确完整及时和可追溯',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 4, category: '体系风险', risk_desc: '无特殊要求的客户，产品发货采用泡沫箱加冰袋的方式进行运输，不符合经营质量管理规范及相关标准',
-    current_mitigation: '泡沫箱+冰袋',
-    event_type: 'Audit-Finding', clause_ref: '§13.2.1, §8.8.1', clause_content: '规范第一百一十八条(**)/六十六条(*)：采用经验证或确认的运输条件和工具运输产品并做好产品防护；仓储管理制度确保原材料中间产品成品正确贮存发放使用和运输',
+  { seq: 4, category: '体系风险', risk_desc: '研发记录和实验记录归档保存缺乏有效管理制度；人员离职交接缺乏有效移交导致资料完整性缺失',
+    current_mitigation: '输出研发记录（包括评审、实验、中试、验证）归档管理要求',
+    event_type: 'Audit-Finding', clause_ref: '§6.4.1, §7.11.1', clause_content: '规范第四十五条(***)/五十七条(**)：记录应当保证产品设计开发等活动可追溯；建立产品设计开发文档确保历次设计开发输出过程及相关活动可追溯',
     risk_class: '**', item_type: '主要项目', risk_level: 'High' },
-  { seq: 5, category: '体系风险', risk_desc: '上海委托泰州生产、长沙委托泰州生产的产品以及泰州自产的产品，经营主体均为上海，但实物均储存在泰州。泰州的仓库为生产基地仓库，非经营仓库，不满足经营质量管理规范',
-    current_mitigation: '方案1：另租厂房用于存放经营产品；方案2：现有生产地址上划出经营仓库，建立符合经营质量管理规范的体系要求',
-    event_type: 'Audit-Finding', clause_ref: '§4.5.1, §8.8.1, §13.1.1', clause_content: '规范第二十九条(*)/六十六条(*)/一百一十七条(**)：仓储区应满足原材料中间产品成品等贮存条件要求并按待检合格不合格等情形合理存放；产品销售应符合相关法规要求',
-    risk_class: '**', item_type: '主要项目', risk_level: 'High' },
-  { seq: 6, category: '体系风险', risk_desc: '生产设备、检验仪器和设备、工装夹具、工具软件等需要进行管理；目前工装夹具和工具软件未纳入日常管理（新版GMP差异）',
-    current_mitigation: '（未提供方案）',
-    event_type: 'NCR', clause_ref: '§5.1.1, §5.4.1, §9.9.1', clause_content: '规范第三十六/三十九/七十七条：配备生产设备、检验仪器和工装夹具并确保有效运行；标明编号与名称；工具软件需确认',
+  { seq: 5, category: '体系风险', risk_desc: '仪器软件问题：缺少仪器产品配套软件的管理制度（软件生命周期管理、设计开发、软件质量控制、软件部署管理等系统性文件）',
+    current_mitigation: '已组建质量牵头研发、工艺、制程等部门参与的专项组；正在梳理仪器软件适用法规、需要输出的管理制度',
+    event_type: 'Audit-Finding', clause_ref: '§9.9.1, §7.1.1', clause_content: '医疗器械生产质量管理规范独立软件附录：软件应按照软件生命周期进行管理并实施设计开发、质量控制与部署管理；规范第七十七条(**)/四十七条(**)',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 7, category: '体系风险', risk_desc: '变更应用闭环跟踪难度大：工厂端自然切换/配套切换闭环；客户端技改闭环。变更的必要性需要评审确认',
+  { seq: 6, category: '体系风险', risk_desc: 'IVDD已申报并获证，需要在11月底前完成技术文件备案；IVDR产品认证准备（技术文件及体系文件）；目前缺少系统性的法规培训',
+    current_mitigation: '需要寻找外部资源组织IVDR的专项培训；根据培训及法规要求制定或评审现有文件是否满足IVDR管理要求',
+    event_type: 'Audit-Finding', clause_ref: '§3.10.1, §6.3.1', clause_content: '规范第二十三条(**)/四十四条(*)：从事影响产品质量工作的所有人员应经过与其岗位要求相适应的培训；指定部门或人员负责识别医疗器械相关法律法规规范标准等外部文件变化及时更新体系文件',
+    risk_class: '**', item_type: '主要项目', risk_level: 'High' },
+  { seq: 7, category: '体系风险', risk_desc: '变更应用闭环跟踪难度大：1）工厂端自然切换/配套切换闭环；2）客户端技改闭环。变更的必要性需要评审确认',
     current_mitigation: '已建立明确的变更流程，对变更需求进行明确评审；变更应用评审以客户导向和市场输入为主',
     event_type: 'NCR', clause_ref: '§2.4.1, §7.10.1', clause_content: '规范第十条(***)/五十六条(***)：建立变更控制程序，根据风险程度确定变更管理类型并对变更进行评审；设计开发变更应识别评估并在实施前得到批准',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 8, category: '体系风险', risk_desc: '转产前评估不充分，未覆盖可采购性、可制造性、可维护性、可验证性、风险评估不充分；未充分识别关键过程和特殊过程；设计转化不完全，供方管控及物料控制存在缺陷',
-    current_mitigation: '正在梳理设计转换具体要求细化设计转换流程和明确职责',
+    risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
+  { seq: 8, category: '体系风险', risk_desc: '设计转移问题：1、转产前评估不充分，未覆盖可采购性、可制造性、可维护性、可验证性、风险评估不充分；2、未充分识别关键过程和特殊过程；设计转化不完全，供方管控及物料控制存在缺陷',
+    current_mitigation: '已组建质量牵头研发、工艺等部门参与的专项组；正在梳理设计转换具体要求细化设计转换流程和明确职责',
     event_type: 'Audit-Finding', clause_ref: '§7.6.1, §7.3.2, §9.4.2', clause_content: '规范第五十二条(***)/四十九条(**)/七十二条(***)：设计开发到生产的转换活动需确保相关规程得到验证并适用于商业化生产；特殊过程应经过确认，关键工序应经过验证',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 9, category: '体系风险', risk_desc: '物料平衡的文件还未正式实施（第八十二条 企业应当根据产品特性检查实际产量和关键原材料实际用量间的物料平衡）',
+    risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
+  { seq: 9, category: '体系风险', risk_desc: '生化试剂关键原材料缺少关键功能性指标，原料批间差控制缺失。尤其当下普遍降本的行情下，原料的批间差异对产品质量影响较大；2026年上半年因物料问题导致的半成品不合格有4批',
+    current_mitigation: '目前采用发现一例纠正一例，通过生产前小试（如ALP：2-氨基-2-甲基-1-丙醇)；或增加原料小试或更换生产商或变更工艺等',
+    event_type: 'NCR', clause_ref: '§8.7.1, §8.1.1, §8.5.1', clause_content: '规范第六十五条(***)/五十九条(***)/六十三条(**)：建立原材料进货验收制度对采购原材料进行检查检验或验证；采购控制程序确保原材料符合规定要求；与关键供应商签订质量协议',
+    risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
+  { seq: 10, category: '体系风险', risk_desc: '泰州持证产品委托上海进行受托生产，注册人制度下如何落实主体责任',
+    current_mitigation: '已组织专题讨论确认委托生产主体责任要求；咨询江苏药监明确主体责任管理的要求（如人员配置、住所、监督管理等）',
+    event_type: 'Audit-Finding', clause_ref: '§12.1.1, §12.2.1', clause_content: '规范第一百零七条(***)/一百零八条(***)：委托方质量管理体系应覆盖医疗器械全生命周期；双方签订质量协议明确各自权利义务和责任',
+    risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
+  { seq: 11, category: '体系风险', risk_desc: '新版GMP第八十二条**：企业应当根据产品特性检查实际产量和关键原材料实际用量间的物料平衡，确保符合设定限度要求。如有偏差应按规程调查；物料平衡文件还未正式实施',
     current_mitigation: '物料平衡文件已完成输出正处于评审阶段；平衡限度需要组织验证确认有效性',
     event_type: 'NCR', clause_ref: '§10.5.1, §10.4.2', clause_content: '规范第八十二条(**)/八十一条(*)：根据产品特性检查实际产量和关键原材料实际用量间的物料平衡确保符合设定限度要求；生产记录应体现物料平衡或记录关键原材料使用情况',
     risk_class: '**', item_type: '主要项目', risk_level: 'High' },
-  { seq: 10, category: '体系风险', risk_desc: '变更应用闭环跟踪难度大（与第7项关联，工厂端和客户端双向闭环难度大）',
-    current_mitigation: '已建立明确的变更流程，对变更需求进行明确评审',
-    event_type: 'NCR', clause_ref: '§2.4.1, §12.6.1', clause_content: '规范第十条(***)/一百一十二条(**)：建立变更控制程序；委托方设计变更、采购变更等应当及时通知受托方并监督其执行变更要求',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 11, category: '体系风险', risk_desc: '仪器产品还未完成UDI赋码导入（第九十一条 企业应当按照国家实施医疗器械唯一标识有关要求开展赋码、数据上传和维护更新）（新版GMP差异）',
-    current_mitigation: '需要评估现有UDI打印设备适用性；制定或评审受控的UDI管理规程的符合性和适用性',
+  { seq: 12, category: '体系风险', risk_desc: '新版GMP第九十一条**：企业应当按照国家实施医疗器械唯一标识有关要求开展赋码、数据上传和维护更新；仪器产品还未完成UDI赋码导入（新版GMP差异）',
+    current_mitigation: '需要评估现有UDI打印设备适用性；制定或评审受控的医疗器械唯一标识管理规程的符合性和适用性',
     event_type: 'NCR', clause_ref: '§10.14.1', clause_content: '规范第九十一条：企业应当按照国家实施医疗器械唯一标识有关要求开展赋码、数据上传和维护更新，保证信息真实、准确、完整和可追溯',
     risk_class: '**', item_type: '主要项目', risk_level: 'High' },
-  { seq: 12, category: '体系风险', risk_desc: '缺少仪器产品配套软件的管理制度（软件生命周期管理、设计开发、软件质量控制、软件部署管理等系统性文件）',
-    current_mitigation: '（未提供方案）',
-    event_type: 'NCR', clause_ref: '§9.9.1, §7.1.1', clause_content: '规范第七十七条(**)/四十七条(**)：设计开发生产检验仓储等过程中采用的计算机软件对产品质量有影响的应当进行确认并保留记录；建立设计开发控制程序对全过程实施策划和控制',
+  { seq: 13, category: '体系风险', risk_desc: '医疗器械警戒质量管理规范（试行）落实：需按新规范要求建立警戒体系并执行',
+    current_mitigation: '组织识别管理规范的要求；根据管理规范要求编制警戒实施文件（包括制度、警戒工作组及组织机构）；组织警戒相关培训',
+    event_type: 'NCR', clause_ref: '§11.8.1, §6.3.1', clause_content: '规范第九十五条(**)/四十四条(*)：按照国家医疗器械警戒质量管理规范要求开展不良事件监测与报告；指定部门或人员负责识别法规变化并及时更新体系文件',
     risk_class: '**', item_type: '主要项目', risk_level: 'High' },
-  { seq: 13, category: '体系风险', risk_desc: 'IVDD已申报并获证，需要在11月底前完成技术文件备案；和IVDR产品认证准备（技术文件及体系文件）；目前缺少系统性的法规培训',
-    current_mitigation: '（未提供方案）',
-    event_type: 'NCR', clause_ref: '§3.10.1, §6.3.1', clause_content: '规范第二十三条(**)/四十四条(*)：从事影响产品质量工作的所有人员应经过与其岗位要求相适应的培训；指定部门或人员负责识别医疗器械相关法律法规规范标准等外部文件变化及时更新体系文件',
-    risk_class: '**', item_type: '主要项目', risk_level: 'High' },
-  { seq: 14, category: '体系风险', risk_desc: '上海基地纯化水系统管理缺乏专业人员进行维护和日常监测',
-    current_mitigation: '（未提供方案）',
-    event_type: 'Audit-Finding', clause_ref: '§4.7.1, §4.7.2, §3.3.1', clause_content: '规范第三十一条(***/**)/十六条(**)：配置工艺用水系统等设施并进行确认和日常监测维护；配备足够数量并具有相应资质的专业人员',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 15, category: '体系风险', risk_desc: '研发记录和实验记录归档保存缺乏有效管理制度；人员离职交接缺乏有效移交导致资料完整性缺失',
-    current_mitigation: '（未提供方案）',
-    event_type: 'Audit-Finding', clause_ref: '§6.4.1, §7.11.1', clause_content: '规范第四十五条(***)/五十七条(**)：记录应当保证产品设计开发等活动可追溯；建立产品设计开发文档确保历次设计开发输出过程及相关活动可追溯',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 16, category: '体系风险', risk_desc: '生产检验设备等计量器具缺少系统性管理（如量程、精度和校准报告有效性确认）',
-    current_mitigation: '（未提供方案）',
+  { seq: 14, category: '体系风险', risk_desc: '新版GMP第三十六条*：企业应当配备与所生产产品和规模相匹配的生产设备、检验仪器和设备、工装夹具等，并确保有效运行；目前工装夹具和工具软件未纳入日常管理',
+    current_mitigation: '汇总各部门的工装夹具和工具软件使用情况，输出工装夹具和工具软件的管理文件将其纳入日常管理',
+    event_type: 'NCR', clause_ref: '§5.1.1, §5.4.1, §9.9.1', clause_content: '规范第三十六/三十九/七十七条：配备生产设备、检验仪器和工装夹具并确保有效运行；标明编号与名称；工具软件需确认',
+    risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
+  { seq: 15, category: '体系风险', risk_desc: '新版GMP第四十条*：企业应当按照操作规程和校准或者检定计划，定期对主要设备和仪器进行校准或者检定，校准的量程范围应当涵盖实际使用范围；生产检验设备等计量器具缺少系统性管理',
+    current_mitigation: '组织生产、质量、研发等使用计量器具部门输出量程、精度要求并要求对校准报告进行确认',
     event_type: 'NCR', clause_ref: '§5.5.1, §5.5.2, §5.5.3', clause_content: '规范第四十条(*/*/*)：按照操作规程和校准或检定计划定期对主要设备和仪器进行校准或检定且量程范围应涵盖实际使用范围；计量器具量程和精度应满足使用要求并标明有效期；保留校准或检定记录',
     risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
-  { seq: 17, category: '体系风险', risk_desc: '培训管理、健康管理未明确管理部门',
-    current_mitigation: '（未提供方案）',
+  { seq: 16, category: '体系风险', risk_desc: '上海基地纯化水系统管理缺乏专业人员进行维护和日常监测',
+    current_mitigation: '已确定新增专业人员负责纯化水系统管理（维护、消毒、日常监测）',
+    event_type: 'Audit-Finding', clause_ref: '§4.7.1, §4.7.2, §3.3.1', clause_content: '规范第三十一条(***/**)/十六条(**)：配置工艺用水系统等设施并进行确认和日常监测维护；配备足够数量并具有相应资质的专业人员',
+    risk_class: '**', item_type: '主要项目', risk_level: 'High' },
+  { seq: 17, category: '体系风险', risk_desc: '无特殊要求的客户，产品发货采用泡沫箱加冰袋的方式进行运输，不符合经营质量管理规范及冷链运输相关标准',
+    current_mitigation: '需要对目前采用的这种运输方式进行验证（包括运输时长、包装方式）；运输过程中加温度计进行运输温度记录',
+    event_type: 'Audit-Finding', clause_ref: '§13.2.1, §8.8.1', clause_content: '规范第一百一十八条(**)/六十六条(*)：采用经验证或确认的运输条件和工具运输产品并做好产品防护；仓储管理制度确保原材料中间产品成品正确贮存发放使用和运输',
+    risk_class: '**', item_type: '主要项目', risk_level: 'High' },
+  { seq: 18, category: '体系风险', risk_desc: '培训管理、健康管理未明确管理部门',
+    current_mitigation: '按照目前人员培训及健康管理文件与相关部门明确管理要求；如有异议先行修改文件再按文件要求重新明确',
     event_type: 'NCR', clause_ref: '§3.10.2, §3.11.1', clause_content: '规范第二十三条(*)/二十四条(*)：指定部门或专人负责培训管理工作建立培训制度制定培训计划保留培训记录并评估培训效果；根据生产产品特性对从事影响产品质量工作的人员进行健康管理并建立健康档案',
     risk_class: '*', item_type: '一般项目', risk_level: 'Low' },
-  { seq: 18, category: '体系风险', risk_desc: '记录滞后性：生产现场及研发实验室的配制记录、称量记录、设备使用记录填写普遍存在不及时现象；记录代填与真实性缺失：三楼研发实验室所有设备使用记录及冰箱温度记录均长期由同一人代为填写',
-    current_mitigation: '（未提供方案）',
-    event_type: 'Audit-Finding', clause_ref: '§6.4.1, §3.8.2', clause_content: '规范第四十五条(***)/二十一条(**)：记录应当真实准确完整及时清晰不得随意涂改或销毁；生产管理部门负责人应确保生产记录真实准确完整及时和可追溯',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  // ===== 产品风险 (6项) =====
-  { seq: 19, category: '产品风险', risk_desc: '生化试剂关键原材料缺少关键功能性指标，原料批间差控制缺失。2026年上半年因物料问题导致的半成品不合格有4批',
-    current_mitigation: '发现一例纠正一例，通过生产前小试或增加原料小试或更换生产商或变更工艺等',
-    event_type: 'NCR', clause_ref: '§8.7.1, §8.1.1, §8.5.1', clause_content: '规范第六十五条(***)/五十九条(***)/六十三条(**)：建立原材料进货验收制度对采购原材料进行检查检验或验证；采购控制程序确保原材料符合规定要求；与关键供应商签订质量协议明确技术要求和验收标准',
-    risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 20, category: '产品风险', risk_desc: '大包装产品质量问题被动，改善难。质量人员的专业知识不足以了解产品的全部质量风险，供应商内部变更不受控',
-    current_mitigation: '由质量部和供应商对接',
+  // ===== 产品风险 (5项) — 20260724清单V2 =====
+  { seq: 19, category: '产品风险', risk_desc: '大包装产品质量问题被动，改善难。质量人员的专业知识不足以了解产品的全部质量风险，供应商内部变更不受控',
+    current_mitigation: '由质量部和供应商对接，加强供应商变更管控',
     event_type: 'NCR', clause_ref: '§8.4.2, §8.3.2, §8.10.2', clause_content: '规范第六十二条(***)/六十一条(**)/六十八条(**)：经评估供应商存在重大缺陷的应中止采购并分析对产品带来的风险；确定是否对供应商进行现场审核；评估供应商变更对产品质量影响',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 21, category: '产品风险', risk_desc: '部分产品不满足产品技术要求，主要体现在准确度或正确度指标上。面临抽检不合格的风险',
+  { seq: 20, category: '产品风险', risk_desc: '部分产品不满足产品技术要求，主要体现在准确度或正确度指标上。面临抽检不合格的风险',
     current_mitigation: '已梳理纳入清单；改进推进中',
     event_type: 'NCR', clause_ref: '§11.3.1, §11.6.1, §7.8.1', clause_content: '规范第九十七条(***)/一百条(***)/五十四条(**)：基于风险管理原则制定进货/过程/成品检验规程；按照检验规程开展检验检测活动；对设计开发进行验证确保输出满足输入要求',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 22, category: '产品风险', risk_desc: '生化部分产品与已批准的产品说明书主要组成成分不一致（如甘油三酯、丙氨酸氨基转移酶、天门冬氨酸氨基转移酶等）',
-    current_mitigation: '（未提供方案）',
+  { seq: 21, category: '产品风险', risk_desc: '生化部分产品与已批准的产品说明书主要组成成分不一致（如甘油三酯、丙氨酸氨基转移酶、天门冬氨酸氨基转移酶等）',
+    current_mitigation: '已梳理纳入清单；改进推进中',
     event_type: 'Audit-Finding', clause_ref: '§10.7.1, §7.10.1', clause_content: '规范第八十四条(***)/五十六条(***)：产品说明书、标签应当符合相关法律法规及标准要求并进行有效管控；设计开发变更应识别评估变更影响并在实施前得到批准',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 23, category: '产品风险', risk_desc: '化学发光部分产品与已批准的产品说明书主要组成成分中缓冲液浓度不一致（如层粘蛋白、透明质酸、胃蛋白酶原I等）；与产品说明书主要组成成分不一致（如甘胆酸）',
-    current_mitigation: '（未提供方案）',
+  { seq: 22, category: '产品风险', risk_desc: '化学发光部分产品与已批准的产品说明书主要组成成分中缓冲液浓度不一致（如层粘蛋白、透明质酸、胃蛋白酶原I等）；与产品说明书主要组成成分不一致（如甘胆酸）',
+    current_mitigation: '已梳理纳入清单；改进推进中',
     event_type: 'Audit-Finding', clause_ref: '§10.7.1, §7.10.1', clause_content: '规范第八十四条(***)/五十六条(***)：产品说明书标签应符合法规及标准要求并进行有效管控；设计开发变更应识别评估变更影响并在实施前得到批准',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' },
-  { seq: 24, category: '产品风险', risk_desc: '化学发光部分产品与已批准的技术要求中原料附录不一致（如铁蛋白、人附睾蛋白4、甲胎蛋白等）',
-    current_mitigation: '（未提供方案）',
+  { seq: 23, category: '产品风险', risk_desc: '化学发光部分产品与已批准的技术要求中原料附录不一致（如铁蛋白、人附睾蛋白4、甲胎蛋白等）',
+    current_mitigation: '已梳理纳入清单；改进推进中',
     event_type: 'Audit-Finding', clause_ref: '§10.7.1, §7.5.2', clause_content: '规范第八十四条(***)/五十一条(***)：产品说明书标签应符合法规要求；设计开发输出至少应包括采购生产检验使用和服务所需相关信息以及产品技术要求等并经过验证批准',
     risk_class: '***', item_type: '关键项目', risk_level: 'Critical' }
 ];
@@ -3463,13 +3459,28 @@ app.get('/api/audit-findings', requireAuth, asyncHandler(async (req, res) => {
       return '限期整改';
     })()
   };
-  res.json({ items: itemsWithISO, summary: summary, clausePareto: clausePareto, updated: '2026-07' });
+  res.json({ items: itemsWithISO, summary: summary, clausePareto: clausePareto, updated: '2026-08' });
 }));
 
 // POST — 一键导入事件库（创建品质事件记录，去重）
 app.post('/api/audit-findings/seed', requireAuth, asyncHandler(async (req, res) => {
   var created = 0, skipped = 0;
+  var replace = req.query.replace === 'true';
   var existingEvents = await db.findAll('quality_events', {}, { sort: { created_at: -1 }, limit: 500 });
+  
+  // 替换模式：先删除旧的审计发现事件（Audit-Finding/NCR with finding_class）
+  if (replace) {
+    var deleted = 0;
+    for (var d = 0; d < existingEvents.length; d++) {
+      var ev = existingEvents[d];
+      if (ev.finding_class || ev.clause_ref) {
+        await db.delete('quality_events', ev.id, req.user.username);
+        deleted++;
+      }
+    }
+    existingEvents = []; // 清空后重新插入
+  }
+  
   for (var i = 0; i < auditFindings.length; i++) {
     var f = auditFindings[i];
     // 去重：检查是否已存在相同描述的事件
@@ -3490,7 +3501,7 @@ app.post('/api/audit-findings/seed', requireAuth, asyncHandler(async (req, res) 
     }, req.user.username);
     created++;
   }
-  res.json({ created: created, skipped: skipped, total: auditFindings.length, message: '已导入 ' + created + ' 条，跳过 ' + skipped + ' 条（已存在）' });
+  res.json({ created: created, skipped: skipped, total: auditFindings.length, message: '已导入 ' + created + ' 条，跳过 ' + skipped + ' 条' + (replace ? '（替换模式）' : '（已存在）') });
 }));
 
 
