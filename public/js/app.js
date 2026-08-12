@@ -608,6 +608,21 @@ async function exportDashboardData() {
   showToast('✅ 数据已导出 (Excel 多工作表)', 'success');
 }
 
+// ===== 质量指标导出 (五维看板全部指标) =====
+async function exportQualityIndicators() {
+  var res = await fetch(API + '/dashboard/export/indicators', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.status === 401) { logout(); return; }
+  if (!res.ok) { showToast('质量指标导出失败', 'error'); return; }
+  var blob = await res.blob();
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url; a.download = 'FDQH_quality_indicators_' + dateStr + '.xlsx';
+  document.body.appendChild(a); a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+  showToast('✅ 质量指标已导出 (7个工作表)', 'success');
+}
+
 async function downloadImportTemplate() {
   var res = await fetch(API + '/dashboard/import/template', { headers: { 'Authorization': 'Bearer ' + token } });
   if (res.status === 401) { logout(); return; }
