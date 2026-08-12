@@ -1118,7 +1118,7 @@ async function loadAuditFindingsInline(auditColor) {
   
   // === Mini KPI row ===
   html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">' +
-    '<div style="flex:1;min-width:100px;background:#FEE2E2;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#DC2626;">' + s.keyItems + '</div><div style="font-size:10px;color:#991B1B;">🔴 关键项目 ***</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#FEE2E2;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#DC2626;">' + s.keyItems + '</div><div style="font-size:10px;color:#991B1B;">🔴 关键项目 ***<br>体系' + (s.systemKeyItems || 0) + ' + 产品' + (s.productKeyItems || 0) + '</div></div>' +
     '<div style="flex:1;min-width:100px;background:#FEF3C7;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#D97706;">' + s.majorItems + '</div><div style="font-size:10px;color:#92400E;">🟡 主要项目 **</div></div>' +
     '<div style="flex:1;min-width:100px;background:#D1FAE5;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#059669;">' + s.generalItems + '</div><div style="font-size:10px;color:#065F46;">🟢 一般项目 *</div></div>' +
     '<div style="flex:1;min-width:100px;background:#EEF2FF;border-radius:6px;padding:8px 12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#4F46E5;">' + s.total + '</div><div style="font-size:10px;color:#3730A3;">📋 总计风险项</div></div>' +
@@ -1128,7 +1128,7 @@ async function loadAuditFindingsInline(auditColor) {
   var conclusionColor = s.conclusion.indexOf('暂停') >= 0 ? '#DC2626' : s.conclusion.indexOf('限期') >= 0 ? '#D97706' : '#059669';
   html += '<div style="background:' + conclusionColor + '10;border:1px solid ' + conclusionColor + '30;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:12px;">' +
     '<b style="color:' + conclusionColor + ';">⚖️ ' + s.conclusion + '</b>' +
-    '<span style="color:var(--text-muted);margin-left:8px;">依据检查指导原则判定表</span></div>';
+    '<span style="color:var(--text-muted);margin-left:8px;">依据检查指导原则判定表 · 关键项目 ' + s.keyItems + ' 项（体系 ' + (s.systemKeyItems || 0) + ' + 产品 ' + (s.productKeyItems || 0) + '）</span></div>';
   
   // === Pareto chart ===
   html += '<div class="charts-row" style="margin-bottom:12px;">' +
@@ -1243,7 +1243,7 @@ async function loadAuditFindings() {
   // === Summary KPI Cards ===
   html += '<div class="module-summary" style="margin-bottom:16px;">' +
     '<div class="module-summary-card ms-info"><div class="ms-value">' + s.total + '</div><div class="ms-label">📋 总项目数</div><div class="ms-target">体系' + s.systemCount + ' + 产品' + s.productCount + '</div></div>' +
-    '<div class="module-summary-card ms-fail"><div class="ms-value">' + s.keyItems + '</div><div class="ms-label">🔴 关键项目 ***</div><div class="ms-target">可能致产品安全风险</div></div>' +
+    '<div class="module-summary-card ms-fail"><div class="ms-value">' + s.keyItems + '</div><div class="ms-label">🔴 关键项目 ***</div><div class="ms-target">体系' + (s.systemKeyItems || 0) + ' + 产品' + (s.productKeyItems || 0) + '</div></div>' +
     '<div class="module-summary-card ms-warn"><div class="ms-value">' + s.majorItems + '</div><div class="ms-label">🟡 主要项目 **</div><div class="ms-target">多项叠加可能导致风险</div></div>' +
     '<div class="module-summary-card ms-pass"><div class="ms-value">' + s.generalItems + '</div><div class="ms-label">🟢 一般项目 *</div><div class="ms-target">有影响但程度较轻</div></div>' +
     '<div class="module-summary-card ms-info"><div class="ms-value">' + s.auditFindings + '</div><div class="ms-label">📋 内外审发现</div><div class="ms-target">Audit-Finding</div></div>' +
@@ -1255,7 +1255,7 @@ async function loadAuditFindings() {
   html += '<div style="background:' + conclusionColor + '10;border:1px solid ' + conclusionColor + '30;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">' +
     '<span style="font-size:20px;">⚖️</span>' +
     '<div><b style="color:' + conclusionColor + ';">检查结论判定: ' + s.conclusion + '</b>' +
-    '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">依据《医疗器械生产质量管理规范检查指导原则》附2/附3判定表</div></div>' +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">依据《医疗器械生产质量管理规范检查指导原则》附2/附3判定表 · 关键项目 ' + s.keyItems + ' 项（体系 ' + (s.systemKeyItems || 0) + ' + 产品 ' + (s.productKeyItems || 0) + '）&gt; 2 → 暂停生产整改</div></div>' +
     '</div>';
   
   // === Seed Button ===
@@ -1278,7 +1278,7 @@ async function loadAuditFindings() {
   // === 条款不符合项帕累托图 ===
   var cp = data.clausePareto || [];
   html += '<div class="charts-row">' +
-    '<div class="card"><div class="card-header"><h3>📊 不符合条款帕累托图 (新GMP × ISO 13485)</h3><span style="font-size:11px;">按出现频次降序 — 24项风险清单中条款引用次数分布</span></div>' +
+    '<div class="card"><div class="card-header"><h3>📊 不符合条款帕累托图 (新GMP × ISO 13485)</h3><span style="font-size:11px;">按出现频次降序 — 23项风险清单中条款引用次数分布</span></div>' +
     '<div class="card-body"><div class="chart-container" style="height:360px;"><canvas id="afClausePareto"></canvas></div>' +
     '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;font-size:10px;">' +
     cp.slice(0, 10).map(function(c) {
