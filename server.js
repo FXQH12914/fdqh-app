@@ -2212,11 +2212,7 @@ app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (re
 // QUALITY MODULES — 五维质量看板 (体系/研发/供应链/生产/上市后)
 // 参考: TQM（全面质量管理）指标确认.xlsx
 // ============================================================
-app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, res) => {
-  var events = await db.findAll('quality_events');
-  var capas = await db.findAll('capa_records');
-  var suppliers = await db.findAll('suppliers');
-
+async function buildQualityModules(events, capas, suppliers) {
   var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
   var closedComplaints = complaints.filter(function(e) { return e.status === 'Closed'; });
   var closedCapas = capas.filter(function(c) { return c.status === 'Closed'; });
@@ -2532,11 +2528,96 @@ app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, 
     ]
   };
 
-  res.json({
+  return {
     modules: [qmsModule, rdModule, scModule, mfgModule, pmsModule],
     updated: '2026-08',
     dataSources: ['TQM指标确认.xlsx', '质量管理保龄球图-2026(2).xlsx', '工厂经营会议周报7.26.xls'],
+  };
+}
+
+app.get('/api/dashboard/quality-modules', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var suppliers = await db.findAll('suppliers');
+  res.json(await buildQualityModules(events, capas, suppliers));
+}));
+
+// ============================================================
+// 质量指标导出 — 五维质量看板全部指标 (Excel)
+// ============================================================
+app.get('/api/dashboard/export/indicators', requireAuth, asyncHandler(async (req, res) => {
+  var events = await db.findAll('quality_events');
+  var capas = await db.findAll('capa_records');
+  var suppliers = await db.findAll('suppliers');
+  var qm = await buildQualityModules(events, capas, suppliers);
+
+  function str(v) { return v === null || v === undefined ? '' : String(v); }
+  function num(v) { return typeof v === 'number' ? v : str(v); }
+
+  var wb = XLSX.utils.book_new();
+  var months = ['1月','2月','3月','4月','5月','6月','7月'];
+
+  // Sheet 1: 指标总览 (Summary卡片)
+  var overview = [];
+  qm.modules.forEach(function(mod) {
+    mod.summary.forEach(function(s) {
+      overview.push({ '模块': mod.title, '指标': s.label, '当前值': str(s.value), '目标': str(s.target), '状态': s.status === 'pass' ? '达标' : s.status === 'fail' ? '未达标' : s.status === 'warning' ? '关注' : '待定', '说明': str(s.desc) });
+    });
   });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(overview), '指标总览');
+
+  // Sheet 2-6: 各模块明细 (含月度数据)
+  qm.modules.forEach(function(mod) {
+    var rows = [];
+    mod.sections.forEach(function(sec) {
+      if (sec.type === 'table' && sec.rows) {
+        sec.rows.forEach(function(row) {
+          var r = { '模块': mod.title, '表格': sec.title, '指标': row.name, '目标': str(row.target), 'YTD': str(row.ytd), '状态': row.status === 'pass' ? '达标' : row.status === 'fail' ? '未达标' : row.status === 'warning' ? '关注' : '待定', '说明': str(row.desc || row.note || '') };
+          months.forEach(function(mo) { r[mo] = row.months && row.months[mo] !== undefined ? num(row.months[mo]) : '-'; });
+          rows.push(r);
+          if (row.children) {
+            row.children.forEach(function(ch) {
+              var cr = { '模块': mod.title, '表格': sec.title + ' (子项)', '指标': ch.name, '目标': str(ch.target), 'YTD': str(ch.ytd), '状态': ch.status === 'pass' ? '达标' : ch.status === 'fail' ? '未达标' : '待定', '说明': '' };
+              months.forEach(function(mo) { cr[mo] = ch.months && ch.months[mo] !== undefined ? num(ch.months[mo]) : '-'; });
+              rows.push(cr);
+            });
+          }
+        });
+      } else if (sec.type === 'summary' && sec.items) {
+        sec.items.forEach(function(item) {
+          rows.push({ '模块': mod.title, '表格': sec.title, '指标': str(item.label), '目标': '', 'YTD': str(item.value), '状态': '', '说明': '' });
+        });
+      } else if (sec.type === 'cards' && sec.items) {
+        sec.items.forEach(function(item) {
+          rows.push({ '模块': mod.title, '表格': sec.title, '指标': str(item.name), '目标': str(item.target), 'YTD': '', '状态': '观察项', '说明': str(item.note) });
+        });
+      } else if (sec.type === 'list' && sec.items) {
+        sec.items.forEach(function(item) {
+          rows.push({ '模块': mod.title, '表格': sec.title, '指标': str(item.issue), '目标': '', 'YTD': str(item.product), '状态': item.status === 'open' ? '待解决' : '已关闭', '说明': str(item.line) });
+        });
+      }
+    });
+    var sheetName = mod.title.length > 28 ? mod.title.substring(0, 28) : mod.title;
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), sheetName);
+  });
+
+  // Sheet 7: 客诉汇总
+  var complaints = events.filter(function(e) { return e.event_type === 'Complaint'; });
+  var byMonth = {};
+  complaints.forEach(function(c) { var m = c.complaint_month; if (m) byMonth[m] = (byMonth[m] || 0) + 1; });
+  var byLine = {};
+  complaints.forEach(function(c) { var src = (c.complaint_source || '').replace('试剂投诉-', '').replace('仪器投诉-FFR', '仪器').replace('仪器投诉-DOA', '仪器'); byLine[src] = (byLine[src] || 0) + 1; });
+  var compRows = [];
+  compRows.push({ '统计项': '客诉总数 (1-7月)', '数量': complaints.length });
+  months.forEach(function(mo, i) { compRows.push({ '统计项': mo + ' 客诉数', '数量': byMonth[i + 1] || 0 }); });
+  Object.keys(byLine).forEach(function(line) { compRows.push({ '统计项': '产品线: ' + line, '数量': byLine[line] }); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(compRows), '客诉汇总');
+
+  var buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  var dateStr = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="FDQH_quality_indicators_' + dateStr + '.xlsx"');
+  res.send(buf);
 }));
 
 // ============================================================
