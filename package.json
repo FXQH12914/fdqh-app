@@ -1,6 +1,6 @@
 {
   "name": "fdqh-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "FosunDx Quality Hub - IVD Digital Quality Management Platform",
   "main": "server.js",
   "scripts": {
