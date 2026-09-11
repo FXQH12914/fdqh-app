@@ -11,9 +11,3 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
-      - key: MONGODB_URI
-        sync: false
-      - key: DEEPSEEK_API_KEY
-        sync: false
-      - key: DASHSCOPE_API_KEY
-        sync: false
