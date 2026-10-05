@@ -105,11 +105,11 @@ FDQH (FosunDx Quality Hub) 是复星诊断 IVD 数字化质量管理平台，覆
 | `/api/dashboard/alerts` | 红/黄/绿三级预警 |
 | `/api/dashboard/qhi` | 质量健康指数（TQM 三维评分） |
 | `/api/dashboard/bowling-chart` | 质量管理保龄球图（战略/日常/客诉） |
-| `/api/dashboard/complaints` | 投诉看板（2026年1-7月，565条明细） |
+| `/api/dashboard/complaints` | 投诉看板（2026年1-8月，650条明细） |
 | `/api/dashboard/workshop` | 研发生产质量一体化 Workshop |
 | `/api/dashboard/quality-modules` | TQM 五模块（QMS/研发/供应链/生产/上市后） |
 | `/api/dashboard/export/indicators` | 导出驾驶舱质量指标（7个Sheet） |
-| `/api/dashboard/import-complaints` | 导入投诉数据（565条） |
+| `/api/dashboard/import-complaints` | 导入投诉数据（650条） |
 | `/api/dashboard/import/template` | 下载导入模板 (4个Sheet) |
 | `/api/dashboard/import` | 导入数据 (Excel/JSON) |
 
@@ -156,7 +156,7 @@ QHI = 患者结果 × 40% + 合规质量 × 30% + 经营效率 × 30%
 | 仪器 DOA（到货缺陷率） | 9.6% | <8% |
 | 上线不良率 | 114 ppm | — |
 | 设计变更数 | 18 项 | — |
-| 客诉总数（1-7月） | 108 件 | — |
+| 客诉总数（1-8月·试剂） | 120 件 | — |
 
 #### 3.2.3 TQM 五模块看板
 
@@ -476,7 +476,7 @@ detection_method, frequency, owner, product_line, applicable_type
 
 | 文件 | 条数 | 用途 |
 |------|------|------|
-| `data/complaints_2026_import.json` | 565 | 2026年投诉明细（导入源） |
+| `data/complaints_2026_import.json` | 650 | 2026年1-8月投诉明细，试剂120+仪器530（导入源） |
 | `data/qcp_colloidal_gold.json` | 295 | 胶体金 QCP 字典 |
 | `data/qcp_molecular.json` | 268 | 分子PCR QCP 字典 |
 
@@ -611,6 +611,7 @@ navigate('audit')      → page-audit (审计追踪)
 | v2.20.0 | 2026-08 | 胶体金+分子 QCP字典、模板更新 |
 | **v2.21.0** | **2026-09** | **体系风险清单V2(23项)、QHI三维评分模型、7月数据同步、指标折叠、Excel导出、Render部署方案** |
 | **v2.22.0** | **2026-09** | **产品质量护照新增「试剂交付异常·四环节一体化分析」（627条）** |
+| **v2.23.0** | **2026-10** | **客户投诉数据更新至2026年8月（试剂120件/仪器530条，累计650条）** |
 
 ### v2.21.0 变更明细
 
@@ -621,7 +622,7 @@ navigate('audit')      → page-audit (审计追踪)
 3. **驾驶舱数据同步** — 保龄球图更新至6-7月；TQM 指标导入7月数据（不覆盖已有项）；
    新增「仪器上市后质量（月度）」板块（FFR 10.3% / DOA 9.6%）；
    7月缺陷率更新（总5.4% / 发光8.5% / 生化4.3%）；上线不良率 114 ppm；设计变更数 18 项
-4. **投诉看板同步** — 按保龄球图附件更新（565条明细）
+4. **投诉看板同步** — 按保龄球图附件更新（650条明细，2026年1-8月）
 5. **界面优化** — 无数据指标行自动折叠；关键项目数拆分显示；质量指标 Excel 一键导出（7个Sheet）
 6. **部署方案** — 新增 Render.com 免费层蓝图（`render.yaml`，Singapore 区域），
    Railway 试用到期后迁移；保留本地/内网部署能力
