@@ -1988,8 +1988,8 @@ app.get('/api/dashboard/kpis', requireAuth, asyncHandler(async (req, res) => {
     batchRecordPassRate: 96.0, // 批记录合格率 96.0%, target 95%
     stabilityCompleteRate: 83.9, // 稳定性检测完成率 83.9% 🔴 target 100%
     stabilityPassRate: 100,    // 稳定性检测合格率 100%
-    complaintCountYTD: 108,     // 1-7月客诉总计 108件
-    complaintsByLine: { '发光': 38, '生化': 21, '微生物': 38, '荧光PCR': 10, 'POCT': 3 },
+    complaintCountYTD: 120,     // 1-8月试剂客诉总计 120件
+    complaintsByLine: { '发光': 42, '生化': 22, '微生物': 40, '荧光PCR': 12, 'POCT': 4 },
   };
 
   var kpis = {
@@ -2092,20 +2092,21 @@ app.get('/api/dashboard/bowling-chart', requireAuth, asyncHandler(async (req, re
 
   // 客诉汇总
   var complaintStats = {
-    total: 108, period: '2026年1-7月',
-    byMonth: { '1月': 21, '2月': 8, '3月': 16, '4月': 13, '5月': 21, '6月': 9, '7月': 20 },
-    byLine: { '发光': 38, '微生物': 38, '生化': 21, '荧光PCR': 10, 'POCT': 3 },
-    byCause: { '非质量问题': 16, '设计问题': 12, '物料问题': 9, '其他问题': 9, '生产问题': 4, '工艺问题': 1 },
+    total: 120, period: '2026年1-8月',
+    byMonth: { '1月': 21, '2月': 8, '3月': 18, '4月': 13, '5月': 21, '6月': 9, '7月': 20, '8月': 10 },
+    byLine: { '发光': 42, '微生物': 40, '生化': 22, '荧光PCR': 12, 'POCT': 4 },
+    byCause: { '设计问题': 24, '非质量问题': 18, '其他问题': 16, '物料问题': 11, '生产问题': 9, '工艺问题': 1 },
     topIssues: [
-      { product: '结核I-SPOT', product_line: '微生物', count: 6, issue: '抗原漏液/无标签/阳性对照' },
-      { product: '真菌药敏试剂盒', product_line: '微生物', count: 5, issue: '花板/跳孔/识别错误' },
-      { product: 'HBV核酸检测', product_line: '荧光PCR', count: 5, issue: '内参未起/结果偏高' },
-      { product: 'CA系列（CA242/CA15-3/CA19-9）', product_line: '发光', count: 4, issue: '盲样偏差/批号变更' },
-      { product: 'PGI/PGII', product_line: '发光', count: 4, issue: '室间质评偏差/磁珠凝块' },
+      { product: '真菌药敏试剂盒', product_line: '微生物', count: 14, issue: '花板/跳孔/反向生长/识别错误' },
+      { product: '结核I-SPOT', product_line: '微生物', count: 10, issue: '抗原漏液/无标签/阳性对照无斑点' },
+      { product: 'HBV核酸检测', product_line: '荧光PCR', count: 7, issue: '内参未起/迭代后阳性率偏高' },
+      { product: '定制科研用药敏检测板', product_line: '微生物', count: 4, issue: '美罗培南跳孔/整板阴性' },
+      { product: '革兰阳性菌药敏试剂盒', product_line: '微生物', count: 4, issue: '跳孔/结果一致性差' },
+      { product: '新冠甲乙流抗原三联检', product_line: 'POCT', count: 4, issue: '裂解液储存管开裂漏液' },
     ]
   };
 
-  res.json({ strategic, daily, complaintStats, updated: '2026-08' });
+  res.json({ strategic, daily, complaintStats, updated: '2026-10' });
 }));
 
 // ============================================================
@@ -2227,32 +2228,32 @@ app.get('/api/dashboard/production-quality', requireAuth, asyncHandler(async (re
 
   // ===== SECTION 5: 客诉分析 =====
   var complaintSection = {
-    title: '客诉分析 · 2026年1-7月 (共108件)',
+    title: '客诉分析 · 2026年1-8月 (共120件)',
     icon: '📋',
     hasData: true,
     expanded: false,
-    byMonth: { '1月': 21, '2月': 8, '3月': 16, '4月': 13, '5月': 21, '6月': 9, '7月': 20 },
+    byMonth: { '1月': 21, '2月': 8, '3月': 18, '4月': 13, '5月': 21, '6月': 9, '7月': 20, '8月': 10 },
     byLine: [
-      { name: '发光', count: 38, color: '#3B82F6', risk: '缺陷率5.9%超标' },
-      { name: '微生物', count: 38, color: '#10B981', risk: 'I-SPOT/真菌药敏为主' },
-      { name: '生化', count: 21, color: '#F59E0B', risk: 'CKMB假阳/Lp(a)批间差' },
-      { name: '荧光PCR', count: 10, color: '#8B5CF6', risk: 'HBV内参/迭代偏差' },
-      { name: 'POCT', count: 3, color: '#EC4899', risk: '低' },
+      { name: '发光', count: 42, color: '#3B82F6', risk: '缺陷率8.5%超标' },
+      { name: '微生物', count: 40, color: '#10B981', risk: '药敏/I-SPOT为主' },
+      { name: '生化', count: 22, color: '#F59E0B', risk: 'CKMB假阳/Lp(a)批间差' },
+      { name: '荧光PCR', count: 12, color: '#8B5CF6', risk: 'HBV内参/迭代偏差' },
+      { name: 'POCT', count: 4, color: '#EC4899', risk: '裂解液管开裂' },
     ],
     topIssues: [
-      { product: '结核I-SPOT', line: '微生物', count: 6, detail: '抗原漏液/无标签/阳性对照无斑点' },
-      { product: '真菌药敏试剂盒', line: '微生物', count: 5, detail: '花板/跳孔/识别为革兰阴性卡' },
-      { product: 'HBV核酸检测', line: '荧光PCR', count: 5, detail: '内参未起/强阳质控偏差/迭代后阳性率偏高' },
-      { product: 'CA系列(CA242/CA15-3/CA19-9)', line: '发光', count: 4, detail: '京津冀鲁盲样不合格/批号变更偏差' },
-      { product: 'PGI/PGII/ProGRP', line: '发光', count: 4, detail: '室间质评偏差/磁珠凝块/校准品靶值' },
-      { product: '底物液', line: '发光', count: 2, detail: '原料批间差导致定标偏差(重复客诉)' },
+      { product: '真菌药敏试剂盒', line: '微生物', count: 14, detail: '花板/跳孔/反向生长/识别为革兰阴性卡' },
+      { product: '结核I-SPOT', line: '微生物', count: 10, detail: '抗原漏液/无标签/阳性对照无斑点' },
+      { product: 'HBV核酸检测', line: '荧光PCR', count: 7, detail: '内参未起/强阳质控偏差/迭代后阳性率偏高' },
+      { product: '定制科研用药敏检测板', line: '微生物', count: 4, detail: '美罗培南跳孔/整板阴性' },
+      { product: '革兰阳性菌药敏试剂盒', line: '微生物', count: 4, detail: '跳孔/结果一致性差' },
+      { product: '新冠甲乙流抗原三联检', line: 'POCT', count: 4, detail: '裂解液储存管开裂漏液' },
     ]
   };
 
   res.json({
     sections: [strategicKPIs, dailyMetrics, instrumentMetrics, systemMetrics, complaintSection],
-    updated: '2026-08',
-    dataSource: '质量管理保龄球图-2026(2).xlsx'
+    updated: '2026-10',
+    dataSource: '质量管理保龄球图-2026.xlsx'
   });
 }));
 
@@ -2510,7 +2511,7 @@ async function buildQualityModules(events, capas, suppliers) {
     id: 'pms', title: '上市后质量', icon: '🌐', subtitle: '早期探测 · 快速响应 · 持续改进 · 客户满意',
     color: '#EC4899',
     summary: [
-      { label:'客诉总数(1-7月)', value:'108件', target:'≤50件/半年', status:'warning', desc:'发光38/微生物38/生化21/分子10' },
+      { label:'客诉总数(1-8月)', value:'120件', target:'≤50件/半年', status:'warning', desc:'发光42/微生物40/生化22/分子12/POCT4' },
       { label:'试剂市场缺陷率', value:'5.4%', target:'≤2.5%', status:'fail', desc:'7月年中调整后口径 超标' },
       { label:'EQA合格率', value:'100%', target:'100%', status:'pass', desc:'室间质评参评项目' },
       { label:'到货缺陷率DOA', value:'8.1%', target:'≤5%(新标)', status:'fail', desc:'TQM新标准 ≤5%' },
@@ -2524,7 +2525,7 @@ async function buildQualityModules(events, capas, suppliers) {
           { name:'客户投诉率(试剂)', target:'≤5/万盒', months:{}, ytd:'--', status:'na', desc:'投诉次数/销售盒数×10000', collapsed: true },
           { name:'上市后12月投诉率(新品)', target:'待定', months:{}, ytd:'--', status:'na', desc:'设计/质量投诉÷总发货批次/台数', collapsed: true },
           { name:'上市后设计相关CAPA闭环率', target:'100%', months:{}, ytd:'--', status:'na', desc:'设计问题CAPA按时关闭比例', collapsed: true },
-          { name:'客诉例数(试剂)', target:'参照历史水平', months:{}, ytd:'108件', status:'warning', desc:'累计1-7月', collapsed: true },
+          { name:'客诉例数(试剂)', target:'参照历史水平', months:{}, ytd:'120件', status:'warning', desc:'累计1-8月', collapsed: true },
         ]
       },
       { title: '试剂市场缺陷率 (月度)', type: 'table', headers: ['指标','目标','1月','2月','3月','4月','5月','6月','7月','YTD'],
@@ -2541,14 +2542,14 @@ async function buildQualityModules(events, capas, suppliers) {
           { name:'仪器到货缺陷率(DOA)', target:'<8%', months:{'1月':12.5,'2月':0,'3月':0,'4月':7.7,'5月':13.3,'6月':13.3,'7月':9.6}, ytd:'8.1%', status:'fail', direction:'lt', desc:'装机时出现缺陷台数/当月装机 7月超标' },
         ]
       },
-      { title: '客诉月度趋势', type: 'table', headers: ['指标','1月','2月','3月','4月','5月','6月','7月','合计'],
+      { title: '客诉月度趋势', type: 'table', headers: ['指标','1月','2月','3月','4月','5月','6月','7月','8月','合计'], months: ['1月','2月','3月','4月','5月','6月','7月','8月'],
         rows: [
-          { name:'客诉总数', target:'--', months:{'1月':21,'2月':8,'3月':16,'4月':13,'5月':21,'6月':9,'7月':20}, ytd:'108件', status:'warning' },
-          { name:'发光', target:'--', months:{}, ytd:'38件', status:'fail', desc:'7月缺陷率8.5% 超标' },
-          { name:'微生物', target:'--', months:{}, ytd:'38件', status:'warning' },
-          { name:'生化', target:'--', months:{}, ytd:'21件', status:'pass' },
-          { name:'荧光PCR', target:'--', months:{}, ytd:'10件', status:'pass' },
-          { name:'POCT', target:'--', months:{}, ytd:'3件', status:'pass' },
+          { name:'客诉总数', target:'--', months:{'1月':21,'2月':8,'3月':18,'4月':13,'5月':21,'6月':9,'7月':20,'8月':10}, ytd:'120件', status:'warning' },
+          { name:'发光', target:'--', months:{}, ytd:'42件', status:'fail', desc:'7月缺陷率8.5% 超标' },
+          { name:'微生物', target:'--', months:{}, ytd:'40件', status:'warning' },
+          { name:'生化', target:'--', months:{}, ytd:'22件', status:'pass' },
+          { name:'荧光PCR', target:'--', months:{}, ytd:'12件', status:'pass' },
+          { name:'POCT', target:'--', months:{}, ytd:'4件', status:'pass' },
         ]
       },
       { title: '观察指标 (Monitoring) — 客服/可靠性', type: 'cards',
@@ -2657,7 +2658,7 @@ app.get('/api/dashboard/export/indicators', requireAuth, asyncHandler(async (req
   var byLine = {};
   complaints.forEach(function(c) { var src = (c.complaint_source || '').replace('试剂投诉-', '').replace('仪器投诉-FFR', '仪器').replace('仪器投诉-DOA', '仪器'); byLine[src] = (byLine[src] || 0) + 1; });
   var compRows = [];
-  compRows.push({ '统计项': '客诉总数 (1-7月)', '数量': complaints.length });
+  compRows.push({ '统计项': '客诉总数 (1-8月)', '数量': complaints.length });
   months.forEach(function(mo, i) { compRows.push({ '统计项': mo + ' 客诉数', '数量': byMonth[i + 1] || 0 }); });
   Object.keys(byLine).forEach(function(line) { compRows.push({ '统计项': '产品线: ' + line, '数量': byLine[line] }); });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(compRows), '客诉汇总');
@@ -2671,7 +2672,7 @@ app.get('/api/dashboard/export/indicators', requireAuth, asyncHandler(async (req
 
 // ============================================================
 // COMPLAINT DASHBOARD — 投诉看板
-// 数据来源: 质量管理保龄球图-2026(2).xlsx (试剂投诉汇总+仪器投诉汇总, 已导入quality_events)
+// 数据来源: 质量管理保龄球图-2026.xlsx (试剂投诉汇总+仪器投诉汇总, 已导入quality_events, 覆盖2026年1-8月)
 // ============================================================
 // 投诉数据导入 (从 data/complaints_2026_import.json)
 app.post('/api/dashboard/import-complaints', requireAuth, asyncHandler(async (req, res) => {
