@@ -817,7 +817,7 @@ async function loadComplaintsDashboard() {
   // === KPI Cards ===
   var k = data.kpi;
   html += '<div class="module-summary">' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + k.total + '</div><div class="ms-label">📢 投诉总数</div><div class="ms-target">2026上半年累计</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + k.total + '</div><div class="ms-label">📢 投诉总数</div><div class="ms-target">2026年1-8月累计</div></div>' +
     '<div class="module-summary-card ' + (k.open > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + k.open + '</div><div class="ms-label">🔴 未关闭</div><div class="ms-target">待处理中</div></div>' +
     '<div class="module-summary-card ms-pass"><div class="ms-value">' + k.closeRate + '%</div><div class="ms-label">✅ 关闭率</div><div class="ms-target">已关闭 ' + k.closed + ' 件</div></div>' +
     '<div class="module-summary-card ' + (k.highRisk > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + k.highRisk + '</div><div class="ms-label">⚠️ 高风险</div><div class="ms-target">High/Critical</div></div>' +
@@ -826,7 +826,7 @@ async function loadComplaintsDashboard() {
 
   // === Charts Row 1: 月度趋势 + 来源分布 ===
   html += '<div class="charts-row">' +
-    '<div class="card"><div class="card-header"><h3>📈 投诉月度趋势 (2026上半年)</h3></div><div class="card-body"><div class="chart-container"><canvas id="compMonthChart"></canvas></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>📈 投诉月度趋势 (2026年1-8月)</h3></div><div class="card-body"><div class="chart-container"><canvas id="compMonthChart"></canvas></div></div></div>' +
     '<div class="card"><div class="card-header"><h3>🏷️ 投诉来源分布</h3></div><div class="card-body"><div class="chart-container"><canvas id="compSourceChart"></canvas></div></div></div>' +
     '</div>';
 
@@ -890,7 +890,7 @@ async function loadComplaintsDashboard() {
 
   // === Charts ===
   setTimeout(function() {
-    var months = ['1月','2月','3月','4月','5月','6月','7月'];
+    var months = ['1月','2月','3月','4月','5月','6月','7月','8月'];
     var monthData = months.map(function(m) { return data.byMonth[parseInt(m)] || 0; });
     renderChart('compMonthChart', 'bar', months, monthData, '投诉数', '#EF4444');
 
