@@ -1420,6 +1420,54 @@ app.get('/api/plm/registry', requireAuth, asyncHandler(async (req, res) => {
   res.json({ data: filtered.slice(start, start + pageSize), page: page, pageSize: pageSize, total: total, totalPages: totalPages, summary: summary });
 }));
 
+// ---- 试剂交付异常 · 四环节一体化分析（产品质量护照·交付异常维度） ----
+app.get('/api/plm/delivery-exceptions', requireAuth, asyncHandler(async (req, res) => {
+  var fs = require('fs');
+  var path = require('path');
+  var filePath = path.join(__dirname, 'data', 'delivery_exceptions.json');
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '数据文件未找到: data/delivery_exceptions.json' });
+  var raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  var records = raw.records || [];
+
+  // 可选过滤（默认返回全部，前端做交互筛选）
+  var link = req.query.link || '';
+  var severity = req.query.severity || '';
+  var line = req.query.line || '';
+  var status = req.query.status || '';
+  var search = (req.query.search || '').toLowerCase();
+  var filtered = records;
+  if (link) filtered = filtered.filter(function(r) { return r.link === link; });
+  if (severity) filtered = filtered.filter(function(r) { return r.severity === severity; });
+  if (line) filtered = filtered.filter(function(r) { return r.productLine === line; });
+  if (status) filtered = filtered.filter(function(r) { return r.status === status; });
+  if (search) filtered = filtered.filter(function(r) {
+    return (r.desc || '').toLowerCase().indexOf(search) >= 0 ||
+      (r.productName || '').toLowerCase().indexOf(search) >= 0 ||
+      (r.origNo || '').toLowerCase().indexOf(search) >= 0 ||
+      (r.action || '').toLowerCase().indexOf(search) >= 0;
+  });
+
+  var page = parseInt(req.query.page) || 0;
+  var pageSize = parseInt(req.query.pageSize) || 0;
+  var sliced = (page > 0 && pageSize > 0) ? filtered.slice((page - 1) * pageSize, page * pageSize) : filtered;
+
+  res.json({
+    meta: raw.meta || {},
+    summary: raw.summary || {},
+    linkDist: raw.linkDist || [],
+    severityDist: raw.severityDist || [],
+    lineDist: raw.lineDist || [],
+    categoryDist: raw.categoryDist || [],
+    rootCauseDist: raw.rootCauseDist || [],
+    statusDist: raw.statusDist || [],
+    productLineMatrix: raw.productLineMatrix || [],
+    categoryMatrix: raw.categoryMatrix || [],
+    records: sliced,
+    total: filtered.length,
+    page: page, pageSize: pageSize
+  });
+}));
+
 // ============================================================
 app.get('/api/products', requireAuth, asyncHandler(async (req, res) => {
   res.json(await db.findAll('products'));
