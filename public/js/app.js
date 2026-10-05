@@ -2469,6 +2469,8 @@ async function switchPlmTab(tab) {
     });
 	    html += '</tbody></table></div></div>';
 	    html += '<div style="text-align:center;margin-top:16px;"><button class="btn btn-accent btn-sm" onclick="navigate(\'qcp\')">🎯 打开质量控制点库 →</button></div>';
+    // 试剂交付异常 · 四环节一体化分析（产品质量护照延伸区块）
+    html += '<div id="deliveryExceptionSection" style="margin-top:20px;"></div>';
 	    
 	  } else if (tab === 'productLines') {
 	    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:40px;">⏳ 加载产品线视图...</div></div>';
@@ -2783,6 +2785,227 @@ async function switchPlmTab(tab) {
   }
 
   container.innerHTML = html;
+  
+  // 交付异常分析异步加载（PLM 生命周期 Tab · 产品质量护照区块）
+  if (tab === 'lifecycle') { loadDeliveryExceptions(); }
+}
+
+// ============================================================
+// 试剂交付异常 · 四环节一体化分析（产品质量护照 · 交付异常维度）
+// ============================================================
+var _deState = { link: '', severity: '', status: '', line: '', search: '', page: 1 };
+var DE_LINK_COLORS = { '供应链质量': '#F59E0B', '生产质量': '#3B82F6', '研发质量': '#8B5CF6', '上市后质量': '#10B981' };
+
+async function loadDeliveryExceptions() {
+  var container = document.getElementById('deliveryExceptionSection');
+  if (!container) return;
+  if (window._deData) { renderDeliveryExceptions(); return; }
+  container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--text-muted);">⏳ 加载交付异常分析数据...</div></div>';
+  var data = await apiGet('/plm/delivery-exceptions');
+  if (!data || !data.summary) {
+    container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--text-muted);">❌ 交付异常数据加载失败</div></div>';
+    return;
+  }
+  window._deData = data;
+  renderDeliveryExceptions();
+}
+
+function deHeat(v, max, base) {
+  if (!v) return 'background:#F9FAFB;';
+  var a = Math.max(0.08, Math.min(0.9, v / max));
+  var rgb = base || '220,38,38';
+  return 'background:rgba(' + rgb + ',' + a.toFixed(2) + ');color:' + (a > 0.5 ? '#fff' : '#374151') + ';';
+}
+
+function renderDeliveryExceptions() {
+  var data = window._deData;
+  var container = document.getElementById('deliveryExceptionSection');
+  if (!data || !container) return;
+  var s = data.summary || {};
+  var lines = (data.lineDist || []).filter(function(x) { return x.name && x.name !== '(空)'; });
+
+  function kpiChip(label, val, color) {
+    return '<div style="flex:1;min-width:110px;background:' + color + '0D;border:1px solid ' + color + '25;border-radius:8px;padding:10px 12px;text-align:center;">' +
+      '<div style="font-size:22px;font-weight:700;color:' + color + ';">' + val + '</div>' +
+      '<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">' + label + '</div></div>';
+  }
+
+  var html = '<div class="card" style="border-top:3px solid #DC2626;">' +
+    '<div class="card-header"><h3>🧪 试剂交付异常 · 四环节一体化分析</h3><span style="font-size:11px;color:var(--text-muted);">产品质量护照 · 交付异常维度 — 来源: ' + ((data.meta && data.meta.source) || '') + ' (' + ((data.meta && data.meta.updated) || '') + ')</span></div>' +
+    '<div class="card-body">';
+
+  // === KPI 行 ===
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">' +
+    kpiChip('📋 总问题数', s.total || 0, '#6366F1') +
+    kpiChip('🔴 高严重度', s.highSeverity || 0, '#DC2626') +
+    kpiChip('📦 影响交付', s.affectedDelivery || 0, '#D97706') +
+    kpiChip('🔄 未关闭', s.open || 0, '#F59E0B') +
+    kpiChip('🏭 覆盖条线', lines.length, '#10B981') +
+    '</div>';
+
+  // === 图表行 ===
+  html += '<div class="charts-row" style="margin-bottom:16px;">' +
+    '<div class="card" style="border:none;box-shadow:none;"><div class="card-header" style="padding:6px 0;"><h3 style="font-size:13px;">🔧 四环节问题分布</h3></div>' +
+    '<div class="card-body" style="padding:0;"><div class="chart-container" style="height:230px;"><canvas id="deLinkChart"></canvas></div></div></div>' +
+    '<div class="card" style="border:none;box-shadow:none;"><div class="card-header" style="padding:6px 0;"><h3 style="font-size:13px;">📂 问题类别分布</h3></div>' +
+    '<div class="card-body" style="padding:0;"><div class="chart-container" style="height:230px;"><canvas id="deCatChart"></canvas></div></div></div>' +
+    '<div class="card" style="border:none;box-shadow:none;"><div class="card-header" style="padding:6px 0;"><h3 style="font-size:13px;">📊 处理状态分布</h3></div>' +
+    '<div class="card-body" style="padding:0;"><div class="chart-container" style="height:230px;"><canvas id="deStatusChart"></canvas></div></div></div>' +
+    '</div>';
+
+  // === 矩阵行 ===
+  var COLS = ['供应链质量', '研发质量', '生产质量', '上市后质量'];
+  function matrixTable(title, nameKey, rows, baseRgb) {
+    var max = 0;
+    rows.forEach(function(r) { COLS.forEach(function(c) { if ((r[c] || 0) > max) max = r[c]; }); });
+    var t = '<div class="card" style="border:none;box-shadow:none;"><div class="card-header" style="padding:6px 0;"><h3 style="font-size:13px;">' + title + '</h3></div>' +
+      '<div class="card-body no-padding" style="overflow-x:auto;"><table class="data-table" style="font-size:11px;"><thead><tr><th>' + (nameKey === 'line' ? '产品线' : '问题类别') + '</th>';
+    COLS.forEach(function(c) { t += '<th style="text-align:center;">' + c.replace('质量', '') + '</th>'; });
+    t += '<th style="text-align:center;">合计</th></tr></thead><tbody>';
+    var colTotal = {}; COLS.forEach(function(c) { colTotal[c] = 0; });
+    rows.forEach(function(r) {
+      t += '<tr><td style="font-weight:600;font-size:11px;">' + (r[nameKey] || '-') + '</td>';
+      COLS.forEach(function(c) {
+        var v = r[c] || 0; colTotal[c] += v;
+        t += '<td style="text-align:center;' + deHeat(v, max, baseRgb) + 'font-weight:' + (v ? 700 : 400) + ';">' + (v || '—') + '</td>';
+      });
+      t += '<td style="text-align:center;font-weight:700;background:#F3F4F6;">' + r.total + '</td></tr>';
+    });
+    t += '<tr style="background:#F9FAFB;"><td style="font-weight:700;font-size:11px;">合计</td>';
+    var grand = 0;
+    COLS.forEach(function(c) { grand += colTotal[c]; t += '<td style="text-align:center;font-weight:700;">' + colTotal[c] + '</td>'; });
+    t += '<td style="text-align:center;font-weight:700;">' + grand + '</td></tr>';
+    t += '</tbody></table></div></div>';
+    return t;
+  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px;">' +
+    matrixTable('🏭 条线 × 环节矩阵', 'line', data.productLineMatrix || [], '220,38,38') +
+    matrixTable('📂 类别 × 环节矩阵', 'category', data.categoryMatrix || [], '217,119,6') +
+    '</div>';
+
+  // === 明细台账（折叠） ===
+  html += '<details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:10px 0;color:var(--text-primary);">📋 交付异常明细台账 (' + (data.total || 0) + ' 条) — 点击展开筛选与明细</summary>' +
+    '<div id="deLedger" style="margin-top:8px;">' + renderDeLedger() + '</div></details>';
+
+  html += '</div></div>';
+  container.innerHTML = html;
+
+  // === 渲染图表 ===
+  setTimeout(function() {
+    var ld = data.linkDist || [];
+    renderPieChart('deLinkChart', ld.map(function(x) { return x.name; }), ld.map(function(x) { return x.count; }),
+      ld.map(function(x) { return DE_LINK_COLORS[x.name] || '#9CA3AF'; }));
+    var cd = data.categoryDist || [];
+    var catCtx = document.getElementById('deCatChart');
+    if (catCtx) {
+      if (charts['deCatChart']) charts['deCatChart'].destroy();
+      charts['deCatChart'] = new Chart(catCtx.getContext('2d'), {
+        type: 'bar',
+        data: { labels: cd.map(function(x) { return x.name; }), datasets: [{ label: '问题数', data: cd.map(function(x) { return x.count; }),
+          backgroundColor: cd.map(function(x) { return x.count >= 100 ? '#DC2626' : x.count >= 40 ? '#F59E0B' : '#3B82F6'; }), borderRadius: 3 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: function(c) { return '占比: ' + (cd[c.dataIndex] ? cd[c.dataIndex].pct : '-') + '%'; } } } },
+          scales: { x: { beginAtZero: true } } }
+      });
+    }
+    var sd = data.statusDist || [];
+    var STAT_COLORS = { '已关闭': '#10B981', '整改中': '#3B82F6', '待分析': '#F59E0B' };
+    renderPieChart('deStatusChart', sd.map(function(x) { return x.name; }), sd.map(function(x) { return x.count; }),
+      sd.map(function(x) { return STAT_COLORS[x.name] || '#9CA3AF'; }));
+  }, 300);
+}
+
+function renderDeLedger() {
+  var data = window._deData;
+  var st = _deState;
+  if (!data) return '';
+  var KEY_SEV = { '高': '#DC2626', '中': '#D97706', '低': '#10B981' };
+  var KEY_ST = { '待分析': '#F59E0B', '整改中': '#3B82F6', '已关闭': '#10B981' };
+  var recs = (data.records || []).filter(function(r) {
+    if (st.link && r.link !== st.link) return false;
+    if (st.severity && r.severity !== st.severity) return false;
+    if (st.status && r.status !== st.status) return false;
+    if (st.line && (r.productLine || '未标注') !== st.line) return false;
+    if (st.search) {
+      var q = st.search.toLowerCase();
+      if ((r.desc || '').toLowerCase().indexOf(q) < 0 && (r.productName || '').toLowerCase().indexOf(q) < 0 &&
+          (r.origNo || '').toLowerCase().indexOf(q) < 0 && (r.action || '').toLowerCase().indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  var pageSize = 15;
+  var totalPages = Math.max(1, Math.ceil(recs.length / pageSize));
+  if (st.page > totalPages) st.page = totalPages;
+  var pageRecs = recs.slice((st.page - 1) * pageSize, st.page * pageSize);
+
+  var h = '';
+  // 筛选栏
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;">';
+  h += '<button class="btn btn-sm ' + (!st.link ? 'btn-primary' : 'btn-outline') + '" onclick="deSetFilter(\'link\',\'\')">全部环节 (' + (data.total || 0) + ')</button>';
+  ['供应链质量', '研发质量', '生产质量', '上市后质量'].forEach(function(k) {
+    var cnt = (data.linkDist || []).filter(function(x) { return x.name === k; })[0];
+    h += '<button class="btn btn-sm ' + (st.link === k ? 'btn-primary' : 'btn-outline') + '" onclick="deSetFilter(\'link\',\'' + k + '\')">' + k.replace('质量', '') + ' (' + (cnt ? cnt.count : 0) + ')</button>';
+  });
+  h += '</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">' +
+    '<select onchange="deSetFilter(\'severity\',this.value)" style="font-size:11px;padding:4px 8px;border:1px solid #E5E7EB;border-radius:6px;">' +
+      '<option value="">严重度: 全部</option><option value="高"' + (st.severity === '高' ? ' selected' : '') + '>高 (' + (data.summary.highSeverity || 0) + ')</option>' +
+      '<option value="中"' + (st.severity === '中' ? ' selected' : '') + '>中</option><option value="低"' + (st.severity === '低' ? ' selected' : '') + '>低</option></select>' +
+    '<select onchange="deSetFilter(\'status\',this.value)" style="font-size:11px;padding:4px 8px;border:1px solid #E5E7EB;border-radius:6px;">' +
+      '<option value="">状态: 全部</option><option value="待分析"' + (st.status === '待分析' ? ' selected' : '') + '>待分析</option>' +
+      '<option value="整改中"' + (st.status === '整改中' ? ' selected' : '') + '>整改中</option><option value="已关闭"' + (st.status === '已关闭' ? ' selected' : '') + '>已关闭</option></select>' +
+    '<select onchange="deSetFilter(\'line\',this.value)" style="font-size:11px;padding:4px 8px;border:1px solid #E5E7EB;border-radius:6px;">' +
+      '<option value="">条线: 全部</option>' + (data.lineDist || []).filter(function(x) { return x.name !== '(空)'; }).map(function(x) {
+        return '<option value="' + x.name + '"' + (st.line === x.name ? ' selected' : '') + '>' + x.name + ' (' + x.count + ')</option>'; }).join('') + '</select>' +
+    '<input type="text" placeholder="🔍 搜索问题描述/产品/编号..." value="' + (st.search || '') + '" oninput="deSetFilter(\'search\',this.value)" style="flex:1;min-width:180px;font-size:11px;padding:5px 10px;border:1px solid #E5E7EB;border-radius:6px;">' +
+    '<span style="font-size:11px;color:var(--text-muted);">命中 ' + recs.length + ' 条</span></div>';
+
+  // 表格
+  h += '<div style="overflow-x:auto;"><table class="data-table" style="font-size:11px;min-width:1100px;"><thead><tr style="background:#F9FAFB;">' +
+    '<th>#</th><th>条线</th><th>产品名称/型号</th><th>环节</th><th>问题类别</th><th>问题描述</th><th>严重度</th><th>影响范围</th><th>状态</th><th>责任</th></tr></thead><tbody>';
+  if (!pageRecs.length) {
+    h += '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted);">无匹配记录</td></tr>';
+  }
+  pageRecs.forEach(function(r) {
+    var lc = DE_LINK_COLORS[r.link] || '#6B7280';
+    var sc = KEY_SEV[r.severity] || '#6B7280';
+    var tc = KEY_ST[r.status] || '#6B7280';
+    var ic = r.impact === '影响交付' ? '#DC2626' : r.impact === '多批次' ? '#D97706' : '#6B7280';
+    h += '<tr>' +
+      '<td style="color:var(--text-muted);">' + r.id + '</td>' +
+      '<td><span style="font-size:10px;background:#F3F4F6;border-radius:8px;padding:1px 6px;">' + (r.productLine || '未标注') + '</span></td>' +
+      '<td style="max-width:150px;font-size:11px;"><b>' + (r.productName || '-') + '</b>' + (r.origNo ? '<br><span style="font-size:9px;color:var(--text-muted);">' + r.origNo + '</span>' : '') + '</td>' +
+      '<td><span style="font-size:10px;font-weight:600;color:' + lc + ';">' + (r.link || '-') + (r.linkSecondary ? '<br><span style="font-weight:400;color:var(--text-muted);">+ ' + r.linkSecondary + '</span>' : '') + '</span></td>' +
+      '<td style="font-size:10px;">' + (r.category || '-') + '<br><span style="color:var(--text-muted);">根因:' + (r.rootCause || '-') + '</span></td>' +
+      '<td style="max-width:300px;font-size:11px;" title="' + (r.desc || '').replace(/"/g, '&quot;') + '">' + (r.desc || '-').slice(0, 90) + ((r.desc || '').length > 90 ? '…' : '') + '</td>' +
+      '<td><span style="font-weight:700;color:' + sc + ';">' + (r.severity || '-') + '</span></td>' +
+      '<td style="font-size:10px;color:' + ic + ';font-weight:' + (r.impact === '单批次' ? '400' : '600') + ';">' + (r.impact || '-') + '</td>' +
+      '<td><span style="font-size:10px;color:' + tc + ';font-weight:600;">' + (r.status || '-') + '</span></td>' +
+      '<td style="font-size:10px;color:var(--text-muted);">' + (r.dept || '-') + '</td>' +
+      '</tr>';
+  });
+  h += '</tbody></table></div>';
+
+  // 分页
+  h += '<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:12px;">' +
+    '<button class="btn btn-sm btn-outline" onclick="deSetPage(' + Math.max(1, st.page - 1) + ')"' + (st.page <= 1 ? ' disabled' : '') + '>‹ 上一页</button>' +
+    '<span style="font-size:12px;color:var(--text-secondary);">第 ' + st.page + ' / ' + totalPages + ' 页（共 ' + recs.length + ' 条）</span>' +
+    '<button class="btn btn-sm btn-outline" onclick="deSetPage(' + Math.min(totalPages, st.page + 1) + ')"' + (st.page >= totalPages ? ' disabled' : '') + '>下一页 ›</button>' +
+    '</div>';
+  return h;
+}
+
+function deSetFilter(key, val) {
+  _deState[key] = val;
+  _deState.page = 1;
+  var el = document.getElementById('deLedger');
+  if (el) el.innerHTML = renderDeLedger();
+}
+
+function deSetPage(p) {
+  _deState.page = p;
+  var el = document.getElementById('deLedger');
+  if (el) el.innerHTML = renderDeLedger();
 }
 
 // ===== PLM 子菜单切换 =====
