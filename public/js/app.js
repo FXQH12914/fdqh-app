@@ -816,8 +816,15 @@ async function loadComplaintsDashboard() {
 
   // === KPI Cards ===
   var k = data.kpi;
+  // 试剂/仪器拆分 (基于来源统计)
+  var srcStat = data.bySource || {};
+  var reagentCount = 0, instrumentCount = 0;
+  Object.keys(srcStat).forEach(function(s) {
+    if (s.indexOf('试剂') >= 0) reagentCount += srcStat[s];
+    else if (s.indexOf('仪器') >= 0) instrumentCount += srcStat[s];
+  });
   html += '<div class="module-summary">' +
-    '<div class="module-summary-card ms-info"><div class="ms-value">' + k.total + '</div><div class="ms-label">📢 投诉总数</div><div class="ms-target">2026年1-8月累计</div></div>' +
+    '<div class="module-summary-card ms-info"><div class="ms-value">' + k.total + '</div><div class="ms-label">📢 投诉总数</div><div class="ms-target">2026年1-8月累计 ｜ 🧪试剂 ' + reagentCount + ' · 🔧仪器 ' + instrumentCount + '</div></div>' +
     '<div class="module-summary-card ' + (k.open > 0 ? 'ms-warn' : 'ms-pass') + '"><div class="ms-value">' + k.open + '</div><div class="ms-label">🔴 未关闭</div><div class="ms-target">待处理中</div></div>' +
     '<div class="module-summary-card ms-pass"><div class="ms-value">' + k.closeRate + '%</div><div class="ms-label">✅ 关闭率</div><div class="ms-target">已关闭 ' + k.closed + ' 件</div></div>' +
     '<div class="module-summary-card ' + (k.highRisk > 0 ? 'ms-fail' : 'ms-pass') + '"><div class="ms-value">' + k.highRisk + '</div><div class="ms-label">⚠️ 高风险</div><div class="ms-target">High/Critical</div></div>' +
